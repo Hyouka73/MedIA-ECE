@@ -1,0 +1,327 @@
+
+SISTEMA MedIA
+Expediente Clínico Electrónico — Distrito de Salud I, Chiapas
+
+
+
+DOCUMENTO 5
+Seeds y Catálogos del Sistema
+INEGI · DGIS-OMS · INALI · SSA · Roles y Permisos CRUD
+
+
+1. Inventario de Catálogos del Sistema
+MedIA requiere 11 catálogos que deben estar disponibles en la base de datos antes de que el sistema sea usable. Se dividen en tres categorías: catálogos externos de instituciones gubernamentales, catálogos del sistema (seeds fijos) y datos iniciales de configuración.
+
+
+2. Catálogos INEGI — Geográficos
+2.1 cat_estados — 32 estados de la República
+Fuente: INEGI Marco Geoestadístico Nacional. URL de descarga: https://www.inegi.org.mx/app/biblioteca/ficha.html?upc=702825292463
+Para MedIA solo es estrictamente necesario el registro del estado de Chiapas (clave '07'), aunque se siembra el catálogo completo para futuras expansiones del sistema a otros distritos sanitarios.
+
+-- 02_seeds_geograficos.sql
+-- Fragmento: cat_estados (primeros registros)
+INSERT INTO cat_estados (clave_estado, nombre_estado) VALUES
+  ('01', 'Aguascalientes'),
+  ('02', 'Baja California'),
+  ('03', 'Baja California Sur'),
+  -- ... (registros 04-06)
+  ('07', 'Chiapas'),
+  -- ... (registros 08-32)
+  ('32', 'Zacatecas')
+ON CONFLICT (clave_estado) DO NOTHING;
+
+2.2 cat_municipios — 124 municipios de Chiapas
+Fuente: INEGI Marco Geoestadístico, capa de municipios, filtrado por clave_estado = '07'. Chiapas tiene 124 municipios con sus respectivas claves de 3 dígitos (001 a 124). La secuencia exacta varía por el orden de incorporación histórica.
+
+-- Fragmento cat_municipios Chiapas (clave_estado = '07')
+INSERT INTO cat_municipios (clave_municipio, clave_estado, nombre_municipio) VALUES
+  ('001', '07', 'Acacoyagua'),
+  ('002', '07', 'Acala'),
+  ('003', '07', 'Acapetahua'),
+  ('004', '07', 'Altamirano'),
+  ('005', '07', 'Amatan'),
+  -- ... continua hasta municipio 124
+  ('101', '07', 'Tuxtla Gutierrez'),  -- Sede Distrito I
+  -- ...
+  ('124', '07', 'Zinacantán')
+ON CONFLICT (clave_municipio) DO NOTHING;
+
+2.3 cat_localidades — Localidades urbanas y rurales de Chiapas
+Fuente: INEGI Catálogo de Localidades (ITER). Solo se siembran las localidades del estado 07 (Chiapas). El archivo ITER se descarga en formato DBF o CSV desde: https://www.inegi.org.mx/app/descarga/?ti=6
+
+Procedimiento de conversión desde CSV a SQL:
+Descargar ITER_07XLSX10.xlsx desde INEGI (última versión del Censo 2020)
+Abrir en Excel o Python/pandas, filtrar por ENT = '07'
+Extraer columnas: CVE_LOC (clave_localidad), CVE_MUN (clave_municipio), NOM_LOC (nombre_localidad), TIPO (tipologia: urbana/rural basada en POBTOT > 2500)
+Generar el INSERT con Python:
+# scripts/seeds/convert_localidades.py
+import pandas as pd
+
+df = pd.read_excel('ITER_07XLSX10.xlsx')
+df = df[df['ENT'] == 7]
+
+with open('03_seeds_localidades.sql', 'w') as f:
+    f.write('INSERT INTO cat_localidades (clave_localidad, clave_municipio, nombre_localidad, tipo) VALUES\n')
+    for _, row in df.iterrows():
+        clave_loc = f"{row['ENT']:02d}{row['MUN']:03d}{row['LOC']:04d}"
+        clave_mun = f"{row['MUN']:03d}"
+        nombre = str(row['NOM_LOC']).replace("'", "''")
+        tipo = 'URBANA' if row['POBTOT'] > 2500 else 'RURAL'
+        f.write(f"  ('{clave_loc}', '{clave_mun}', '{nombre}', '{tipo}'),\n")
+    f.write('ON CONFLICT (clave_localidad) DO NOTHING;')
+
+print(f'Localidades generadas: {len(df)}')
+
+3. Catálogos Clínicos — DGIS, OMS, SSA, INALI
+3.1 cat_cie10 — Diagnósticos CIE-10 (DGIS/OMS)
+Fuente oficial: Dirección General de Información en Salud (DGIS) — Secretaría de Salud. La versión vigente para México es CIE-10 Modificación Clínica. El archivo se descarga desde: https://www.gob.mx/salud/acciones-y-programas/estadisticas-y-sistemas-de-informacion
+
+Este catálogo es crítico para la normatividad: la NOM-024-SSA3-2012 exige que todos los diagnósticos en el expediente clínico electrónico usen el código CIE-10 oficial vigente. El campo diagnóstico de la UI debe usar autocompletado conectado a este catálogo (gap identificado en NOTAS_PENDIENTES.md).
+
+-- Fragmento cat_cie10
+INSERT INTO cat_cie10 (id_cie10, codigo_cie, descripcion) VALUES
+  (1,    'A00',   'Colera'),
+  (2,    'A00.0', 'Colera debida a Vibrio cholerae 01, biotipo cholerae'),
+  (3,    'A00.1', 'Colera debida a Vibrio cholerae 01, biotipo El Tor'),
+  (4,    'A00.9', 'Colera, no especificada'),
+  -- ... 14,400+ registros
+  (5789, 'E11',   'Diabetes mellitus tipo 2'),
+  (5790, 'E11.0', 'Diabetes mellitus tipo 2 con coma'),
+  (5791, 'E11.9', 'Diabetes mellitus tipo 2 sin complicaciones'),
+  -- ... continua
+  (14400,'Z99.9', 'Dependencia de dispositivo no especificado')
+ON CONFLICT (id_cie10) DO NOTHING;
+
+Procedimiento de conversión desde archivo DGIS:
+Descargar archivo CIE-10 de DGIS (formato XLS o CSV)
+Limpiar caracteres especiales y tildes problemáticas
+Ejecutar script Python que genera los INSERTs por lotes de 1000 registros
+Copiar al directorio db/migrations/ con nombre 03_seeds_cie10.sql
+
+3.2 cat_medicamentos — Cuadro Básico SSA
+Fuente: Secretaría de Salud — Cuadro Básico y Catálogo de Medicamentos del Sector Salud. Disponible en: https://www.csg.gob.mx/descargas/pdf/priorizacion/cuadro-basico/med/catalogo/2022/EDICION_2022_CBCM.pdf
+
+-- Fragmento cat_medicamentos (Cuadro Básico SSA)
+INSERT INTO cat_medicamentos (id_medicamento, codigo_medicamento_ssa, nombre_generico) VALUES
+  (gen_random_uuid(), '010.000.0193.00', 'Acetaminofen (Paracetamol)'),
+  (gen_random_uuid(), '010.000.0280.00', 'Aciclovir'),
+  (gen_random_uuid(), '010.000.0313.00', 'Acido Acetilsalicilico'),
+  (gen_random_uuid(), '010.000.1736.00', 'Albendazol'),
+  (gen_random_uuid(), '010.000.0001.00', 'Amikacina'),
+  -- ... ~900 medicamentos del Cuadro Basico
+  (gen_random_uuid(), '010.000.5567.00', 'Metformina')
+ON CONFLICT (codigo_medicamento_ssa) DO NOTHING;
+
+3.3 cat_lenguas_indigenas — INALI, variantes de Chiapas
+Fuente: Instituto Nacional de Lenguas Indígenas (INALI) — Catálogo de lenguas indígenas nacionales. Chiapas concentra más de 12 grupos etnolingüísticos. Este catálogo es crítico para la seguridad del paciente: activa alerta de barrera lingüística en el módulo de encuentros clínicos.
+
+-- cat_lenguas_indigenas — Variantes relevantes en Chiapas
+INSERT INTO cat_lenguas_indigenas (id_lengua, variante_especifica) VALUES
+  (1,  'Espanol'),
+  (2,  'Tseltal (tseltal del norte)'),
+  (3,  'Tseltal (tseltal del sur)'),
+  (4,  'Tsotsil (tsotsil de Simojovel)'),
+  (5,  'Tsotsil (tsotsil de Zinacatan)'),
+  (6,  'Chol (chol de Tila)'),
+  (7,  'Chol (chol de Tumbalá)'),
+  (8,  'Tojolabal'),
+  (9,  'Zoque (zoque del norte)'),
+  (10, 'Zoque (zoque del sur)'),
+  (11, 'Mam (mam de Chiapas)'),
+  (12, 'Kanjobal (qanjobal)'),
+  (13, 'Jacalteco (popti)'),
+  (14, 'Mocho'),
+  (15, 'Lacandón'),
+  (16, 'Chuj'),
+  (17, 'Ixil'),
+  (18, 'Chuuj'),
+  (19, 'Lengua de Senas Mexicana (LSM)'),
+  (20, 'Otra lengua no catalogada')
+ON CONFLICT (id_lengua) DO NOTHING;
+
+3.4 cat_especialidades_medicas — Listado Normado
+-- cat_especialidades_medicas
+INSERT INTO cat_especialidades_medicas (id_especialidad, nombre_especialidad) VALUES
+  (1,  'Medicina General'),
+  (2,  'Medicina Familiar'),
+  (3,  'Pediatría'),
+  (4,  'Ginecología y Obstetricia'),
+  (5,  'Medicina Interna'),
+  (6,  'Cirugía General'),
+  (7,  'Urgencias'),
+  (8,  'Odontología General'),
+  (9,  'Enfermería General'),
+  (10, 'Nutrición'),
+  (11, 'Psicología Clínica'),
+  (12, 'Trabajo Social'),
+  (13, 'Ortopedia y Traumatología'),
+  (14, 'Dermatología'),
+  (15, 'Oftalmología')
+ON CONFLICT (id_especialidad) DO NOTHING;
+
+4. Seeds Fijos del Sistema
+4.1 cat_modulos — 8 Módulos del Sistema
+Este seed es fijo y refleja los módulos funcionales de MedIA. Cualquier cambio requiere una nueva versión del sistema (nunca se actualiza en producción directamente).
+-- cat_modulos (seed fijo, no modificar en produccion)
+INSERT INTO cat_modulos (id_modulo, nombre_modulo, descripcion) VALUES
+  (1, 'DASHBOARD',       'Panel de inicio condicional por rol'),
+  (2, 'PACIENTES',       'Búsqueda, registro y perfil de pacientes'),
+  (3, 'EXPEDIENTE',      'Historia clínica: antecedentes e inmunizaciones'),
+  (4, 'CONSULTA',        'Stepper SOAP: signos, nota, CIE-10, receta, firma'),
+  (5, 'REFERENCIAS',     'Sistema de referencia y contrarreferencia (SRC)'),
+  (6, 'DOCUMENTOS',      'Descarga PDF de receta, nota y solicitudes'),
+  (7, 'AUDITORIA',       'Bitácora filtrable e incidentes de seguridad'),
+  (8, 'ADMINISTRACION',  'CRUD usuarios, roles, establecimientos'),
+  (9, 'SEGURIDAD',       'Sesiones activas, invalidar tokens, bloqueos')
+ON CONFLICT (id_modulo) DO NOTHING;
+
+4.2 roles — 6 Roles del Sistema
+-- Tabla roles
+INSERT INTO roles (id_rol, nombre_rol, descripcion) VALUES
+  (1, 'MEDICO_GENERAL',      'Médico de primer nivel, acceso a consulta y expediente propio'),
+  (2, 'MEDICO_ESPECIALISTA', 'Médico con especialidad registrada, acceso cross-establecimiento con referencia'),
+  (3, 'ENFERMERIA',          'Personal de enfermería: signos vitales y triage'),
+  (4, 'ADMINISTRADOR',       'Gestión de usuarios, establecimientos y catálogos del nodo'),
+  (5, 'AUDITOR_SEGURIDAD',   'Solo lectura de bitácoras, incidentes y reportes de acceso'),
+  (6, 'SUPERADMIN',          'Acceso total al sistema incluyendo métricas y sesiones activas')
+ON CONFLICT (id_rol) DO NOTHING;
+
+4.3 permisos_rol — Matriz CRUD Completa
+Se generan 9 módulos x 6 roles = 54 combinaciones de acceso, cada una con flags de CREATE, READ, UPDATE, DELETE. La siguiente tabla muestra la matriz simplificada antes de los INSERTs SQL.
+
+
+-- permisos_rol (fragmento — MEDICO_GENERAL)
+INSERT INTO permisos_rol (id_permiso, id_rol, id_modulo, puede_crear, puede_leer, puede_actualizar, puede_eliminar) VALUES
+  (gen_random_uuid(), 1, 1, FALSE, TRUE,  FALSE, FALSE),  -- DASHBOARD
+  (gen_random_uuid(), 1, 2, TRUE,  TRUE,  FALSE, FALSE),  -- PACIENTES
+  (gen_random_uuid(), 1, 3, TRUE,  TRUE,  TRUE,  FALSE),  -- EXPEDIENTE
+  (gen_random_uuid(), 1, 4, TRUE,  TRUE,  TRUE,  FALSE),  -- CONSULTA
+  (gen_random_uuid(), 1, 5, TRUE,  TRUE,  TRUE,  FALSE),  -- REFERENCIAS
+  (gen_random_uuid(), 1, 6, TRUE,  TRUE,  FALSE, FALSE),  -- DOCUMENTOS
+  (gen_random_uuid(), 1, 7, FALSE, FALSE, FALSE, FALSE),  -- AUDITORIA
+  (gen_random_uuid(), 1, 8, FALSE, FALSE, FALSE, FALSE),  -- ADMINISTRACION
+  (gen_random_uuid(), 1, 9, FALSE, FALSE, FALSE, FALSE)   -- SEGURIDAD
+ON CONFLICT DO NOTHING;
+-- NOTA: Replicar para id_rol 2-6 ajustando los booleanos segun la matriz.
+
+4.4 permisos_especialidad — Seed Inicial por Rol
+Controlat qué especialidades puede ver un médico en otros establecimientos. Al momento del seed, todos los médicos generales tienen acceso solo a MEDICINA_GENERAL (id_especialidad = 1). Las demás se habilitan desde el panel de administración.
+-- permisos_especialidad (seed inicial por establecimiento)
+-- Se ejecuta despues de poblar establecimientos_especialidades
+-- Ejemplo: UMF-01 Tuxtla solo tiene Medicina General activa
+INSERT INTO permisos_especialidad
+  (id_permiso_esp, id_establecimiento, id_especialidad, id_rol, activo)
+SELECT
+  gen_random_uuid(),
+  e.id_establecimiento,
+  1,  -- Medicina General
+  r.id_rol,
+  TRUE
+FROM establecimientos e
+CROSS JOIN roles r
+WHERE r.id_rol IN (1, 2, 3)  -- Solo roles clínicos
+ON CONFLICT DO NOTHING;
+
+4.5 Usuario SUPERADMIN Inicial
+Este es el único usuario que se crea como seed. Debe cambiarse la contraseña en el primer inicio de sesión. La contraseña se hashea con Argon2id antes de insertar. NUNCA se inserta en texto plano.
+
+
+-- Seed usuario superadmin — HASH DE EJEMPLO, reemplazar con hash real
+INSERT INTO personas (id_persona, nombre, primer_apellido, fecha_nacimiento,
+  sexo, clave_localidad, id_lengua_materna, creado_en)
+VALUES (
+  gen_random_uuid(), 'SUPERADMIN', 'SISTEMA', '1990-01-01',
+  'M', '070010001', 1, NOW()
+);
+
+INSERT INTO usuarios_sistema (id_usuario, id_persona, id_rol, username,
+  password_hash, totp_secret_encrypted, activo, forzar_cambio_password)
+SELECT
+  gen_random_uuid(),
+  p.id_persona,
+  6,  -- SUPERADMIN
+  'superadmin',
+  '<HASH_ARGON2ID_AQUI>',
+  '<TOTP_SECRET_CIFRADO_AES256_AQUI>',
+  TRUE,
+  TRUE   -- Forzar cambio en primer login
+FROM personas p
+WHERE p.primer_apellido = 'SISTEMA' AND p.nombre = 'SUPERADMIN';
+
+5. Integración con Docker — Ejecución Automática de Seeds
+El directorio db/migrations/ se monta como volumen read-only en el contenedor de PostgreSQL. Docker ejecuta automáticamente todos los archivos .sql en orden lexicográfico al primer arranque. La estructura de archivos debe ser:
+
+db/migrations/
+  01_schema.sql          -- DDL: CREATE TABLE, triggers, indices
+  02_indices.sql         -- Indices adicionales de rendimiento
+  03_seeds_catalogos.sql -- Seeds: estados, municipios, localidades
+  04_seeds_clinicos.sql  -- Seeds: CIE-10, medicamentos, lenguas
+  05_seeds_sistema.sql   -- Seeds: modulos, roles, permisos_rol
+  06_seeds_superadmin.sql-- Seed: usuario superadmin inicial
+
+
+6. Procedimiento de Actualización de Catálogos
+6.1 Actualización de CIE-10 cuando DGIS publica nueva versión
+Descargar nueva versión del archivo CIE-10 de DGIS
+Comparar con versión anterior usando script Python de diff:
+# scripts/seeds/diff_cie10.py
+import pandas as pd
+
+old = pd.read_sql('SELECT codigo_cie, descripcion FROM cat_cie10', conn)
+new_data = pd.read_excel('CIE10_DGIS_nueva_version.xlsx')
+
+nuevos = new_data[~new_data['codigo_cie'].isin(old['codigo_cie'])]
+modificados = new_data[new_data['codigo_cie'].isin(old['codigo_cie']) &
+                       (new_data['descripcion'] != old['descripcion'])]
+
+print(f'Codigos nuevos: {len(nuevos)}')
+print(f'Descripciones modificadas: {len(modificados)}')
+Los códigos nuevos se insertan con INSERT ... ON CONFLICT DO NOTHING
+Las descripciones modificadas se actualizan solo si el código no tiene diagnósticos asociados en diagnosticos_encuentro (integridad referencial)
+Si hay códigos con diagnósticos activos con descripción modificada, agregar nuevo registro y marcar el anterior como deprecated = TRUE (soft deprecation)
+Invalidar cache CDN del catálogo: POST /admin/cache/invalidate con body {'catalogo': 'cat_cie10'}
+Documentar la actualización en la bitácora del sistema con: fecha, versión DGIS anterior, versión nueva, número de registros modificados
+
+6.2 Actualización de Cuadro Básico SSA
+La SSA publica actualizaciones del Cuadro Básico tipicamente una vez al año. El procedimiento es similar: comparar, insertar nuevos medicamentos, nunca eliminar los que ya tienen prescripciones asociadas (ON DELETE RESTRICT en la FK).
+
+7. Checklist de Persona 5 — Tarea de Seeds
+La Persona 5 es responsable de la preparación de todos los archivos de seeds y su integración en el pipeline de Docker. El siguiente checklist debe completarse antes de la semana 3 del proyecto.
+
+
+Fase 1 — Catálogos INEGI (Días 1-2)
+[ ] Descargar Marco Geoestadístico INEGI de inegi.org.mx
+[ ] Generar 03_seeds_geograficos.sql con cat_estados (32 registros)
+[ ] Filtrar y generar INSERT para cat_municipios Chiapas (124 registros)
+[ ] Ejecutar script convert_localidades.py con ITER_07 más reciente
+[ ] Validar: SELECT COUNT(*) FROM cat_localidades WHERE tipo='RURAL'; (debe ser > 0)
+
+Fase 2 — Catálogos Clínicos (Días 3-4)
+[ ] Descargar archivo CIE-10 de DGIS/SSA
+[ ] Ejecutar script de conversión, generar 04_seeds_cie10.sql
+[ ] Validar conteo de registros CIE-10 (esperado: > 14,000)
+[ ] Descargar Cuadro Básico SSA más reciente (PDF o Excel oficial)
+[ ] Transcribir/convertir medicamentos a SQL con codigo_medicamento_ssa
+[ ] Completar cat_lenguas_indigenas con variantes INALI Chiapas (mínimo 15 variantes)
+[ ] Completar cat_especialidades_medicas (mínimo 15 especialidades)
+
+Fase 3 — Seeds del Sistema (Día 5)
+[ ] Generar 05_seeds_sistema.sql: cat_modulos (8), roles (6), permisos_rol (54 registros)
+[ ] Validar matriz de permisos con el equipo de backend
+[ ] Generar hash Argon2id para password temporal del superadmin
+[ ] Generar TOTP secret y QR para el superadmin
+[ ] Registrar credentials iniciales en documento seguro compartido con Dev Lead (NUNCA en Git)
+[ ] Generar 06_seeds_superadmin.sql con hash incluido (no contraseña)
+
+Fase 4 — Validación Docker (Día 6)
+[ ] Copiar todos los archivos SQL a db/migrations/
+[ ] Ejecutar docker compose down -v && docker compose up -d
+[ ] Validar que PostgreSQL levantó sin errores: docker logs media_postgres
+[ ] Ejecutar consultas de validación:
+SELECT COUNT(*) FROM cat_estados; -- Esperado: 32
+SELECT COUNT(*) FROM cat_municipios WHERE clave_estado='07'; -- Esperado: 124
+SELECT COUNT(*) FROM cat_cie10; -- Esperado: > 14,000
+SELECT COUNT(*) FROM roles; -- Esperado: 6
+SELECT COUNT(*) FROM permisos_rol; -- Esperado: 54
+[ ] Notificar al equipo que los seeds están listos para revisión
+[ ] Crear Pull Request con los archivos de seeds para revisión del Dev Lead

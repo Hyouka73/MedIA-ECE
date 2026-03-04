@@ -1,0 +1,223 @@
+
+Reporte Técnico de Modelado de Base de Datos
+Sistema MedIA — ECE Chiapas
+Distrito de Salud I – Tuxtla Gutiérrez, Chiapas
+
+Introducción
+El presente documento técnico detalla el diseño arquitectónico definitivo de la base de datos para el sistema de Expediente Clínico Electrónico (ECE) denominado MedIA. Este modelo ha sido diseñado para operar sobre Azure Database for PostgreSQL, optimizado para el contexto geográfico y sociocultural de Chiapas, en estricto cumplimiento con las normas NOM-004-SSA3-2012 (Del expediente clínico) y NOM-024-SSA3-2012 (Sistemas de información de registro electrónico para la salud).
+La base de datos emplea un enfoque relacional de alta integridad, aprovechando tipos de datos nativos de PostgreSQL como UUID, TIMESTAMPTZ, ENUM, JSONB e INET. El modelo ha evolucionado de 27 entidades originales a 40 entidades, incorporando: (1) control de acceso granular por especialidad y establecimiento, (2) trazabilidad completa de cambios en datos clínicos sensibles, (3) gestión del ciclo de vida de incidentes de seguridad, (4) soporte estructurado para el Sistema de Referencia y Contrarreferencia normado, y (5) catálogos geográficos basados en el INEGI para el domicilio estructurado del paciente.
+
+
+Sección 1 — Entidades del Modelo (40 entidades)
+  GRUPO 1 — Identidad Base (1 entidad)  
+1. personas
+
+  GRUPO 2 — Catálogos Geográficos INEGI (3 entidades)  
+2. cat_estados
+
+3. cat_municipios
+
+4. cat_localidades
+
+  GRUPO 3 — Catálogos Clínicos y de Sistema (6 entidades)  
+5. jurisdicciones_sanitarias
+
+6. establecimientos
+
+7. cat_cie10
+
+8. cat_medicamentos
+
+9. cat_especialidades_medicas
+
+10. cat_lenguas_indigenas
+
+11. cat_modulos
+
+  GRUPO 4 — Configuración de Red Asistencial (2 entidades)  
+12. establecimientos_especialidades
+
+  GRUPO 5 — Usuarios y Control de Acceso (5 entidades)  
+13. usuarios_sistema
+
+14. roles
+
+15. permisos_rol
+
+16. usuarios_establecimientos
+
+17. permisos_especialidad
+
+  GRUPO 6 — Identidad Clínica del Paciente (3 entidades)  
+18. pacientes
+
+19. pacientes_tutores_representantes
+
+20. alergias
+
+  GRUPO 7 — Historia Clínica — Antecedentes (5 entidades)  
+21. antecedentes_heredofamiliares
+
+22. antecedentes_patologicos
+
+23. antecedentes_no_patologicos
+
+24. antecedentes_ginecoobstetricos
+
+25. inmunizaciones
+
+  GRUPO 8 — Núcleo del Acto Médico — Consulta Externa (9 entidades)  
+26. encuentros_clinicos
+
+27. notas_medicas
+
+28. notas_soap_detalle
+
+29. notas_enmienda
+
+30. diagnosticos_encuentro
+
+31. signos_vitales
+
+32. prescripciones
+
+33. solicitudes_estudio
+
+34. resultados_laboratorio
+
+  GRUPO 9 — Coordinación Asistencial (1 entidad)  
+35. referencias_medicas
+
+  GRUPO 10 — Seguridad Activa (4 entidades)  
+36. auditoria_accesos
+
+37. incidentes_seguridad
+
+38. sesiones_invalidas
+
+39. bitacora_recuperacion
+
+  GRUPO 11 — Trazabilidad de Cambios (1 entidad)  
+40. historial_cambios
+
+
+Sección 2 — Reglas de Inalterabilidad y Triggers
+Para cumplir con la NOM-004-SSA3-2012, los registros clínicos firmados no pueden ser editados ni eliminados. Se implementan cinco triggers en PostgreSQL que garantizan estas reglas de forma estructural, independientemente de la capa de aplicación.
+
+Trigger 1 — Inmutabilidad de la Bitácora de Auditoría
+Bloquea cualquier intento de UPDATE o DELETE en la tabla auditoria_accesos. La bitácora es un registro médico-legal que no puede ser alterado bajo ninguna circunstancia.
+
+Trigger 2 — Bloqueo de Notas Clínicas Firmadas
+Impide la modificación de una nota clínica una vez que el campo esta_firmada es TRUE. Implementa el principio de inmutabilidad del acto médico documentado conforme a NOM-004 numeral 5.10.
+
+Trigger 3 — Historial de Cambios en Datos Clínicos
+Función genérica reutilizable que registra automáticamente el estado anterior y nuevo de cualquier campo modificado en las tablas clínicas y de seguridad configuradas. Se aplica mediante triggers individuales en cada tabla auditada.
+
+Trigger 4 — Bloqueo de Contención por Intentos Fallidos
+Activa el bloqueo temporal de una cuenta cuando el contador de intentos_fallidos alcanza el umbral definido (5 intentos). Implementa el mecanismo de contención automática requerido por el documento de seguridad.
+
+Trigger 5 — Alerta de Incidente Crítico
+Crea automáticamente un registro en incidentes_seguridad cuando se registra un evento con nivel_severidad CRITICO o ALTO en la bitácora de auditoría, iniciando el ciclo de vida del incidente para atención del Auditor de Seguridad.
+
+Trigger 6 — Registro Forense de Borrado Lógico
+Cuando se ejecuta un borrado lógico (soft delete) en cualquier tabla clínica, este trigger registra automáticamente el evento en auditoria_accesos con nivel_severidad ALTO, cumpliendo el Req 6 de Cómputo Forense. El borrado físico (DELETE) está prohibido en tablas clínicas mediante permisos de base de datos — el único mecanismo de 'eliminación' permitido es actualizar eliminado_en.
+
+Sección 3 — Gestión de Catálogos y Normalización
+Los catálogos de MedIA se implementan como entidades estáticas sembradas en la fase de inicialización del sistema (seed). Se clasifican en tres tipos:
+
+
+Integridad referencial: Todos los catálogos clínicos aplican ON DELETE RESTRICT en sus FK. Esto garantiza que un diagnóstico CIE-10 o medicamento no pueda eliminarse si ya forma parte de un encuentro clínico previo, preservando la integridad histórica del expediente.
+
+Sección 4 — Persistencia de Archivos y Generación de Documentos
+MedIA implementa una política clara sobre el origen de los documentos clínicos: los documentos del expediente son GENERADOS por el sistema a partir de datos ya registrados, nunca subidos manualmente por el médico. Esta decisión garantiza autoría verificable, timestamp confiable del servidor y firma electrónica del sistema — cumpliendo NOM-004 y los principios forenses del Req 1.
+
+Documentos Generados por el Sistema (PDF desde datos registrados)
+
+Archivos Externos — Azure Blob Storage (único caso de upload)
+El único archivo que entra al sistema desde una fuente externa es el resultado de laboratorio en PDF, proveniente del sistema externo de laboratorio. Este es el único caso donde aplica el campo hash_archivo en auditoria_accesos. El médico nunca sube documentos clínicos — esa responsabilidad queda en el sistema generador.
+
+
+Sección 5 — Seguridad y Control de Acceso (RBAC)
+El control de acceso basado en roles (RBAC) se implementa mediante tres capas complementarias. Esta arquitectura multicapa cumple NOM-024-SSA3-2012 numeral 4.1 y los requisitos de seguridad del documento de incidentes.
+
+Capa 1 — Permisos por Módulo (permisos_rol)
+Define qué operaciones CRUD puede realizar cada rol sobre cada módulo del sistema. Administrable desde la interfaz sin intervención técnica.
+
+Capa 2 — Visibilidad por Especialidad (permisos_especialidad)
+Restringe qué notas puede ver un médico en accesos cross-establecimiento según la especialidad generadora. Dentro del mismo establecimiento, el expediente es único y compartido conforme a NOM-004.
+
+Capa 3 — Acceso Cross-Establecimiento (referencias_medicas)
+Las notas clínicas de otro establecimiento solo son accesibles si existe una referencia médica con estado ACEPTADA o ATENDIDA. Los datos de identidad y seguridad (personas, alergias, antecedentes) son accesibles para cualquier médico con un encuentro activo abierto para el paciente, independientemente del establecimiento de origen.
+
+VIEWs de Seguridad
+Se crean vistas por nivel de acceso para limitar la exposición de datos sensibles conforme al documento de seguridad:
+
+Sección 7 — Diagrama de Relaciones (Topología del Modelo)
+El modelo se organiza en cuatro dominios funcionales con relaciones claramente definidas:
+
+Dominio 1 — Identidad Base y Geografía
+
+Dominio 2 — Red Asistencial y Control de Acceso
+
+Dominio 3 — Historia Clínica del Paciente
+
+Dominio 4 — Núcleo del Acto Médico
+
+Sección 6 — Cumplimiento de Requerimientos de Cómputo Forense
+El modelo de base de datos cubre de forma estructural los 9 requerimientos del documento de Cómputo Forense de la BUAP. Los requerimientos que no requieren cambio en el modelo de BD se resuelven en la capa de aplicación (FastAPI) y se documentan aquí para trazabilidad del diseño.
+
+
+Sección 8 — Distribución Centralizada vs. Distribuida (Cómputo Distribuido)
+El modelo de distribución de datos responde a los principios de cómputo distribuido aplicados al contexto geográfico del Distrito de Salud I: unidades médicas urbanas con buena conectividad y clínicas rurales con conectividad limitada o intermitente.
+
+
+Sincronización y Descomposición de Consultas
+Sincronización: Las escrituras clínicas se dirigen siempre al servidor primario en Azure (East US). Los catálogos replicados en CDN se invalidan mediante una llamada al endpoint de administración cuando el coordinador del Distrito actualiza un catálogo.
+Descomposición de consultas: Una consulta de 'historial completo de paciente' se descompone internamente en: (1) datos demográficos desde caché CDN si disponible, (2) antecedentes desde servidor primario, (3) notas SOAP desde servidor primario con validación de referencia médica activa. Los pasos 2 y 3 nunca se cachean por ser datos clínicos sensibles.
+
+Sección 9 — Reglas de Negocio Fundamentales
+Las siguientes cuatro reglas gobiernan el comportamiento del sistema en la capa de aplicación (backend FastAPI). Son las reglas que convierten el modelo de datos en un sistema normativamente sólido y no solo en un esquema de tablas relacionadas.
+
+Regla 1 — Datos de Identidad y Seguridad son Universales
+Las tablas personas, alergias y todos los antecedentes son visibles para cualquier médico autenticado que tenga un encuentro_clinico activo (fecha_cierre = NULL) abierto para ese paciente, independientemente del establecimiento de origen de los datos. Justificación normativa: la NOM-004 considera estos datos como información de seguridad clínica indispensable para cualquier acto médico. Un médico no puede atender de forma segura a un paciente sin conocer sus alergias.
+
+Regla 2 — Notas Clínicas son Propiedad del Establecimiento
+Las notas_medicas y notas_soap_detalle de un establecimiento A solo son accesibles para un médico del establecimiento B si existe en referencias_medicas un registro con estado ACEPTADA o ATENDIDA que vincule al paciente con el establecimiento B. Sin referencia activa, el acceso devuelve HTTP 403 y genera un registro en auditoria_accesos con tipo_evento = 'ACCESO_SIN_REFERENCIA'. Fundamento: NOM-004 + Ley General de Protección de Datos Personales en Posesión de Sujetos Obligados.
+
+Regla 3 — La Especialidad del Establecimiento Limita el Acceso Cross-Establecimiento
+Incluso con referencia médica activa, el médico del establecimiento destino solo accede a las notas de las especialidades que su propio establecimiento tiene registradas como activas en establecimientos_especialidades. Un odontólogo con referencia puede ver notas de odontología y antecedentes, pero no notas de ginecología. Esta regla refleja la realidad clínica: un establecimiento sin capacidad instalada en ginecología no tiene necesidad asistencial de ver esos datos.
+
+Regla 4 — Todo Acceso Queda Registrado Sin Excepción
+Cada operación de lectura, escritura, intento fallido y denegación genera un registro en auditoria_accesos con el contexto completo: id_establecimiento_origen (desde dónde), id_establecimiento_dato (de quién es el dato), tipo_evento y nivel_severidad. Esta regla se implementa como middleware en FastAPI antes de que la petición llegue a la lógica de negocio, garantizando que incluso los intentos bloqueados queden registrados.
+
+
+Sección 10 — Contexto Chiapas y Decisiones de Diseño
+
+Identidad sin CURP — Poblaciones Vulnerables
+Dada la realidad demográfica del estado, la CURP en la tabla personas es NULL permitido. El sistema genera automáticamente un numero_expediente basado en la fecha de atención y un hash UUID aleatorio para pacientes que no cuenten con CURP al momento de la consulta. Esto garantiza que ningún paciente sea excluido del sistema por carecer de documentación.
+
+Domicilio Estructurado con Catálogo INEGI
+El campo de domicilio no es TEXT libre. Se implementa mediante FK a cat_localidades (catálogo INEGI) complementado con campos de calle y referencia_geografica. El campo referencia_geografica (NULL permitido) captura direcciones no formales: 'Frente a la cancha ejidal', 'A 2 km de la cabecera municipal'. Esto permite reportes epidemiológicos reales por municipio y localidad para la coordinación del Distrito.
+
+Enfoque Intercultural de Primer Contacto
+El registro de id_lengua_materna en personas activa una alerta visual en el módulo de encuentros_clinicos para que el personal médico identifique inmediatamente si existe una barrera lingüística total o parcial. Chiapas cuenta con más de 12 grupos etnolingüísticos activos según el INALI, y la comunicación médico-paciente es un componente crítico de la seguridad clínica.
+
+Conectividad Rural y Timestamp de Creación
+Las notas_medicas conservan el campo fecha_creacion con el timestamp real del momento en que el médico elaboró la nota, independientemente de cuándo se sincronice con el servidor central. Esto preserva el orden cronológico exigido por NOM-004 incluso en escenarios de reconexión tras pérdida de señal en clínicas rurales atendidas por Azure CDN y Azure Front Door.
+
+Sección 11 — Criterios de Disponibilidad, Auditoría y Recuperación
+
+Auditoría Inmutable
+La tabla auditoria_accesos registra el contexto geográfico completo de cada acceso: IP del cliente, establecimiento de origen, establecimiento propietario del dato, tipo de evento y nivel de severidad. El trigger tr_audit_no_changes prohíbe cualquier operación de UPDATE o DELETE, haciendo la bitácora técnicamente inalterable a nivel de base de datos.
+
+Firma Electrónica Simple
+El bloqueo de notas médicas se activa mediante el flag esta_firmada. Una vez activo, el trigger tr_notes_protection impide cualquier alteración al cuerpo de la nota SOAP. Las correcciones posteriores se realizan exclusivamente mediante notas_enmienda, preservando el registro original visible conforme a NOM-004.
+
+Resiliencia y Recuperación — Azure PostgreSQL
+Azure Database for PostgreSQL proporciona respaldos automáticos con retención configurable (7–35 días) y Point-In-Time Recovery (PITR) con granularidad de 5 minutos. El procedimiento de recuperación se documenta en bitacora_recuperacion. El plan de continuidad operativa contempla failover a réplica de lectura en caso de caída del servidor primario, con redirección del DATABASE_URL en Azure App Service.
+
+Replicación de Base de Datos
+La replicación no se implementa como código propio del equipo. Azure Database for PostgreSQL proporciona replicación síncrona y failover automático como característica nativa del servicio gestionado. Implementar replicación manualmente sobre esta plataforma duplicaría capacidad ya provista, introduciendo riesgos de inconsistencia innecesarios. Se documenta el procedimiento de configuración en Azure Portal como parte del manual de operaciones.
+
+Resumen — Inventario de Entidades (40 tablas)
+

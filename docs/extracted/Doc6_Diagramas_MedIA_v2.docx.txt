@@ -1,0 +1,139 @@
+
+SISTEMA MedIA
+Expediente Clínico Electrónico — Distrito de Salud I, Chiapas
+
+
+
+DOCUMENTO 6
+Descripción de Diagramas del Sistema
+Arquitectura · Casos de Uso · Flujos Clínicos · Seguridad
+
+
+Diagrama 1 — Arquitectura del Sistema
+Este diagrama describe la topología completa de MedIA en producción, mostrando todos los componentes tecnológicos y sus relaciones de comunicación. Se organiza en cinco capas horizontales que representan el recorrido de una petición desde el navegador del usuario hasta la base de datos.
+
+Capa 1 — Usuarios y Dispositivos
+Los actores del sistema son seis tipos de usuarios: Médico General, Médico Especialista, Enfermería, Administrador, Auditor de Seguridad y Superadmin. Cada uno accede al sistema desde un navegador web moderno (Chrome, Firefox, Edge) instalado en una computadora de escritorio o laptop en las unidades médicas del Distrito I de Chiapas. No se requiere instalación de cliente.
+
+Capa 2 — Frontend (Azure Static Web Apps)
+La interfaz de usuario es una Single Page Application (SPA) construida con React 18 y Vite, desplegada en Azure Static Web Apps. Esta capa incluye los 9 módulos del sistema (Dashboard, Pacientes, Expediente, Consulta, Referencias, Documentos, Auditoría, Administración y Seguridad), el sistema de enrutamiento basado en roles y los componentes de la librería shadcn/ui.
+El frontend no almacena datos clínicos permanentemente. Solo gestiona estado local de sesión (JWT en memoria) y cache de catálogos estáticos cacheados en memoria durante la sesión. IndexedDB descartado del MVP (mejora futura). El token JWT tiene vigencia de 30 minutos en producción y no se almacena en localStorage por Requisito Forense 8.
+
+Capa 3 — Azure Front Door + CDN
+Actúa como punto único de entrada al sistema. Tiene dos funciones: (a) enrutamiento inteligente de peticiones API hacia el backend más cercano y (b) caché de catálogos estáticos en nodos CDN. Los catálogos CIE-10, municipios y medicamentos tienen un TTL de 24 horas en CDN, reduciendo la latencia en clínicas rurales de Chiapas con ancho de banda limitado.
+Front Door valida el certificado TLS y rechaza todo tráfico HTTP plano, garantizando cifrado en tránsito conforme a NOM-024-SSA3-2012.
+
+Capa 4 — Backend (Azure App Service)
+La API REST está construida con FastAPI y Python 3.11, desplegada en Azure App Service (plan B1, Linux (Free tier en prueba, B1 para demo final)). Es el núcleo de la lógica de negocio y seguridad del sistema. Sus responsabilidades incluyen:
+Autenticación JWT + TOTP (2FA): valida credenciales, emite tokens con claims de rol y establecimiento
+Middleware de auditoría: registra toda petición en auditoria_accesos ANTES de procesar la lógica de negocio
+Control de acceso granular: aplica las 4 Reglas de Negocio del Reporte Técnico v3
+Generación de SAS tokens efímeros (TTL 15 min) para acceso a documentos en Blob Storage
+Orquestación de firma electrónica: calcula SHA-256 del cuerpo de la nota antes de activar el flag esta_firmada
+Gestión del ciclo de vida de incidentes: CRUD del módulo de seguridad
+
+Capa 5 — Datos y Almacenamiento (Azure)
+Esta capa contiene tres servicios de datos:
+Azure Database for PostgreSQL (Flexible Server): base de datos principal con 40 tablas, triggers de auditoría inmutable, soft delete en 7 tablas clínicas y PITR con retención de 14 días.
+Azure Blob Storage: repositorio exclusivo de archivos de origen externo — PDFs de resultados de laboratorio y documentos de tutores. Los documentos generados por el sistema (receta, nota SOAP, solicitud, referencia) se producen on-demand con WeasyPrint y NO se persisten en Blob. Acceso exclusivamente mediante SAS tokens generados por el backend. Nunca expuesto directamente al frontend.
+Azure Key Vault: almacenamiento seguro de todos los secretos del sistema (cadena de conexión BD, SECRET_KEY JWT, credenciales de Blob Storage). El backend lee los secretos en tiempo de arranque mediante Managed Identity, sin credenciales hardcodeadas.
+
+Conexiones del Diagrama
+
+Diagrama 2 — Casos de Uso por Rol
+Este diagrama describe las acciones que puede realizar cada uno de los seis roles definidos en MedIA. Se organiza como un diagrama de casos de uso UML donde cada rol (actor) tiene una elipse de casos de uso asociados.
+
+Actor 1 — MEDICO_GENERAL
+Rol de primer nivel de atención. Es el actor más activo del sistema. Sus casos de uso principales son:
+Buscar y registrar pacientes nuevos en el sistema
+Consultar el expediente clínico completo de un paciente con encuentro activo
+Registrar signos vitales e iniciar encuentro clínico
+Redactar nota SOAP completa (Subjetivo, Objetivo, Análisis, Plan)
+Seleccionar diagnóstico CIE-10 con autocompletado por código o descripción
+Generar y firmar electrónicamente la nota médica (NOM-151)
+Prescribir medicamentos del Cuadro Básico SSA
+Emitir referencias médicas a otras unidades del Distrito I
+Descargar PDF de nota firmada, receta electrónica y solicitudes de estudio
+Agregar o confirmar alergias del paciente con clasificación por severidad
+
+Actor 2 — MEDICO_ESPECIALISTA
+Comparte todos los casos de uso del Médico General con capacidades adicionales:
+Acceder a notas médicas de otros establecimientos del Distrito cuando existe referencia médica activa con estado ACEPTADA o ATENDIDA
+Visualizar solo las especialidades que su establecimiento tiene registradas en establecimientos_especialidades
+Emitir contrarreferencias al establecimiento de origen
+Registrar resultados de estudios de laboratorio vinculados a solicitudes previas
+
+Actor 3 — ENFERMERIA
+Rol de soporte clínico. Sus casos de uso son:
+Consultar listado de pacientes en espera de signos vitales (dashboard rol enfermería)
+Registrar signos vitales: tensión arterial, frecuencia cardíaca, temperatura, peso, talla, saturación de oxígeno
+Visualizar alergias del paciente (solo lectura) para alertas de triage
+Consultar expediente del paciente (solo lectura, sin acceso a notas SOAP completas)
+
+Actor 4 — ADMINISTRADOR
+Gestión operativa del nodo (establecimiento). Sus casos de uso son:
+CRUD completo de usuarios del sistema dentro de su establecimiento
+Asignar y revocar roles a usuarios
+Configurar especialidades activas del establecimiento
+Visualizar usuarios activos y últimos accesos
+Leer bitácora de auditoría del establecimiento (no puede modificarla)
+Actualizar información del establecimiento (nombre, turno, consultorio)
+
+Actor 5 — AUDITOR_SEGURIDAD
+Rol de solo lectura con acceso exclusivo a módulos de auditoría. Sus casos de uso son:
+Visualizar bitácora de accesos filtrada por fecha, usuario, módulo, tipo de evento o nivel de severidad
+Ver lista de incidentes de seguridad activos y resueltos
+Consultar el detalle completo de un incidente: timeline, evidencias, acciones tomadas
+Exportar reportes de auditoría en PDF para autoridades sanitarias
+Ver sesiones activas del sistema (solo lectura, sin poder invalidarlas)
+
+Actor 6 — SUPERADMIN
+Acceso total al sistema. Incluye todos los casos de uso anteriores más:
+Ver métricas del sistema en tiempo real: usuarios activos, carga de la BD, errores recientes
+Invalidar sesiones activas de cualquier usuario
+Bloquear y desbloquear cuentas de usuario
+Gestionar el ciclo de vida completo de incidentes (crear, clasificar, contener, erradicar, cerrar)
+Acceder al módulo de seguridad: sesiones activas, tokens inválidos
+Ejecutar invalidación de cache CDN para catálogos actualizados
+Crear establecimientos y jurisdicciones sanitarias
+
+Diagrama 3 — Flujo de Consulta Médica Completa
+Este diagrama describe el flujo de negocio más crítico del sistema: una consulta médica completa desde el registro de signos vitales hasta la firma electrónica de la nota SOAP, cumpliendo con NOM-004-SSA3-2012.
+
+
+
+
+Diagrama 4 — Flujo de Login con 2FA
+Este diagrama describe el proceso de autenticación de dos factores (2FA) que cumple NOM-024-SSA3-2012 para sistemas de información en salud. Se usa TOTP (Time-based One-Time Password) con ventana de 30 segundos.
+
+
+
+
+Diagrama 5 — Flujo de Referencia Médica entre Establecimientos
+La referencia médica es el mecanismo normado para transferir la responsabilidad asistencial de un paciente de un establecimiento a otro dentro del Distrito I. Este flujo implementa el Sistema de Referencia y Contrarreferencia (SRC) normado por la Secretaría de Salud y registrado en la tabla referencias_medicas del modelo.
+
+
+Sub-flujo A — Emisión de la Referencia
+
+Sub-flujo B — Aceptación y Atención
+
+Sub-flujo C — Contrarreferencia
+
+Diagrama 6 — Flujo de Incidente de Seguridad
+Este diagrama describe el ciclo de vida completo de un incidente de seguridad en MedIA, desde su detección automática o manual hasta su cierre formal. Implementa los requisitos forenses 1, 5 y 7 del documento de Cómputo Forense y gestiona la tabla incidentes_seguridad del modelo de datos.
+
+Fase 1 — Detección
+Un incidente de seguridad puede detectarse por cuatro vías:
+Alerta automática de Azure Monitor: CPU > 80%, intentos de login fallidos > 20 en 5 min, HTTP 5xx > 10
+Trigger de PostgreSQL: el trigger tr_audit_no_changes detecta intento de modificar auditoria_accesos y genera alerta de nivel CRÍTICO
+Detección manual por AUDITOR_SEGURIDAD: al revisar la bitácora, identifica patrones anómalos
+Reporte externo: usuario reporta comportamiento inusual al Administrador
+
+Fase 2 — Clasificación
+
+Fase 3 — Contención
+
+Fase 4 — Erradicación
+
+Fase 5 — Cierre Formal
+

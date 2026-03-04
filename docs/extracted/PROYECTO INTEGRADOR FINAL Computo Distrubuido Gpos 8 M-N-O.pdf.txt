@@ -1,0 +1,121 @@
+PROYECTO INTEGRADOR FINAL 
+Licenciatura en Ingeniería en Tecnologías y Desarrollo de Software            UNACH 
+Materia: CÓMPUTO DISTRIBUIDO 
+ 
+1. Documento para los Alumnos 
+1.1 Introducción 
+El presente Proyecto Integrador tiene como objetivo que el estudiante diseñe y analice un Sistema de Información 
+con Base de Datos Distribuida, aplicando los conceptos vistos en la materia de Cómputo Distribuido, y 
+articulándolo con otras asignaturas del semestre como Bases de Datos, Ingeniería de Software, Desarrollo Web y 
+Seguridad Informática. 
+El proyecto se desarrollará a partir de uno de los temas propuestos en el documento “Proyectos de Investigación”, 
+el cual deberá adaptarse al enfoque de bases de datos distribuidas. 
+ 
+1.2 Objetivo General 
+Diseñar un modelo de Base de Datos Distribuida, justificando la centralización y distribución de las entidades, así 
+como la arquitectura, sincronización y seguridad del sistema propuesto. 
+1.3 Objetivos Específicos 
+• 
+Analizar un dominio real y sus necesidades de información. 
+• 
+Diseñar un modelo entidad-relación normalizado. 
+• 
+Identificar entidades centralizadas y distribuidas. 
+• 
+Proponer una arquitectura distribuida. 
+• 
+Justificar tecnologías de frontend, backend, base de datos y seguridad. 
+ 
+1.4 Elección del Tema y Enfoques Permitidos 
+Cada equipo deberá seleccionar uno de los siguientes enfoques sectoriales, los cuales están alineados con el 
+documento Proyectos de Investigación y son obligatorios para este curso: 
+1. Finanzas (sistemas financieros, banca, fintech, pagos, créditos) 
+2. Retail (ventas omnicanal, inventarios, puntos de venta) 
+3. Manufactura (producción, control de procesos, inventarios industriales) 
+4. Logística – Rutas (gestión de transporte, rastreo, optimización de rutas) 
+5. Energía (gestión de generación, consumo y monitoreo energético) 
+
+6. Manufactura Pesada (plantas industriales, sensores, mantenimiento) 
+7. Seguros (gestión de pólizas, reclamaciones, detección de fraude) 
+8. Agroindustria (producción agrícola, riego, monitoreo de cultivos) 
+ 
+El proyecto elegido deberá adaptarse a un sistema de información con Base de Datos Distribuida, manteniendo 
+entidades equivalentes a: 
+• 
+Clientes o usuarios 
+• 
+Productos, servicios o recursos 
+• 
+Ventas, transacciones o contratos 
+• 
+Proveedores 
+• 
+Empleados u operadores 
+• 
+Inventarios o registros operativos 
+• 
+Compras o movimientos generados por los clientes 
+Nota: El nombre de las entidades puede variar según el sector, pero su función dentro del sistema debe ser 
+claramente identificable y justificada. 
+ 
+1.5 Lineamientos del Diseño de Base de Datos 
+El proyecto deberá incluir: 
+• 
+Finalidad de la base de datos 
+• 
+Identificación de entidades y atributos 
+• 
+Tablas y columnas 
+• 
+Claves primarias 
+• 
+Relaciones 
+• 
+Normalización (mínimo hasta 3FN) 
+• 
+Ajustes por rendimiento (si aplica) 
+ 
+1.6 Enfoque de Base de Datos Distribuida 
+Se deberá justificar: 
+• 
+Qué entidades son centralizadas y por qué 
+• 
+Qué entidades son distribuidas y por qué 
+
+• 
+Estrategia de sincronización 
+• 
+Descomposición de consultas 
+ 
+1.7 Tecnologías a Utilizar 
+Se deberá justificar la elección de: 
+• 
+Frontend (React, Vue, Angular u otro) 
+• 
+Backend (Node.js, Python, Java, etc.) 
+• 
+Base de Datos (PostgreSQL, MySQL, MongoDB, etc.) 
+• 
+Seguridad (JWT, bcrypt, control de roles) 
+ 
+1.8 Arquitectura del Sistema 
+El proyecto debe incluir un diagrama y descripción de: 
+• 
+Frontend 
+• 
+Backend / API REST 
+• 
+Base de Datos Distribuida 
+• 
+Comunicación entre componentes 
+ 
+1.9 Seguridad del Sistema 
+Explicar: 
+• 
+Autenticación y autorización 
+• 
+Encriptación de contraseñas 
+• 
+Protección de datos sensibles 
+ 
+

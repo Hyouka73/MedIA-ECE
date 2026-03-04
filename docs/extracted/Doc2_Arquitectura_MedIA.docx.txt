@@ -1,0 +1,321 @@
+
+UNIVERSIDAD AUTÓNOMA DE CHIAPAS
+Facultad de Ciencias en Física y Matemáticas · IDTS
+
+MedIA — Expediente Clínico Electrónico
+Distrito de Salud I · Tuxtla Gutiérrez, Chiapas
+
+DOCUMENTO 2
+Arquitectura General del Sistema
+8° Semestre · IDTS · UNACH · Cómputo Distribuido · Enero–Junio 2026
+
+1. Stack Tecnológico y Justificación
+
+Cada tecnología del stack fue seleccionada con criterios técnicos específicos para el contexto de un sistema de salud con 40 entidades, normativa mexicana estricta y despliegue en zona geográfica con conectividad variable.
+1.1 Frontend — React + Vite + shadcn/ui + DM Sans
+Tabla 1.1 — Justificación del stack frontend
+1.2 Backend — Python + FastAPI + SQLAlchemy + Pydantic
+Tabla 1.2 — Justificación del stack backend
+1.3 Base de Datos — PostgreSQL 15 en Azure
+Tabla 1.3 — Justificación de la plataforma de base de datos
+1.4 Infraestructura Azure
+Tabla 1.4 — Servicios de infraestructura Azure y sus roles
+
+2. Entorno de Desarrollo con Docker
+
+El entorno de desarrollo local usa un único contenedor Docker para PostgreSQL. El backend (FastAPI) y el frontend (Vite) corren directamente en el sistema operativo del desarrollador para máxima velocidad de iteración.
+docker-compose.yml — PostgreSQL de Desarrollo
+  # docker-compose.yml — MedIA Development
+  # SOLO para desarrollo local. En producción usar Azure Database for PostgreSQL.
+  version: '3.9'
+  services:
+    postgres:
+      image: postgres:15-alpine
+      container_name: media_db_dev
+      restart: unless-stopped
+      environment:
+        POSTGRES_DB: ${POSTGRES_DB:-media_db}
+        POSTGRES_USER: ${POSTGRES_USER:-media_dev}
+        POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      ports:
+        - "5432:5432"
+      volumes:
+        - media_postgres_data:/var/lib/postgresql/data
+        - ./database/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+        - ./database/02_triggers.sql:/docker-entrypoint-initdb.d/02_triggers.sql
+        - ./database/03_seeds.sql:/docker-entrypoint-initdb.d/03_seeds.sql
+      healthcheck:
+        test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER:-media_dev}']
+        interval: 10s
+        timeout: 5s
+        retries: 5
+  volumes:
+    media_postgres_data: {}
+Importante: Los scripts SQL en /docker-entrypoint-initdb.d/ se ejecutan automáticamente solo cuando el volumen está vacío (primera vez). Para re-inicializar: docker-compose down -v && docker-compose up.
+
+3. Estructura Completa de Carpetas
+
+3.1 Backend — Python / FastAPI
+  backend/
+  ├── app/
+  │   ├── main.py             # Registro de routers, CORS, middleware stack
+  │   ├── config.py           # Settings Pydantic (carga .env, valida vars)
+  │   ├── database.py         # AsyncEngine + AsyncSession factory
+  │   │
+  │   ├── middleware/
+  │   │   ├── auth.py         # Valida JWT, verifica blacklist en sesiones_invalidas
+  │   │   ├── audit.py        # Registra CADA request en auditoria_accesos (Req 4 Forense)
+  │   │   └── sanitize.py     # Bleach (XSS) + regex (SQLi) en parámetros de entrada
+  │   │
+  │   ├── models/             # SQLAlchemy ORM — una clase por entidad
+  │   │   ├── base.py         # Base declarativa + metadata
+  │   │   ├── personas.py     # PersonaModel, CatEstadoModel, etc.
+  │   │   ├── usuarios.py     # UsuarioSistemaModel, RolModel, PermisoRolModel
+  │   │   ├── pacientes.py    # PacienteModel, AlergiaModel, AntecedentesModel
+  │   │   ├── clinico.py      # EncuentroModel, NotaMedicaModel, NotaSoapDetalleModel
+  │   │   ├── seguridad.py    # AuditoriaAccesosModel, IncidenteModel
+  │   │   └── ...             # (un archivo por grupo de entidades relacionadas)
+  │   │
+  │   ├── schemas/            # Pydantic v2 — schemas de request y response
+  │   │   ├── auth.py         # LoginIn, TokenOut, TotpSetupOut, TotpVerifyIn
+  │   │   ├── pacientes.py    # PacienteCreateIn, PacienteOut, ExpedienteOut
+  │   │   ├── clinico.py      # EncuentroCreateIn, NotaSoapIn, FirmaOut
+  │   │   └── ...             # (schema separado por dominio)
+  │   │
+  │   ├── routers/            # FastAPI APIRouter — rutas por módulo
+  │   │   ├── auth.py         # /auth/login, /auth/refresh, /auth/logout, /auth/2fa/*
+  │   │   ├── personas.py     # /personas
+  │   │   ├── pacientes.py    # /pacientes, /pacientes/{id}/expediente
+  │   │   ├── encuentros.py   # /encuentros, /encuentros/{id}/cerrar
+  │   │   ├── notas.py        # /notas, /notas/{id}/firmar, /notas/{id}/pdf
+  │   │   ├── signos.py       # /signos-vitales
+  │   │   ├── diagnosticos.py # /diagnosticos, /catalogos/cie10
+  │   │   ├── prescripciones.py # /prescripciones
+  │   │   ├── laboratorio.py  # /solicitudes-estudio, /resultados-laboratorio
+  │   │   ├── referencias.py  # /referencias
+  │   │   ├── auditoria.py    # /auditoria, /incidentes
+  │   │   ├── admin.py        # /usuarios, /establecimientos, /roles
+  │   │   └── catalogos.py    # /catalogos/medicamentos, /catalogos/cie10
+  │   │
+  │   ├── services/           # Lógica de negocio — sin acceso directo a BD
+  │   │   ├── auth_service.py            # JWT, 2FA, bloqueo de cuentas
+  │   │   ├── paciente_service.py        # CRUD + generación numero_expediente
+  │   │   ├── expediente_service.py      # 4 Reglas de Negocio
+  │   │   ├── clinico_service.py         # Firma de notas, validación inmutabilidad
+  │   │   ├── referencias_service.py     # SRC: emitir, aceptar, contrarreferir
+  │   │   └── acceso_service.py          # Validación RBAC cross-establecimiento
+  │   │
+  │   └── utils/
+  │       ├── security.py     # Argon2id hash/verify, JWT encode/decode
+  │       ├── pdf_generator.py # WeasyPrint: nota SOAP, receta, solicitud, referencia
+  │       └── file_handler.py  # Azure Blob Storage: upload + SHA-256 + SAS token
+  │
+  ├── database/
+  │   ├── 01_schema.sql       # CREATE TABLE de las 40 entidades + ENUMs + índices
+  │   ├── 02_triggers.sql     # 6 triggers: inmutabilidad, historial, bloqueo, incidentes
+  │   └── 03_seeds.sql        # Catálogos INEGI, CIE-10, admin@media.local
+  │
+  ├── tests/
+  │   ├── conftest.py         # Fixtures: AsyncSession de prueba, datos mock
+  │   ├── test_auth.py        # Tests de login, 2FA, bloqueo por intentos
+  │   └── test_reglas_negocio.py # Tests de las 4 Reglas de Negocio
+  │
+  ├── .env.example            # Plantilla de variables de entorno (sin secrets)
+  ├── requirements.txt        # Dependencias Python con versiones fijadas
+  └── Dockerfile              # (solo para referencia — en prod usa Azure App Service)
+3.2 Frontend — React / Vite
+  frontend/
+  ├── src/
+  │   ├── api/                # Funciones de llamada a la API REST
+  │   │   ├── auth.js         # login(), refresh(), logout(), setup2FA()
+  │   │   ├── pacientes.js    # getPacientes(), getPaciente(id), createPaciente()
+  │   │   ├── clinico.js      # getEncuentro(), crearNota(), firmarNota(id)
+  │   │   └── ...             # (un archivo por dominio)
+  │   │
+  │   ├── components/
+  │   │   ├── layout/
+  │   │   │   ├── Sidebar.jsx  # Grupos 'Clínica / Sistema', rol del usuario visible
+  │   │   │   └── TopBar.jsx   # Número de expediente, CLUES, turno (req. NOM-004)
+  │   │   ├── forms/          # Formularios reutilizables por módulo
+  │   │   └── tables/         # Tablas paginadas con filtros
+  │   │
+  │   ├── pages/
+  │   │   ├── auth/           # LoginPage.jsx (credenciales + OTP 2FA)
+  │   │   ├── dashboard/      # DashboardPage.jsx (condicional por rol)
+  │   │   ├── pacientes/      # PacientesPage, PacienteFichaPage
+  │   │   ├── consulta/       # ConsultaPage.jsx (stepper 5 pasos SOAP)
+  │   │   ├── expediente/     # ExpedientePage.jsx (historial + notas + antecedentes)
+  │   │   ├── referencias/    # ReferenciasPage.jsx
+  │   │   ├── documentos/     # DocumentosPage.jsx (descarga de PDFs)
+  │   │   ├── auditoria/      # AuditoriaPage.jsx (bitácora + incidentes)
+  │   │   ├── admin/          # UsuariosPage, EstablecimientosPage, RolesPage
+  │   │   └── seguridad/      # SeguridadPage.jsx (sesiones inválidas, estadísticas)
+  │   │
+  │   ├── hooks/
+  │   │   ├── useAuth.js      # Lee AuthContext: user, token, login, logout
+  │   │   └── usePaciente.js  # Cache y fetching del paciente activo
+  │   │
+  │   ├── context/
+  │   │   └── AuthContext.jsx # JWT en memoria (useState), refresh silencioso
+  │   │
+  │   └── utils/
+  │       └── permissions.js  # checkPermission(rol, modulo, accion): true/false
+  │
+  ├── .env.example            # VITE_API_URL, VITE_APP_NAME
+  ├── vite.config.js          # Proxy /api → backend (dev), Build settings
+  └── index.html              # Entry point — carga el bundle Vite
+Figura 3.1 y 3.2 — Estructura de carpetas del proyecto MedIA
+
+4. Variables de Entorno (.env.example completo)
+
+El archivo .env.example documenta TODAS las variables de entorno requeridas sin exponer valores reales. Cada desarrollador crea su .env local copiando este archivo. Los valores de producción se configuran en Azure App Service como Application Settings.
+Backend — .env.example
+  # ══════════════════════════════════════════════════════════════
+  # MedIA — Backend Environment Variables
+  # Copiar a .env y completar con valores reales.
+  # NUNCA commitear el .env al repositorio.
+  # ══════════════════════════════════════════════════════════════
+  
+  # ── ENTORNO ──────────────────────────────────────────────────
+  APP_ENV=development                    # development | staging | production
+  APP_NAME=MedIA-ECE
+  DEBUG=True                             # False en producción
+  
+  # ── BASE DE DATOS ─────────────────────────────────────────────
+  DATABASE_URL=postgresql+asyncpg://media_dev:PASSWORD@localhost:5432/media_db
+  # En Azure: postgresql+asyncpg://USUARIO@SERVIDOR:PASSWORD@SERVIDOR.postgres.database.azure.com:5432/DBNAME?ssl=require
+  
+  # ── AUTENTICACIÓN JWT ─────────────────────────────────────────
+  JWT_SECRET_KEY=GENERAR_CON_openssl_rand_-hex_64
+  JWT_ALGORITHM=HS256
+  JWT_ACCESS_TOKEN_EXPIRE_MINUTES=15
+  JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
+  
+  # ── 2FA / TOTP ────────────────────────────────────────────────
+  TOTP_ISSUER=MedIA-ECE
+  TOTP_ENCRYPTION_KEY=GENERAR_CON_Fernet.generate_key().decode()
+  # La clave Fernet cifra el totp_secret almacenado en usuarios_sistema
+  
+  # ── SEGURIDAD ─────────────────────────────────────────────────
+  ALLOWED_ORIGINS=http://localhost:5173,https://media.azurestaticapps.net
+  MAX_LOGIN_ATTEMPTS=5
+  ACCOUNT_LOCKOUT_MINUTES=30
+  
+  # ── AZURE BLOB STORAGE ────────────────────────────────────────
+  AZURE_STORAGE_ACCOUNT_NAME=mediaece
+  AZURE_STORAGE_ACCOUNT_KEY=CLAVE_DE_AZURE_PORTAL
+  AZURE_BLOB_CONTAINER_LAB=lab-results       # PDFs de laboratorio externo
+  AZURE_BLOB_CONTAINER_TUTORES=tutores-docs  # Documentos de representantes legales
+  AZURE_BLOB_SAS_EXPIRY_MINUTES=15           # Tokens temporales de acceso
+  
+  # ── GENERACIÓN DE PDFs ────────────────────────────────────────
+  PDF_LOGO_PATH=./assets/logo_distrito_salud.png
+  PDF_FOOTER_TEXT=Distrito de Salud I - Tuxtla Gutierrez, Chiapas
+  PDF_HASH_ALGORITHM=SHA256                  # Req 1 Cómputo Forense
+  
+  # ── INFRAESTRUCTURA AZURE (Producción) ────────────────────────
+  AZURE_APP_SERVICE_URL=https://media-api.azurewebsites.net
+  AZURE_STATIC_WEB_APP_URL=https://media.azurestaticapps.net
+  APPLICATIONINSIGHTS_CONNECTION_STRING=DESDE_AZURE_PORTAL
+  
+  # ── POSTGRES LOCAL (Docker Compose) ───────────────────────────
+  POSTGRES_DB=media_db
+  POSTGRES_USER=media_dev
+  POSTGRES_PASSWORD=SOLO_PARA_DESARROLLO_LOCAL
+Frontend — .env.example
+  # ══════════════════════════════════════════════════════════════
+  # MedIA — Frontend Environment Variables (Vite)
+  # Solo variables VITE_* son accesibles en el navegador.
+  # NUNCA colocar secrets aquí.
+  # ══════════════════════════════════════════════════════════════
+  
+  VITE_API_URL=http://localhost:8000         # Backend en desarrollo
+  # En producción: https://media-api.azurewebsites.net
+  
+  VITE_APP_NAME=MedIA
+  VITE_APP_VERSION=1.0.0
+  VITE_APP_ENV=development
+  
+  # Nombre del establecimiento por defecto (para header de notas)
+  VITE_DEFAULT_CLUES=CSSSA023999            # CLUES de la unidad (seed)
+
+5. Scripts de Arranque — Comandos Exactos
+
+5.1 Primera vez (setup completo)
+  # 1. Clonar el repositorio
+  git clone https://github.com/unach-ece/media-ece.git
+  cd media-ece
+  
+  # 2. Crear archivos de entorno
+  cp backend/.env.example backend/.env
+  cp frontend/.env.example frontend/.env
+  # Editar los archivos .env con valores reales
+  
+  # 3. Levantar PostgreSQL con Docker
+  docker-compose up -d postgres
+  # Esperar healthcheck: docker-compose ps (State: healthy)
+  
+  # 4. Instalar dependencias del backend
+  cd backend
+  python -m venv venv
+  source venv/bin/activate           # Windows: venv\Scripts\activate
+  pip install -r requirements.txt
+  
+  # 5. Ejecutar seed inicial (catálogos + admin)
+  python -m app.database create_tables
+  # Los triggers y seeds se aplican automáticamente desde Docker init scripts
+  
+  # 6. Instalar dependencias del frontend
+  cd ../frontend
+  npm install
+5.2 Desarrollo diario
+  # Terminal 1 — PostgreSQL (si no está corriendo)
+  docker-compose up -d postgres
+  
+  # Terminal 2 — Backend FastAPI
+  cd backend && source venv/bin/activate
+  uvicorn app.main:app --reload --port 8000
+  # Swagger disponible en: http://localhost:8000/docs
+  
+  # Terminal 3 — Frontend Vite
+  cd frontend
+  npm run dev
+  # App disponible en: http://localhost:5173
+5.3 Verificación del entorno
+  # Verificar PostgreSQL está listo
+  docker-compose ps          # State: healthy
+  docker exec media_db_dev psql -U media_dev -d media_db -c '\dt'
+  # Debe listar las 40 tablas
+  
+  # Verificar backend
+  curl http://localhost:8000/health
+  # Respuesta esperada: {"status": "ok", "db": "connected"}
+  
+  # Verificar usuario admin
+  curl -X POST http://localhost:8000/auth/login \
+    -H 'Content-Type: application/json' \
+    -d '{"username": "admin@media.local", "password": "MedIA2026!"}'
+  # Respuesta: {"access_token": "...", "requires_2fa": true}
+Credenciales del seed: admin@media.local / MedIA2026! — CAMBIAR INMEDIATAMENTE después del primer login. El sistema forzará cambio de contraseña en el primer acceso.
+
+6. Arquitectura de Distribución (Cómputo Distribuido)
+
+MedIA implementa una arquitectura de base de datos distribuida funcional mediante los servicios gestionados de Azure, sin implementar protocolos de replicación propios. Este enfoque sigue el principio de no duplicar capacidad ya provista por la plataforma.
+6.1 Topología de Distribución de Datos
+Tabla 6.1 — Estrategia de distribución de datos por grupo de entidades
+6.2 Diagrama de Arquitectura (Descripción)
+La arquitectura de MedIA se compone de tres capas con comunicación definida:
+Tabla 6.2 — Capas de la arquitectura del sistema
+6.3 Sincronización y Descomposición de Consultas
+Sincronización de catálogos
+Las escrituras clínicas se dirigen siempre al servidor primario (East US).
+Los catálogos replicados en CDN se invalidan mediante llamada al endpoint POST /admin/cache/invalidate cuando el coordinador actualiza un catálogo.
+El tiempo máximo de staleness de catálogos en CDN es de 24 horas, configurado en las reglas de caché de Azure Front Door.
+Descomposición de la consulta 'Historial completo de paciente'
+Tabla 6.3 — Descomposición de consulta de historial completo
+
+7. Estrategia de Ramas Git
+
+La estrategia de ramas sigue el modelo GitFlow simplificado adaptado a un equipo de 5 personas en 9 semanas.
+Tabla 7.1 — Estrategia completa de ramas Git
+Regla de protección: La rama main tiene branch protection activada en GitHub: requiere PR, mínimo 1 aprobación (P1), no se permite force push ni eliminación.

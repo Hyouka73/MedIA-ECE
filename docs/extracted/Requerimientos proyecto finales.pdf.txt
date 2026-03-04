@@ -1,0 +1,103 @@
+Cómputo Forense                                  Benemérita Universidad Autónoma de Chiapas 
+REQUERIMIENTOS PARA PROYECTOS FINALES 
+1.-Registro de eventos (Logging forense) 
+Registrar toda acción relevante del sistema de forma estructurada, inmutable y 
+verificable. 
+¿Qué debe incluir? 
+●​ Usuario que ejecuta acción 
+●​ Fecha y hora exacta 
+●​ Acción realizada 
+●​ Resultado (éxito / error) 
+●​ Dirección IP (si aplica) 
+●​ Hash del archivo involucrado 
+Enfoque forense: 
+El log debe: 
+●​ No poder editarse manualmente 
+●​ Guardarse en archivo independiente 
+●​ Preferentemente firmarse digitalmente* 
+2.-Manejo correcto de excepciones 
+Evitar que errores como borrar evidencia, modificar archivos y cierre del sistema sin 
+registrar lo ocurrido 
+¿Qué debe incluir? 
+●​ Registrar error en log 
+●​ No alterar evidencia 
+●​ Mostrar mensaje controlado al usuario 
+Enfoque forense: 
+Un error también es un evento importante y debe quedar documentado. 
+3.-Trazabilidad del código 
+Capacidad de saber qué módulo ejecutó una acción, qué función fue llamada y en qué 
+orden ocurrió 
+
+Cómputo Forense                                  Benemérita Universidad Autónoma de Chiapas 
+​
+¿Qué debe incluir? 
+●​ Separar lógica por capas 
+●​ Documentar funciones críticas 
+●​ Identificar módulos responsables de acciones 
+Debe permitir responder: 
+●​ ¿Quién calculó el hash? 
+●​ ¿Quién modificó los metadatos? 
+●​ ¿Quién exportó evidencia? 
+4.-Marcas de tiempo confiables 
+La hora del sistema puede estar alterada. 
+¿Qué debe incluir? 
+●​ Usar UTC 
+●​ Registrar timestamps en formato ISO 8601 
+●​ No permitir edición manual de fechas 
+●​ Opcional: sincronización con servidor NTP 
+Ejemplo correcto: 
+2026-06-15T20:45:12Z 
+Enfoque forense: 
+La línea de tiempo es clave para: 
+●​ Reconstruir eventos 
+●​ Validar cronología 
+●​ Detectar manipulación 
+5.-Identificación de acciones críticas 
+El software debe clasificar acciones como: 
+●​ Creación de usuarios 
+●​ Eliminación de registros 
+●​ Modificación de datos sensibles 
+●​ Exportación de información 
+●​ Cambio de configuraciones 
+¿Qué debe incluir? 
+
+Cómputo Forense                                  Benemérita Universidad Autónoma de Chiapas 
+●​ Requerir autenticación fuerte para acciones críticas 
+●​ Registrar confirmación de acción 
+●​ Implementar doble validación si es posible 
+Enfoque forense: 
+Debe existir una lista documentada de “Acciones Críticas”. 
+6.-No borrar ni sobrescribir evidencia (borrado 
+lógico) 
+El sistema no debe eliminar datos permanentemente sin trazabilidad. 
+¿Qué debe incluir? 
+●​ Implementar borrado lógico (soft delete) 
+●​ Mantener historial de cambios 
+●​ Versionado de registros 
+Enfoque forense: 
+Si el sistema modifica el archivo original → Penalización. 
+7.-Separación de responsabilidades en el código 
+Evitar que una sola persona o módulo controle todo. 
+¿Qué debe incluir? 
+●​ Separar UI, lógica y acceso a datos 
+●​ Implementar roles (Admin, Analista, Auditor) 
+●​ Limitar privilegios por perfil 
+8.-Uso responsable de configuraciones 
+No exponer configuraciones sensibles 
+¿Qué debe incluir? 
+●​ No hardcodear contraseñas 
+●​ Usar variables de entorno 
+●​ Proteger archivos de configuración 
+●​ No almacenar credenciales en texto plano 
+
+Cómputo Forense                                  Benemérita Universidad Autónoma de Chiapas 
+Enfoque forense: 
+Evitar acceso no autorizado y fuga de credenciales. 
+9.-Comentarios técnicos relevantes 
+No es poner comentarios decorativos. 
+¿Qué debe incluir? 
+●​ Justificación técnica 
+●​ Explicación de decisión forense (controles implementados) 
+●​ Referencia a estándar si aplica 
+ 
+

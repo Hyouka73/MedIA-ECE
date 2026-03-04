@@ -1,0 +1,140 @@
+
+SISTEMA MedIA
+Expediente Clínico Electrónico — Distrito de Salud I, Chiapas
+
+
+
+DOCUMENTO 7
+Diseño UI/UX del Sistema
+Paleta de colores · Layout · Módulos · Componentes shadcn/ui · NOM-004/024/151
+
+
+1. Paleta de Colores
+La paleta de colores de MedIA está diseñada para uso en contexto hospitalario con turnos de 8 horas o más. Las decisiones cromáticas son respuestas directas a los requisitos normativos y de ergonomía visual del prototipo medsys-v2.jsx.
+
+1.1 Tokens de Color Principales
+
+1.2 Tokens de Color del Sidebar
+
+1.3 Colores Semánticos del Sistema
+
+2. Tipografía
+La fuente seleccionada para MedIA es DM Sans, una tipografía sans-serif diseñada para alta densidad de información. Se importa desde Google Fonts y se usa en cinco pesos para establecer jerarquía visual.
+
+
+Importación en index.html:
+
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
+
+3. Layout del Sistema
+3.1 Estructura General de la Interfaz
+MedIA usa un layout de tres zonas fijas: Sidebar izquierdo (ancho fijo 220px), TopBar horizontal superior (altura fija 56px) y Área de contenido principal (ocupa el espacio restante, scroll vertical).
+
+
+
+3.2 Reglas de Responsividad
+
+Nota: MedIA está diseñado principalmente para uso en computadoras de escritorio y laptops en las unidades médicas. El diseño responsivo para móvil es funcional pero no es el caso de uso principal.
+
+4. Módulos y Sus Pantallas
+4.1 Dashboard (Pantalla de Inicio — Condicional por Rol)
+El dashboard es la primera pantalla que ve el usuario después del login. Su contenido es completamente diferente según el rol, evitando mostrar información irrelevante o no autorizada.
+
+
+4.2 Módulo Pacientes
+El buscador de pacientes es la puerta de entrada a todos los flujos clínicos. Incluye tres pantallas principales:
+
+Pantalla: Buscador de Pacientes
+Barra de búsqueda principal con búsqueda por nombre, primer apellido, número de expediente o CURP
+Filtros de refinamiento: municipio, localidad, lengua materna (para clínicas con alta población indígena)
+Resultados en tabla con columnas: nombre completo, fecha de nacimiento, expediente, última consulta, alerta de alergia (icono rojo si tiene alergias de severidad alta)
+Botón destacado: Registrar nuevo paciente
+
+Pantalla: Registro de Nuevo Paciente
+Formulario en dos columnas para desktop
+Campos obligatorios: nombre, primer apellido, fecha de nacimiento, sexo, localidad INEGI, lengua materna
+Campos opcionales: CURP, segundo apellido, teléfono, dirección estructurada (calle, colonia, CP) o referencia geográfica libre
+Selector de localidad con autocompletado: busca en cat_localidades filtrado por municipio. Muestra nombre + tipo (URBANA/RURAL)
+El campo lengua materna activa automáticamente la alerta de barrera lingüística si el valor no es 'Español'
+
+Pantalla: Perfil del Paciente
+Header con: nombre completo, edad calculada automáticamente, sexo, número de expediente
+Badge de alerta de alergia en el header si tiene alergias de severidad ALTA
+Alerta de barrera lingüística si lengua_materna != Español
+Secciones: Datos generales, Alergias (con jerarquía visual por severidad), Acciones: Nueva consulta, Ver expediente
+
+4.3 Módulo Expediente
+El expediente clínico es la historia médica completa del paciente. Se organiza en tabs para diferenciar los tipos de antecedentes.
+
+Tabs del Módulo Expediente
+
+4.4 Módulo Consulta — Stepper SOAP
+El stepper es el componente central del sistema. Tiene 5 pasos secuenciales con estados visuales de completitud. El diseño del stepper es una decisión de UX correcta del prototipo que NO debe modificarse.
+
+
+
+4.5 Sello Visual Post-Firma — NOM-151
+Después de que el médico confirma la firma con contraseña + TOTP, la nota queda inmutable y el sistema muestra el siguiente sello visual en la pantalla y en el PDF generado:
+
+
+4.6 Módulo Referencias
+Implementa el Sistema de Referencia y Contrarreferencia (SRC) normado. Tiene tres vistas:
+
+Vista: Emitir Referencia
+Selección del establecimiento destino con buscador por nombre o CLUES
+Selector de especialidad con validación en tiempo real contra establecimientos_especialidades del destino
+Nivel de urgencia: toggle URGENTE / PROGRAMADA con diferenciación visual clara
+Diagnóstico CIE-10 de referencia con el mismo autocompletado del módulo Consulta
+Campo de motivo clínico (textarea, máximo 500 caracteres)
+Botón: Emitir referencia con confirmación modal
+
+Vista: Bandeja de Referencias Recibidas
+Lista de referencias recibidas con: folio, establecimiento origen, paciente, especialidad, urgencia, fecha, estado
+Filtros: estado (PENDIENTE/ACEPTADA/ATENDIDA/CERRADA), urgencia, fecha
+Badge URGENTE en rojo para referencias urgentes sin aceptar
+Acciones: Aceptar referencia, Ver detalle, Responder (contrarreferencia)
+
+Vista: Contrarreferencia
+Formulario para responder al establecimiento emisor
+Campos: diagnóstico definitivo (CIE-10), tratamiento instaurado, indicaciones de seguimiento, fecha de próxima cita sugerida
+
+4.7 Módulo Auditoría
+Accesible para AUDITOR_SEGURIDAD, ADMINISTRADOR y SUPERADMIN. Tiene dos sub-vistas:
+
+Vista: Bitácora de Accesos
+Tabla paginada con 20 registros por página
+Columnas: timestamp, usuario, acción, módulo, resultado (éxito/error), IP, nivel de severidad
+Filtros: rango de fechas, tipo de evento, usuario específico, nivel de severidad, módulo
+Exportar a PDF (genera reporte forense con encabezado institucional)
+Los registros son de solo lectura. No hay botones de edición o eliminación (inmutabilidad)
+
+Vista: Incidentes de Seguridad
+Lista de incidentes con: folio, tipo, severidad (badge de color), estado, fecha de apertura, responsable
+Estado CRÍTICO/ABIERTO: badge rojo parpadeante para máxima visibilidad
+Vista de detalle del incidente: timeline completo de estados, acciones registradas, causa raíz (cuando disponible)
+Solo SUPERADMIN puede crear, actualizar y cerrar incidentes
+
+4.8 Módulo Administración
+CRUD completo de usuarios: alta, edición de rol, activar/desactivar cuenta, forzar cambio de contraseña
+Tabla de usuarios con: nombre, rol, establecimiento, último acceso, estado (activo/inactivo/bloqueado)
+Configuración de especialidades por establecimiento (activa/inactiva con fecha de alta)
+Vista de establecimientos: CLUES, nombre, nivel de atención, municipio, especialidades activas
+
+4.9 Módulo Seguridad (Solo SUPERADMIN)
+Lista de sesiones activas en tiempo real: usuario, IP, hora de inicio, tiempo de expiración del JWT
+Botón por sesión: Invalidar sesión (agrega token a sesiones_invalidas)
+Lista de cuentas bloqueadas con motivo y fecha de bloqueo
+Acciones masivas: Invalidar todas las sesiones (logout forzado de todo el sistema)
+
+5. Componentes shadcn/ui — Especificaciones
+shadcn/ui provee los componentes base que se personalizan con los tokens de color de MedIA. Los siguientes componentes son los más relevantes para el sistema.
+
+
+6. Estados de Componentes
+Cada componente interactivo en MedIA tiene cuatro estados bien definidos. La consistencia en los estados reduce la carga cognitiva del usuario médico.
+
+
+7. Requisitos Normativos en la UI
+Los siguientes requisitos son mandatorios por normativa. No son preferencias de diseño. Cada uno está derivado de NOM-004, NOM-024 o NOM-151 y fue identificado en las notas técnicas pendientes (NOTAS_PENDIENTES.md).
+
+

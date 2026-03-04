@@ -1,0 +1,222 @@
+REPORTE ACADÉMICO DE DELIMITACIÓN DEL 
+ALCANCE FUNCIONAL Y NORMATIVO PARA EL 
+SISTEMA DE EXPEDIENTE CLÍNICO ELECTRÓNICO 
+MEDIA EN EL DISTRITO DE SALUD I - TUXTLA 
+GUTIÉRREZ, CHIAPAS 
+La evolución de la práctica médica contemporánea en el estado de Chiapas exige 
+una transición robusta hacia la digitalización de la información clínica, fundamentada 
+en un marco normativo que garantice la seguridad del paciente, la protección de 
+datos personales y la continuidad de la atención a través de la interoperabilidad. El 
+presente reporte académico tiene como objetivo delimitar el alcance funcional y 
+normativo del sistema de Expediente Clínico Electrónico (ECE) denominado MedIA, 
+diseñado para operar en la red de servicios del Distrito de Salud I - Tuxtla 
+Gutiérrez. Esta delimitación sirve como documento maestro para el modelado de 
+datos y el diseño de procesos, asegurando que cada componente del sistema 
+responda a las obligaciones legales establecidas por la Secretaría de Salud. 
++2 
+1. Alcance formal y fundamentos normativos del sistema 
+MedIA 
+El sistema MedIA se define ontológicamente como un Sistema de Información de 
+Registro Electrónico para la Salud (SIRES), conforme a la terminología de la 
+NOM-024-SSA3-2012, cuya función primordial es la generación, procesamiento, 
+conservación e intercambio de información clínica de manera segura y 
+estandarizada. El alcance formal de este sistema constituye la infraestructura digital 
+necesaria para materializar el derecho a la protección de la salud en el entorno 
+urbano y rural de Tuxtla Gutiérrez. 
++1 
+En el marco jurídico mexicano, el expediente clínico es una prueba preconstituida de 
+gran valor probatorio. Por lo tanto, el alcance de MedIA asegura que cada registro 
+cumpla con los principios de veracidad, claridad, precisión y legibilidad establecidos 
+en el numeral 5.10 de la NOM-004-SSA3-2012. La obligatoriedad de estas normas 
+abarca a todo el personal del área de la salud y a los establecimientos del Distrito de 
+Salud I. 
++2 
+
+2. Propiedad, titularidad y conservación de la información 
+Según el artículo 5.4 de la NOM-004-SSA3-2012, las instituciones prestadoras de 
+servicios de salud en Chiapas son las propietarias de los expedientes clínicos que 
+integran, lo que les impone la obligación de custodia y conservación por un periodo 
+mínimo de cinco años. El sistema MedIA proporciona los mecanismos de 
+persistencia de datos en Azure Database for PostgreSQL necesarios para cumplir 
+con este plazo. 
++1 
+El paciente es el titular de los datos, por lo que MedIA facilita el ejercicio de sus 
+derechos de acceso y rectificación, siendo capaz de generar resúmenes clínicos 
+veraces integrando padecimientos actuales, diagnósticos y tratamientos. La 
+confidencialidad es un eje transversal; el sistema implementa controles de acceso 
+basados en JWT que impiden la divulgación de información sensible sin el 
+consentimiento expreso. 
++1 
+3. Tabla de inclusión y exclusión de funcionalidades 
+La arquitectura de datos de MedIA se basa en la separación estricta entre las 
+funciones clínicas normadas para la consulta externa y los procesos administrativos 
+auxiliares. 
+Categoría 
+Funcional 
+Función Específica Incluida 
+en MedIA 
+Base Normativa 
+o Justificación 
+Función Excluida del 
+Alcance 
+Identidad 
+Captura de CURP y datos 
+demográficos base. 
+NOM-024 6.5.4 
+Trámite de CURP 
+ante autoridades. 
+Identidad 
+Registro de lengua materna 
+(campo simple). 
+Ley de Derechos 
+Lingüísticos 
+Programas de 
+educación bilingüe. 
+Notas 
+Médicas 
+Nota de evolución con 
+actualización de cuadro 
+clínico. 
+NOM-004 8.3 
+Registro de 
+asistencia de 
+personal. 
+
+Notas 
+Médicas 
+Historia clínica con 
+interrogatorio y exploración 
+física. 
+NOM-004 8.2 
+Gestión de 
+bibliotecas médicas. 
+Notas 
+Médicas 
+Nota de enmienda para 
+correcciones legales. 
+NOM-z004 5.10 
+Borrado físico de 
+notas firmadas. 
+Diagnósticos 
+Clasificación diagnóstica 
+mediante CIE-10 estático. 
+NOM-024 3.24 
+Mapeo automático 
+hacia CIE-11. 
+Terapéutica 
+Generación de receta 
+electrónica nominativa. 
+NOM-024 1.1.2.c 
+Surtido físico en 
+farmacia. 
+Terapéutica 
+Registro de alergias y 
+severidad. 
+NOM-024 3.5 
+Licitaciones de 
+fármacos. 
+Laboratorio 
+Solicitud electrónica de 
+análisis clínicos. 
+NOM-024 1.1.2.d 
+Procesamiento 
+químico de muestras. 
+Laboratorio 
+Visualización de resultados 
+validados. 
+NOM-024 3.36 
+Gestión de reactivos 
+de lab. 
+Seguridad 
+Registro de auditoría 
+(quién, qué y cuándo). 
+NOM-024 4.1 
+Seguridad física 
+perimetral. 
+4. Descripción detallada de los módulos del sistema MedIA 
+El sistema se articula a través de módulos funcionales que operan de manera 
+sinérgica para cumplir con la integridad del expediente clínico. 
+Módulo de identidad y demografía 
+
+Este módulo constituye la base del paciente. Su diseño responde al Apéndice 
+Normativo A de la NOM-024-SSA3-2012. El sistema desagrega el nombre en tres 
+campos (nombre, primer apellido, segundo apellido), evitando abreviaturas. MedIA 
+incorpora campos para la CURP como identificador primario y permite el registro de 
+la lengua materna, asegurando que el personal esté advertido sobre posibles 
+barreras de comunicación. 
++2 
+Módulo de notas médicas y evolución clínica (Consulta Externa) 
+El corazón de MedIA es la gestión de las notas de consulta externa. El sistema 
+estructura estas notas cronológicamente, garantizando que cada entrada cuente con 
+fecha, hora, nombre y firma de quien la elabora. 
+●​ Notas de Consulta: Registran el motivo de atención, evolución del cuadro 
+clínico, diagnósticos y plan de tratamiento. 
+●​ Nota de Enmienda: Implementa el concepto de Addendum donde el error se 
+señala pero permanece visible, agregando la corrección con nueva firma y 
+fecha. 
+Módulo de diagnósticos y terminología estandarizada 
+La interoperabilidad semántica se garantiza mediante la CIE-10 en su versión oficial 
+vigente publicada por la DGIS. El sistema vincula cada registro a un valor 
+codificado, pero permite el registro redundante del diagnóstico clínico narrativo para 
+no sustituir el juicio médico. 
++2 
+5. Módulos excluidos y estrategia de integración mediante 
+campos puente 
+Ciertos procesos operativos se consideran fuera del alcance del núcleo de MedIA 
+para preservar la especialización técnica. 
+Gestión de farmacia y laboratorio (Fase analítica) 
+El control físico de inventarios y el procesamiento de muestras químicas quedan 
+fuera del alcance. La comunicación se realiza mediante tablas de integración: 
++1 
+●​ Farmacia: MedIA envía la prescripción y recibe confirmación de surtido 
+mediante el campo puente ID_RECETA_ELECTRONICA. 
+
+●​ Laboratorio: El flujo se limita a la solicitud (ID_ORDEN_SERVICIO) y la 
+recepción del dato numérico o textual del resultado.​
++1 
+6. Escenarios de frontera y casos de diseño 
+Caso: Interrupción de conectividad en zonas periféricas 
+El diseño contempla el uso de Azure Front Door y CDN para mitigar la latencia. El 
+desafío normativo radica en la firma; el sistema asegura que la estampa de tiempo 
+(timestamp) de la nota corresponda al momento de creación real y no al de 
+sincronización, preservando el orden cronológico exigido por la NOM-004. 
++1 
+Caso: Rectificación de datos por error médico 
+MedIA prohíbe el borrado de notas firmadas. La corrección se realiza 
+exclusivamente mediante notas de enmienda vinculadas a la nota original, 
+garantizando la transparencia del acto médico ante posibles auditorías o arbitrajes. 
++1 
+7. Diagrama de fronteras y flujo de información 
+●​ Frontera interna: El entorno asistencial donde la información fluye 
+bidireccionalmente entre el médico y la hoja de signos vitales capturada por 
+enfermería.​
++1 
+●​ Frontera lateral: Integración con servicios de apoyo mediante tablas puente, 
+donde MedIA actúa como orquestador del flujo clínico.​
++1 
+●​ Frontera externa: Nivel de reporte estadístico hacia la coordinación del 
+Distrito de Salud I para la planeación regional.​
++1 
+8. Delimitación Geográfica, Temporal y Poblacional 
+El desarrollo y despliegue del sistema MedIA se circunscribe estrictamente al ámbito geográfico de las unidades 
+médicas que integran el Distrito de Salud I - Tuxtla Gutiérrez, en el estado de Chiapas. Esta delimitación 
+territorial asegura que la solución responda a las condiciones de infraestructura, retos de conectividad y 
+necesidades asistenciales específicas de la región centro del estado. 
+Desde la perspectiva temporal, el proyecto abarca el periodo comprendido entre enero de 2026 y junio de 
+2026, cronograma que corresponde al ciclo operativo del octavo semestre de la Licenciatura en Ingeniería en 
+Desarrollo y Tecnologías de Software de la UNACH. Todas las metas funcionales y técnicas del sistema están 
+diseñadas para ser cumplimentadas dentro de este marco de tiempo. 
+
+Finalmente, la población objetivo del sistema se define en dos categorías principales: 
+●​
+Usuarios directos: Personal médico (general y especialistas), personal de enfermería y 
+administradores de salud adscritos a las unidades del Distrito I, quienes requieren acceso inmediato y 
+seguro al historial clínico compartido. 
+●​
+Beneficiarios indirectos: Pacientes que acuden a los servicios de consulta externa en las clínicas del 
+distrito, cuya información será integrada y protegida bajo los estándares normativos implementados en 
+el sistema. 
+ 
+ 
+ 
+

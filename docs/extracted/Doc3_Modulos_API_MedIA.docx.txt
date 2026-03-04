@@ -1,0 +1,186 @@
+
+UNIVERSIDAD AUTÓNOMA DE CHIAPAS
+Facultad de Ciencias en Física y Matemáticas · IDTS
+
+MedIA — Expediente Clínico Electrónico
+Distrito de Salud I · Tuxtla Gutiérrez, Chiapas
+
+DOCUMENTO 3
+Módulos del Sistema y API REST
+8° Semestre · IDTS · UNACH · Cómputo Distribuido · Enero–Junio 2026
+
+Módulos y API REST — Referencia Técnica
+
+Este documento describe cada módulo del sistema MedIA, sus endpoints REST, los schemas de request/response, las tablas de base de datos que afecta y las reglas de negocio que aplica. La base URL en desarrollo es http://localhost:8000. Todos los endpoints excepto /auth/login y /auth/refresh requieren el header Authorization: Bearer {access_token}.
+Convención de códigos HTTP usados: 200 OK · 201 Created · 204 No Content · 400 Bad Request · 401 Unauthorized · 403 Forbidden · 404 Not Found · 422 Unprocessable Entity
+
+Módulo 1 — Autenticación (auth)
+
+Gestiona el ciclo completo de identidad: login con 2FA, refresh de tokens JWT, revocación de sesiones y gestión del segundo factor TOTP. Implementa las reglas de seguridad del Req 1, 4 y 8 de Cómputo Forense.
+Tablas afectadas
+usuarios_sistema, sesiones_invalidas, auditoria_accesos
+Reglas aplicadas
+Req 1 Forense: CADA evento de login (exitoso o fallido) se registra en auditoria_accesos con IP (INET), usuario, resultado.
+Req 4 Forense: timestamps en TIMESTAMPTZ UTC, generados por el servidor PostgreSQL.
+Req 8 Forense: contraseñas con Argon2id. totp_secret cifrado con Fernet. Sin hardcoding.
+Bloqueo automático: trigger tr_bloqueo_por_intentos activa bloqueado_hasta tras 5 intentos fallidos.
+Endpoints
+Request: POST /auth/login
+Response: POST /auth/login (sin 2FA activo)
+Response: POST /auth/2fa/verify
+
+Módulo 2 — Personas
+
+Gestión de la entidad base de identidad. Una persona puede ser paciente, usuario del sistema, o representante legal. El módulo incluye los catálogos geográficos INEGI (estados, municipios, localidades) y de lenguas indígenas.
+Tablas afectadas
+personas, cat_estados, cat_municipios, cat_localidades, cat_lenguas_indigenas
+Consideraciones normativas
+CURP es NULL permitido: poblaciones indígenas de Chiapas pueden carecer de ella al momento de la consulta (decisión de diseño para inclusión).
+Domicilio estructurado con FK a cat_localidades (catálogo INEGI), no texto libre. El campo referencia_geografica captura direcciones rurales no formales.
+id_lengua_materna activa alerta visual de barrera lingüística en el módulo de encuentros.
+Endpoints
+
+Módulo 3 — Pacientes
+
+Materializa la relación asistencial de una persona con el sistema de salud. El número de expediente es el identificador médico-legal requerido por NOM-004. Una persona puede convertirse en paciente en cualquier establecimiento del Distrito.
+Tablas afectadas
+pacientes, pacientes_tutores_representantes, personas
+Reglas de negocio aplicadas
+Regla 1: los datos básicos de la persona (demografía) son visibles para cualquier médico con encuentro activo, sin restricción de establecimiento.
+NOM-004: el número_expediente se genera automáticamente con formato EXP-YYYY-{secuencia} al crear el paciente.
+Endpoints
+
+Módulo 4 — Expediente (Antecedentes, Alergias, Inmunizaciones)
+
+Gestión del historial clínico permanente del paciente. Todos los subMódulos implementan soft delete forense (Req 6 Cómputo Forense). Los DELETE físicos están prohibidos por permisos de BD.
+Tablas afectadas
+antecedentes_heredofamiliares, antecedentes_patologicos, antecedentes_no_patologicos, antecedentes_ginecoobstetricos, alergias, inmunizaciones, historial_cambios
+Reglas de negocio y seguridad
+Req 6 Forense: NINGUNA tabla del expediente permite DELETE físico. Solo borrado lógico con eliminado_en, eliminado_por y motivo_baja obligatorio.
+Regla 1: alergias y antecedentes visibles para cualquier médico con encuentro activo, independientemente del establecimiento.
+Alerta de alergia: severidad CRÍTICA genera badge rojo prominente en el header de la consulta.
+Antecedentes ginecoobstétricos: el backend valida que sexo del paciente sea 'F' antes de permitir creación.
+Endpoints — Alergias
+Endpoints — Antecedentes
+Endpoints — Inmunizaciones
+
+Módulo 5 — Encuentros Clínicos
+
+Un encuentro clínico es la unidad central del acto médico. Agrupa todas las interacciones de una consulta: notas SOAP, signos vitales, diagnósticos, prescripciones y solicitudes de estudio.
+Tablas afectadas
+encuentros_clinicos, notas_medicas, notas_soap_detalle, auditoria_accesos
+Reglas de negocio
+NOM-004: la fecha_inicio se registra con TIMESTAMPTZ del servidor (UTC). No editable por el cliente.
+El cierre de un encuentro (PATCH /cerrar) es irreversible y activa la generación del PDF resumen.
+Regla 4: apertura y cierre registrados en auditoria_accesos con nivel_severidad MEDIO.
+Endpoints
+Request: POST /encuentros
+
+Módulo 6 — Notas Médicas y SOAP
+
+Implementa la metodología SOAP (Subjetivo, Objetivo, Análisis, Plan) requerida por NOM-004-SSA3-2012. Una nota firmada es inmutable: el trigger tr_notes_protection en PostgreSQL bloquea cualquier modificación posterior.
+Tablas afectadas
+notas_medicas, notas_soap_detalle, notas_enmienda, historial_cambios, auditoria_accesos
+Reglas de negocio y normativa
+NOM-004 § 5.10: inmutabilidad del acto médico firmado. Una vez esta_firmada=TRUE, el trigger bloquea UPDATE a nivel de BD.
+NOM-151: la firma electrónica simple se implementa mediante el flag esta_firmada + timestamp del servidor. El PDF generado incluye cédula, nombre del médico y hash SHA-256 del contenido.
+Correcciones post-firma: SOLO mediante notas_enmienda (Addendum). El error original permanece visible con el texto de corrección adjunto.
+Gaps de NOTAS_PENDIENTES.md implementados: (1) número de expediente en TopBar desde apertura del encuentro, (2) timestamp guardado automáticamente al avanzar cada paso del stepper, (3) sello visual de inmutabilidad post-firma.
+Endpoints
+Request: POST /encuentros/{id}/notas
+Response: GET /notas/{id}/pdf (headers HTTP)
+
+Módulo 7 — Signos Vitales
+
+Registro de constantes físicas del paciente al inicio del encuentro. Generalmente capturado por Enfermería. Los signos vitales alimentan la vista SQL v_signos_encuentro disponible para el módulo de notas.
+Tablas afectadas
+signos_vitales, encuentros_clinicos, historial_cambios
+Reglas de acceso
+Rol ENFERMERIA: puede crear y actualizar signos vitales. No puede acceder a notas SOAP.
+La vista v_signos_encuentro expone signos_vitales JOIN encuentros_clinicos para que Enfermería consulte sin acceder a datos clínicos del SOAP.
+Endpoints
+Request/Response: POST /encuentros/{id}/signos
+
+Módulo 8 — Diagnósticos (CIE-10)
+
+Vincula códigos diagnósticos estandarizados CIE-10 con el encuentro clínico. Garantiza interoperabilidad semántica requerida por NOM-024-SSA3-2012. El autocompletado es el mecanismo de captura principal.
+Tablas afectadas
+diagnosticos_encuentro, cat_cie10, historial_cambios
+Notas técnicas (NOTAS_PENDIENTES.md)
+El campo de diagnóstico NO es texto libre en producción. Se conecta al catálogo CIE-10 oficial con búsqueda por código o descripción.
+Al seleccionar un código CIE-10 del dropdown, se guarda tanto codigo_cie como descripcion en diagnosticos_encuentro.
+Endpoints
+
+Módulo 9 — Prescripciones
+
+Generación de receta médica electrónica nominativa vinculada al Cuadro Básico de Medicamentos de la SSA. La alerta de alergia crítica es un control de seguridad del paciente de alta prioridad implementado en el service antes de permitir la prescripción.
+Tablas afectadas
+prescripciones, cat_medicamentos, alergias, historial_cambios
+Reglas de negocio críticas
+ALERTA DE ALERGIA: al prescribir, el service verifica activamente en alergias del paciente si la sustancia del medicamento tiene coincidencia (ILIKE). Si severidad=CRÍTICA, devuelve HTTP 409 con mensaje de alerta y requiere confirmación explícita del médico.
+Vinculación al Cuadro Básico: solo se pueden prescribir medicamentos existentes en cat_medicamentos. El código codigo_medicamento_ssa actúa como puente con el sistema de farmacia externo.
+La receta PDF incluye: cédula del médico, nombre del paciente, numero_expediente, CLUES del establecimiento y timestamp del servidor.
+Endpoints
+Request: POST /encuentros/{id}/prescripciones
+
+Módulo 10 — Laboratorio (Solicitudes y Resultados)
+
+Gestiona el ciclo completo del análisis clínico: orden de solicitud → resultado con PDF externo. El hash SHA-256 del PDF de resultado es el mecanismo forense de verificación de integridad (Req 1 Cómputo Forense).
+Tablas afectadas
+solicitudes_estudio, resultados_laboratorio, auditoria_accesos, Azure Blob Storage
+Reglas de negocio y seguridad
+Upload de resultados: el PDF del laboratorio externo se sube a Azure Blob Storage. El sistema calcula el SHA-256 del archivo y lo registra en auditoria_accesos.hash_archivo (Req 1 Forense).
+El PDF de resultado NO se modifica. Si el laboratorio emite una corrección, se crea un nuevo resultado con referencia a la solicitud original.
+SAS tokens de 15 minutos para descarga del PDF. Después del tiempo, el URL expira y requiere nueva solicitud.
+Endpoints
+
+Módulo 11 — Referencias Médicas (SRC)
+
+Implementa el Sistema de Referencia y Contrarreferencia (SRC) normado por la Secretaría de Salud. Una referencia con estado ACEPTADA o ATENDIDA es el mecanismo legal que habilita el acceso cross-establecimiento a notas clínicas (Regla 2 de Negocio).
+Tablas afectadas
+referencias_medicas, encuentros_clinicos, establecimientos, cat_especialidades_medicas, historial_cambios
+Estados del ciclo de vida de una referencia
+Tabla 11.1 — Ciclo de vida de una referencia médica
+Endpoints
+
+Módulo 12 — Generación de Documentos PDF
+
+MedIA genera 4 documentos PDF a partir de datos ya registrados en la BD. Los documentos son generados on-demand por WeasyPrint y no se persisten en el sistema (excepción: resultados de laboratorio que llegan de fuente externa).
+Principio de diseño (NOM-151 + Req 1 Forense)
+Los PDFs del expediente se generan desde datos ya validados y firmados. Autoría verificable, timestamp del servidor.
+El PDF de nota SOAP firmada incluye: sello visual con SHA-256 del contenido, cédula del médico, nombre del establecimiento con CLUES, timestamp CST exacto.
+El PDF de receta incluye: folio único, nombre genérico del medicamento, cédula del médico prescriptor, número de expediente.
+Tabla 12.1 — Documentos PDF generados por MedIA y sus fuentes de datos
+
+Módulo 13 — Auditoría y Seguridad
+
+Acceso a la bitácora inmutable y al panel de gestión de incidentes de seguridad. Solo el rol AUDITOR_SEGURIDAD tiene acceso a este módulo. El rol AUDITOR no puede ver datos clínicos de ningún paciente.
+Tablas afectadas
+auditoria_accesos (solo lectura), incidentes_seguridad (lectura/escritura), sesiones_invalidas, v_auditoria_estadistica
+Requisitos de Cómputo Forense cubiertos por este módulo
+Req 1: auditoria_accesos incluye usuario, timestamp UTC, acción, resultado, IP (INET), hash de archivo, módulo y función (modulo_funcion).
+Req 3 Trazabilidad: el campo modulo_funcion permite responder '¿qué función firmó la nota?', '¿qué endpoint exportó resultados?'.
+Req 5 Acciones críticas: tipos de evento documentados: LOGIN_FALLIDO, CUENTA_BLOQUEADA, BORRADO_LOGICO, MODIFICACION_NO_AUTORIZADA, INTENTO_XSS, INTENTO_SQLI, INTENTO_IDOR, ACCESO_SIN_REFERENCIA.
+Endpoints
+
+Módulo 14 — Configuración del Sistema (Admin)
+
+Gestión de usuarios, roles, permisos y establecimientos. Solo accesible para ADMINISTRADOR y SUPERADMIN. Los cambios en permisos se registran en historial_cambios. El ADMINISTRADOR no tiene acceso a datos clínicos de pacientes.
+Tablas afectadas
+usuarios_sistema, roles, permisos_rol, usuarios_establecimientos, establecimientos, establecimientos_especialidades, cat_modulos, historial_cambios
+Endpoints
+
+Módulo 15 — Catálogos
+
+Endpoints de consulta de catálogos estáticos y clínicos. Los catálogos de solo lectura están replicados en CDN para latencia mínima. Los catálogos geográficos INEGI son la base del domicilio estructurado.
+Tablas afectadas
+cat_cie10, cat_medicamentos, cat_especialidades_medicas, cat_lenguas_indigenas, cat_modulos, cat_estados, cat_municipios, cat_localidades, jurisdicciones_sanitarias
+Estrategia de caché (Cómputo Distribuido)
+cat_cie10 y cat_medicamentos: cacheados en Azure CDN. TTL de 24 horas. Invalidados manualmente desde POST /admin/cache/invalidate.
+cat_estados, cat_municipios, cat_localidades: cacheados en CDN con TTL de 7 días. Solo cambian cuando el INEGI publica nueva versión del catálogo.
+Catálogos de acceso clínico (cat_especialidades_medicas): NO se cachean. Requieren datos en tiempo real para validación de acceso cross-establecimiento.
+Endpoints
+Resumen de Vistas SQL
+
+Las siguientes vistas SQL se definen en database/02_triggers.sql y son consultadas directamente desde los services del backend:
+Tabla 15.1 — Vistas SQL de seguridad por nivel de acceso
