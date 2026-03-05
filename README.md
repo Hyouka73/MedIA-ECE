@@ -1,4 +1,74 @@
 # MedIA — Expediente Clínico Electrónico
+
+> **Repositorio:** https://github.com/Hyouka73/MedIA-ECE &nbsp;|&nbsp; **Rama de trabajo:** `develop`
+
+---
+
+## 🚀 Quick Start — Para el equipo
+
+### 1. Clonar el repositorio
+
+```bash
+git clone https://github.com/Hyouka73/MedIA-ECE.git
+cd MedIA-ECE
+```
+
+### 2. Crear tu rama de trabajo (a partir de `develop`)
+
+```bash
+git checkout develop
+git pull origin develop
+git checkout -b feature/p{numero}-nombre-de-tu-tarea
+# Ejemplos:
+#   feature/p2-seeds-geograficos
+#   feature/p3-backend-pacientes
+```
+
+### 3. Configurar variables de entorno
+
+El repo incluye un `.env.example` — **nunca subas el `.env` real.**
+
+```bash
+# Backend
+cp backend/.env.example backend/.env
+# Edita backend/.env con tus valores (ver instrucciones dentro del archivo)
+
+# Frontend
+cp frontend/.env.example frontend/.env
+```
+
+> **El archivo `.env` real te lo comparte el Lead (P1) por canal privado (WhatsApp/chat).**  
+> Contiene credenciales reales de la BD de desarrollo. No lo compartas ni lo subas.
+
+### 4. Levantar el entorno de desarrollo
+
+```bash
+# Opción rápida (Windows PowerShell)
+.\scripts\launch_dev.ps1
+
+# Manual
+docker compose up -d          # Inicia PostgreSQL
+cd backend
+.\venv\Scripts\Activate.ps1   # Activar venv (Windows)
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+
+# Frontend (otra terminal)
+cd frontend
+npm install
+npm run dev
+```
+
+App disponible en: http://localhost:5173
+
+### 5. Abrir Pull Request cuando termines
+
+Tu PR debe apuntar hacia la rama **`develop`** (no `main`).  
+El Lead (P1) revisará y aprobará los PRs.
+
+---
+
+
 **Distrito de Salud I · Tuxtla Gutiérrez, Chiapas**
 
 MedIA es un sistema de Expediente Clínico Electrónico (ECE) desarrollado para la UNACH. Cumple **NOM-004-SSA3-2012**, **NOM-024-SSA3-2012** y **NOM-151-SCFI-2016**.

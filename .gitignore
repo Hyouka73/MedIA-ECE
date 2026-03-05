@@ -49,6 +49,9 @@ Thumbs.db
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+token.json
+token.txt
+docs/doc_text.txt
 
 # ── VOLÚMENES DOCKER ───────────────────────────────────────────
 # No subir la data real de la BD del contenedor
