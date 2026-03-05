@@ -1,0 +1,58 @@
+# ══════════════════════════════════════════════════════════════
+# MedIA — .gitignore Maestro
+# ══════════════════════════════════════════════════════════════
+
+# ── ARCHIVOS DE ENTORNO (CRÍTICO: Nunca subir secretos) ────────────────
+.env
+.env.*
+!.env.example
+backend/.env
+frontend/.env
+.agent/
+
+# ── DEPENDENCIAS ──────────────────────────────────────────────
+node_modules/
+backend/venv/
+frontend/node_modules/
+.venv/
+env/
+ENV/
+
+# ── COMPILACIÓN Y CACHÉ — FRONTEND ──────────────────────────────
+dist/
+build/
+.next/
+.parcel-cache/
+.cache/
+
+# ── COMPILACIÓN Y CACHÉ — BACKEND ──────────────────────────────
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.coverage
+coverage/
+htmlcov/
+*.sqlite3
+
+# ── ARCHIVOS DEL SISTEMA / IDE ─────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── LOGS Y TEMPORALES ──────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── VOLÚMENES DOCKER ───────────────────────────────────────────
+# No subir la data real de la BD del contenedor
+media_postgres_data/
+
+# ── NOTA: Mantenemos la carpeta /docs para documentación del proyecto ─
+# (Eliminado /docs de la lista si queremos que se suba al repo)
