@@ -8,7 +8,7 @@ export default function DashboardPage() {
 
     if (!user) return null;
 
-    // Render condicional basado en Doc6: Casos de Uso por Actor
+    // Render condicional basado en Casos de Uso por Actor
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div>

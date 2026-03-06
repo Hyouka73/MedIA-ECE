@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }) => {
     // Solo se activa si VITE_APP_BYPASS_AUTH='true'
     const isDevBypass = import.meta.env.VITE_APP_BYPASS_AUTH === 'true';
 
-    // ── Refresh silencioso del JWT (Doc1 §3.2) ──
+    // ── Refresh silencioso del JWT ──
     // Calcula cuándo expira el token y programa un refresh 60 segundos antes
     const scheduleTokenRefresh = useCallback((accessToken) => {
         if (refreshTimerRef.current) {

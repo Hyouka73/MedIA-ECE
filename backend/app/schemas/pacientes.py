@@ -1,6 +1,6 @@
 """
 Schemas Pydantic v2 — Pacientes y Personas
-Contratos Doc3 §Módulos 2 y 3
+Contratos
 """
 from pydantic import BaseModel
 from typing import Optional

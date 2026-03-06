@@ -1,6 +1,6 @@
 """
 Servicio de Control de Acceso — Las 4 Reglas de Negocio
-Doc1 §3.3 · Doc6 §Diagrama 6
+Reglas de Negocio
 
 Estas funciones son la ÚNICA vía para acceder a datos clínicos.
 Los routers las llaman ANTES de cualquier query a BD.
@@ -52,5 +52,5 @@ async def verificar_regla_4() -> None:
 def raise_acceso_denegado(regla: int):
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
-        detail=f"Acceso denegado: Regla de Negocio {regla} no satisfecha (Doc6 §Diagrama 6)"
+        detail=f"Acceso denegado: Regla de Negocio {regla} no satisfecha"
     )
