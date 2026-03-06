@@ -67,8 +67,12 @@ BEGIN
 
     FOR columna IN SELECT column_name FROM information_schema.columns WHERE table_name = TG_TABLE_NAME AND table_schema = TG_TABLE_SCHEMA
     LOOP
-        -- Evitar columnas de ID PK para la comparativa de cambios o columnas irrelevantes
-        IF columna.column_name IN ('id_paciente', 'id_persona', 'id_alergia', 'id_ahf', 'id_ap', 'id_anp', 'id_ago', 'id_inmunizacion', 'url_foto', 'fecha_registro') THEN
+        -- Evitar columnas de metadatos administrativos o PKs irrelevantes
+        IF columna.column_name IN (
+            'id_paciente', 'id_persona', 'id_alergia', 'id_ahf', 'id_ap', 'id_anp', 'id_ago', 'id_inmunizacion', 
+            'url_foto', 'fecha_registro', 'intentos_fallidos', 'ultimo_login', 'bloqueado_hasta', 'password_hash',
+            'eliminado_en', 'eliminado_por', 'registrado_por'
+        ) THEN
             CONTINUE;
         END IF;
 
