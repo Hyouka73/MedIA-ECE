@@ -70,7 +70,7 @@ jobs:
 
       - name: Run Database Migrations (Alembic)
         run: |
-          cd backend
+          # El artefacto se extrae en la raíz del workspace, no hay subcarpeta backend
           
           # Instalar dependencias completas para evitar ModuleNotFoundError
           python3 -m pip install --upgrade pip
