@@ -15,16 +15,18 @@
 | # | Detectado en | Descripción | Responsable | Estado |
 |---|---|---|---|---|
 | 1 | Security Audit | Cifrado Fernet del `totp_secret` en BD — actualmente texto plano | P3 | Pendiente (producción) |
-| 2 | Security Audit | TOTP real contra `totp_secret` del usuario — actualmente usa bypass 000000 | P3 | Pendiente (producción) |
-| 3 | S3 Review | `convert_localidades.py` para importar catálogo INEGI completo (~5,000 localidades) | P2 | Post-demo |
+| 2 | S3 Review | `convert_localidades.py` para importar catálogo INEGI completo (~5,000 localidades) | P2 | Post-demo |
 
 ## ✅ Resueltos
 
 | # | Resuelto en | Descripción |
 |---|---|---|
-| 1 | S3 | Hashes Argon2id truncados en seeds — regenerados correctamente |
+| 1 | S3 | Hashes Argon2id truncados en semillas — regenerados correctamente |
 | 2 | S3 | Bloqueo por intentos fallidos no se aplicaba — backend ahora incrementa `intentos_fallidos` |
 | 3 | S3 | Auditoría solo en logger — ahora persiste en `auditoria_accesos` en BD |
-| 4 | S3 | TopBar hardcoded — conectado al AuthContext con datos reales |
+| 4 | S3 | TopBar hardcoded — conectado al AuthContext con datos reales y foto de perfil |
 | 5 | S3 | OMNIADMIN no aparecía en Dashboard — añadido a todas las vistas condicionales |
 | 6 | S3 | JWT refresh silencioso no implementado — ahora programa renovación 60s antes de expirar |
+| 7 | S4 | TOTP 2FA Dinámico — Eliminado pin quemado 123456 en favor de generación 100% aleatoria con `pyotp` y ventana 5mins. |
+| 8 | S4 | Perfil de Usuario y Avatar — Backend POST /avatar conectado a Azure Blob Storage y UI sincronizada. |
+| 9 | S4 | Pipeline de Producción (Azure Web App) — Corregido fallo de `No package found: backend/` ajustando artifacts y Start-up Command (`gunicorn`). |
