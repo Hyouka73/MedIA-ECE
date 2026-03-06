@@ -16,6 +16,7 @@ from app.database.session import get_db
 from app.core.security import verify_password, create_access_token, verify_token, verify_totp, hash_password
 from app.core.config import settings
 from app.models.auth import User, Role, Persona
+from app.services.email import email_service
 
 router = APIRouter()
 
@@ -138,6 +139,12 @@ async def login(data: LoginRequest, request: Request, db: AsyncSession = Depends
             {"sub": str(user.id_usuario), "rol": "PENDING_2FA", "email": user.email},
             expires_delta=300  # 5 minutos
         )
+        
+        # Enviar correo de verdad usando Resend
+        # TODO: En vez de quemar 123456, en el futuro generar PIN aleatorio y guardarlo en DB
+        codigo_enviado = "123456" 
+        email_service.send_2fa_token(user.email, codigo_enviado)
+
         return {
             "access_token": "",
             "token_type": "bearer",

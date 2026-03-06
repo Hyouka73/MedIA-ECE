@@ -213,3 +213,20 @@ Si necesitas usar scripts de backend manualmente:
 - Contraseña por defecto: `MedIA2026!` (Deberá cambiarse tras el primer ingreso).
 
 **Importante:** Nunca usar estas credenciales en producción.
+
+---
+
+## 📝 Tareas Pendientes (TODO)
+
+1. **Azure Blob Storage (Archivos y Fotos)**
+   - Ya se creó la clase base `app.services.storage` para la conexión a nube.
+   - *Pendiente:* Crear el endpoint de "Perfil" (donde el usuario ingresa su foto).
+   - *Pendiente:* Usar la clase `upload_file` para recibir el avatar y devolver la URL generada.
+2. **Forzado de Cambio de Contraseña Inicial**
+   - *Pendiente:* Detectar si el usuario está usando una "contraseña genérica". Si entra por primera vez, bloquear el acceso normal y redirigirlo a la pantalla de "Cambiar contraseña e imagen de perfil".
+3. **Módulo de Seguridad (Azure Monitor)**
+   - *Fase 4-5:* Cuando el módulo de Auditoría esté terminado, integrarle la librería de App Insights (`azure-monitor-opentelemetry`).
+   - Los requisitos específicos de monitoreo y alertas saldrán del análisis pendiente al archivo `Requisitos generales para el Proyecto Integrador.pdf`.
+4. **Correos / SMS en 2FA (Bypass actual)**
+   - Se integró una clase inicial `app.services.email` basada en la API de Resend.com.
+   - *Pendiente:* Crear la cuenta gratuita en Resend y pegar la llave API a las variables de entorno para habilitar correos de verdad. Si no está la llave, los correos caen a la consola local de Python.
