@@ -84,8 +84,12 @@ async def upload_avatar(
         return {"message": "Avatar actualizado correctamente", "url_foto": url_blob}
         
     except HTTPException as e:
-        # Re-lanzar errores controlados
+        # Re-lanzar errores controlados (404, 400, etc)
         raise e
     except Exception as e:
-        logger.error(f"Error procesando avatar: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Error interno procesando imagen: {str(e)}")
+        logger.error(f"Error crítico procesando avatar: {str(e)}")
+        # No exponemos la traza completa de SQL al cliente por seguridad, pero dejamos una pista.
+        raise HTTPException(
+            status_code=500, 
+            detail="Error interno al guardar la imagen. El equipo técnico ha sido notificado."
+        )
