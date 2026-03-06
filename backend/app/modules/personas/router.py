@@ -41,8 +41,8 @@ async def upload_avatar(
         content = await file.read()
         image = Image.open(io.BytesIO(content))
         
-        # Convertir a RGB por si es PNG con Alpha, para forzar JPEG correcto
-        if image.mode in ("RGBA", "P"):
+        # Asegurar conversión a RGB para máxima compatibilidad con JPEG
+        if image.mode != "RGB":
             image = image.convert("RGB")
             
         # Redimensionar (Mantiene la relación de aspecto y ajusta al límite)
@@ -65,11 +65,14 @@ async def upload_avatar(
             
         # Actualizar DB
         # Primero necesitamos la persona del usuario logueado
-        query = select(User).where(User.id_usuario == current_user["sub"])
+        from uuid import UUID as UUID_OBJ
+        user_uuid = UUID_OBJ(current_user["sub"])
+        
+        query = select(User).where(User.id_usuario == user_uuid)
         user = (await db.execute(query)).scalar_one_or_none()
         
         if not user or not user.id_persona:
-            raise HTTPException(status_code=404, detail="Usuario o Persona no encontrada.")
+            raise HTTPException(status_code=404, detail="Usuario o Registro de Persona no encontrado.")
             
         await db.execute(
             update(Persona)
@@ -80,6 +83,9 @@ async def upload_avatar(
         
         return {"message": "Avatar actualizado correctamente", "url_foto": url_blob}
         
+    except HTTPException as e:
+        # Re-lanzar errores controlados
+        raise e
     except Exception as e:
         logger.error(f"Error procesando avatar: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error procesando la imagen de perfil.")
+        raise HTTPException(status_code=500, detail=f"Error interno procesando imagen: {str(e)}")
