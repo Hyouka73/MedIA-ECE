@@ -4,6 +4,10 @@ Punto de entrada principal de la aplicación
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from app.core.config import settings
 from app.middleware.audit import AuditMiddleware
@@ -17,6 +21,8 @@ from app.modules.encuentros.router import router as encuentros_router
 from app.modules.admin.router import router as admin_router
 from app.modules.auditoria.router import router as auditoria_router
 
+limiter = Limiter(key_func=get_remote_address)
+
 app = FastAPI(
     title="MedIA ECE API",
     description="Sistema de Expediente Clínico Electrónico — Distrito de Salud I · Tuxtla Gutiérrez, Chiapas",
@@ -24,6 +30,9 @@ app = FastAPI(
     docs_url="/docs" if settings.APP_ENV != "production" else None,
     redoc_url="/redoc" if settings.APP_ENV != "production" else None,
 )
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Orden correcto: Sanitize → CORS → Auth → Audit
 # (Starlette aplica middlewares en orden inverso de declaración)

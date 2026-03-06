@@ -11,13 +11,15 @@ from app.core.security import verify_token
 
 # Rutas que NO requieren autenticación (deben coincidir con el prefijo /api)
 PUBLIC_PATHS = {
-    "/api/auth/login", 
-    "/api/auth/2fa/verify", 
-    "/api/health", 
-    "/", 
+    "/api/auth/login",
+    "/api/auth/2fa/verify",
+    "/api/auth/refresh",   # Usa su propia cookie, no Bearer token
+    "/api/auth/logout",    # Puede llamarse sin token para limpiar cookie
+    "/api/health",
+    "/",
     "/health",
     "/docs",
-    "/redoc", 
+    "/redoc",
     "/openapi.json"
 }
 

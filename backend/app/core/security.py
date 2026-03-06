@@ -49,6 +49,18 @@ def generate_totp_secret() -> str:
     return pyotp.random_base32()
 
 
+def create_refresh_token(data: dict) -> str:
+    """
+    Genera un JWT de refresh (larga duración, 7 días).
+    Lleva type='refresh' para distinguirlo del access token.
+    Se envía solo como cookie HttpOnly — nunca en el body.
+    """
+    to_encode = data.copy()
+    expire = datetime.now(timezone.utc) + timedelta(days=settings.JWT_REFRESH_TOKEN_EXPIRE_DAYS)
+    to_encode.update({"exp": expire, "iat": datetime.now(timezone.utc), "type": "refresh"})
+    return jwt.encode(to_encode, settings.JWT_SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+
 def verify_totp(secret: str, code: str) -> bool:
     # Usamos interval=300 (5 minutos de validez) porque el correo tarda más que un Google Authenticator
     totp = pyotp.TOTP(secret, interval=300)
