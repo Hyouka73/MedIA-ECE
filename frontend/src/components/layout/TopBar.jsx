@@ -31,7 +31,7 @@ export default function TopBar() {
                 <div className="h-6 w-px bg-border mx-1"></div>
                 <div className="flex items-center gap-2">
                     <div className="flex items-center gap-2 p-1.5 rounded-md text-sm text-text-primary">
-                        <Avatar nombre={user?.nombre} className="w-7 h-7 bg-primary-hover text-white text-xs" />
+                        <Avatar nombre={user?.nombre} url_foto={user?.url_foto} className="w-7 h-7 bg-primary-hover text-white text-xs flex-shrink-0" />
                         <div className="hidden sm:block">
                             <p className="text-sm font-medium leading-none">{user?.nombre || 'Usuario'}</p>
                             <p className="text-[10px] text-text-secondary uppercase tracking-tight mt-0.5">
