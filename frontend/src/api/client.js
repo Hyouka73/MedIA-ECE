@@ -4,8 +4,11 @@
  */
 import axios from 'axios';
 
+let rawApiUrl = import.meta.env.VITE_API_URL || '/api';
+const apiBase = rawApiUrl.endsWith('/api') ? rawApiUrl : `${rawApiUrl}/api`;
+
 const api = axios.create({
-    baseURL: import.meta.env.VITE_API_URL || '/api',
+    baseURL: apiBase,
     timeout: 15000,
     headers: { 'Content-Type': 'application/json' },
     withCredentials: true,  // Enviar cookies HttpOnly en requests cross-origin (refresh token)
