@@ -63,6 +63,21 @@ async def upload_avatar(
         if not url_blob:
             raise HTTPException(status_code=500, detail="Error al subir imagen a la nube.")
             
+        import hashlib
+        from app.core.forensic_logger import log_forensic_event
+        
+        # Calcular hash del archivo para trazabilidad forense
+        img_byte_arr.seek(0)
+        file_hash = hashlib.sha256(img_byte_arr.read()).hexdigest()
+        
+        log_forensic_event(
+            usuario=current_user["sub"],
+            accion="SUBIDA_ARCHIVO_AVATAR",
+            resultado="EXITOSO",
+            hash_archivo=file_hash,
+            detalles={"url": url_blob}
+        )
+            
         # Actualizar DB
         # Primero necesitamos la persona del usuario logueado
         from uuid import UUID as UUID_OBJ

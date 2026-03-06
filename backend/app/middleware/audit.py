@@ -105,10 +105,16 @@ class AuditMiddleware(BaseHTTPMiddleware):
             logger.error("AUDIT_DB_FAIL | %s | error=%s", modulo_funcion, str(e))
 
         # Log estructurado como respaldo (Req 1: archivo independiente)
-        logger.info(
-            "ACCESO | ip=%s | usuario=%s | %s | %s | status=%s | %s | ms=%s",
-            client_ip, user_id or "anónimo", request.method, request.url.path,
-            response.status_code, tipo_evento, duration_ms,
+        from app.core.forensic_logger import log_forensic_event
+        
+        # Opcional: hash de petición si requiriera rastreo, pero dejemos None por defecto.
+        # "resultado" forense es EXITO o FALLO general
+        log_forensic_event(
+            usuario=user_id or "ANÓNIMO",
+            accion=f"{tipo_evento} -> {request.method} {request.url.path}",
+            resultado=resultado,
+            ip=client_ip,
+            detalles={"status": response.status_code, "ms": duration_ms}
         )
         return response
 
