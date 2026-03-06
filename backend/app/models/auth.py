@@ -37,5 +37,21 @@ class Persona(Base):
     segundo_apellido = Column(String(100))
     curp = Column(String(18), unique=True)
     url_foto = Column(String)
-    
+
     usuario = relationship("User", back_populates="persona", uselist=False)
+
+
+class SesionActiva(Base):
+    """
+    Whitelist de refresh tokens activos (Req Forense 1).
+    Una sesión existe aquí = válida. Logout = borrar fila = cookie muerta al instante.
+    También registra IP y user-agent para auditoría de acceso inusual.
+    """
+    __tablename__ = "sesiones_activas"
+    jti = Column(String(36), primary_key=True)          # UUID único del token
+    id_usuario = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), nullable=False)
+    ip_origen = Column(String(45))                       # IPv4 o IPv6
+    user_agent = Column(String(512))                     # Navegador/dispositivo
+    fecha_creacion = Column(DateTime(timezone=True), nullable=False)
+    fecha_expira = Column(DateTime(timezone=True), nullable=False)
+

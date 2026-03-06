@@ -80,10 +80,28 @@ export const AuthProvider = ({ children }) => {
             return;
         }
 
-        // Flujo Real: intentar refresh silencioso si hay session cookie HttpOnly
-        // Por ahora solo cortamos el loading
-        setLoading(false);
-    }, [isDevBypass]);
+        // Flujo Real: intentar restore silencioso con cookie HttpOnly de refresh
+        // Si el usuario recargó la página, el access_token en memoria desapareció
+        // pero la cookie de refresh sigue en el browser → podemos restaurar la sesión
+        const restoreSession = async () => {
+            try {
+                const response = await apiClient.post('/auth/refresh', {}, {
+                    withCredentials: true  // Necesario para enviar la cookie cross-origin
+                });
+                const { access_token, user: userData } = response.data;
+                setToken(access_token);
+                setUser(userData);
+                setIsAuthenticated(true);
+                scheduleTokenRefresh(access_token);
+            } catch {
+                // No hay sesión activa o la cookie expiró → ir a login normalmente
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        restoreSession();
+    }, [isDevBypass, scheduleTokenRefresh]);
 
     // Cleanup del timer
     useEffect(() => {
