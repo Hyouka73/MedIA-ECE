@@ -74,5 +74,5 @@ jobs:
         with:
           app-name: 'media-backend-api-chiapas'
           slot-name: 'Production'
-          package: 'backend/'
+          package: '.'
           
