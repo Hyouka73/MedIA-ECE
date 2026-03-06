@@ -44,7 +44,19 @@ class StorageService:
         """
         if not self.blob_service_client:
             logger.warning(f"Upload simulado local: {extension} en {container_name}")
-            return f"https://simulated-storage.local/{container_name}/simulado-{uuid.uuid4()}{extension}"
+            import os
+            # Ensure static directory exists
+            static_dir = os.path.join(os.getcwd(), 'static', container_name)
+            os.makedirs(static_dir, exist_ok=True)
+            
+            filename = f"simulado-{uuid.uuid4()}{extension}"
+            file_path = os.path.join(static_dir, filename)
+            
+            file_content.seek(0)
+            with open(file_path, 'wb') as f:
+                f.write(file_content.read())
+                
+            return f"http://localhost:8000/static/{container_name}/{filename}"
 
         filename = f"{uuid.uuid4()}{extension}"
         container_client = self._get_container_client(container_name)
