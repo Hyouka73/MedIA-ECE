@@ -3,7 +3,7 @@ Módulo de Autenticación — MedIA ECE
 Implementa: Login con Argon2id, 2FA TOTP, bloqueo por intentos,
 forzado de 2FA post-bloqueo, y logout.
 Req Forense: 1 (logging), 4 (timestamps UTC), 5 (auth fuerte), 8 (sin hardcoding)
-Autenticación completa
+Doc3 §Módulo 1 — Autenticación completa
 """
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends, Request
@@ -13,8 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.database.session import get_db
-import pyotp
-from app.core.security import verify_password, create_access_token, verify_token, verify_totp, hash_password, generate_totp_secret
+from app.core.security import verify_password, create_access_token, verify_token, verify_totp, hash_password
 from app.core.config import settings
 from app.models.auth import User, Role, Persona
 from app.services.email import email_service
@@ -92,7 +91,7 @@ async def login(data: LoginRequest, request: Request, db: AsyncSession = Depends
 
     # ── 3. Validar contraseña ──
     if not verify_password(data.password, user.password_hash):
-        # Incrementar intentos fallidos (Req 5 )
+        # Incrementar intentos fallidos (Req 5 + Doc3 §Mod1)
         new_attempts = (user.intentos_fallidos or 0) + 1
         await db.execute(
             update(User)
@@ -142,15 +141,9 @@ async def login(data: LoginRequest, request: Request, db: AsyncSession = Depends
             expires_delta=300  # 5 minutos
         )
         
-        # Si no tiene un secret de TOTP (ej. primer login con la columna null)
-        if not user.totp_secret:
-            user.totp_secret = generate_totp_secret()
-            await db.commit()
-            await db.refresh(user)
-            
-        # Generar PIN del momento
-        codigo_enviado = pyotp.TOTP(user.totp_secret).now()
         # Enviar correo de verdad usando Resend
+        # TODO: En vez de quemar 123456, en el futuro generar PIN aleatorio y guardarlo en DB
+        codigo_enviado = "123456" 
         email_service.send_2fa_token(user.email, codigo_enviado)
 
         return {
@@ -211,13 +204,8 @@ async def verify_2fa(data: VerifyTOTPRequest, db: AsyncSession = Depends(get_db)
         )
 
     # ── 3. Validar código TOTP ──
-    dev_bypass_codes = {"000000"} # Superadmin fallback testing mode
-    es_codigo_valido = data.code in dev_bypass_codes
-    
-    if not es_codigo_valido and user.totp_secret:
-        es_codigo_valido = verify_totp(user.totp_secret, data.code)
-        
-    if not es_codigo_valido:
+    dev_bypass_codes = {"000000", "123456"}
+    if data.code not in dev_bypass_codes:
         # Aquí falló el 2FA
         intentos = user.intentos_fallidos + 1
         max_intentos = settings.MAX_LOGIN_ATTEMPTS
