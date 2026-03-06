@@ -76,6 +76,7 @@ CREATE TABLE personas (
     referencia_geografica TEXT,
     id_lengua_materna INT REFERENCES cat_lenguas_indigenas(id_lengua) ON DELETE RESTRICT,
     telefono VARCHAR(20),
+    url_foto TEXT,
     fecha_registro TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
