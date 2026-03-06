@@ -50,5 +50,7 @@ def generate_totp_secret() -> str:
 
 
 def verify_totp(secret: str, code: str) -> bool:
-    totp = pyotp.TOTP(secret)
+    # Usamos interval=300 (5 minutos de validez) porque el correo tarda más que un Google Authenticator
+    totp = pyotp.TOTP(secret, interval=300)
+    # valid_window=1 permite un margen extra de ±5 mins por si el servidor y el cliente están desincronizados
     return totp.verify(code, valid_window=1)

@@ -148,8 +148,8 @@ async def login(data: LoginRequest, request: Request, db: AsyncSession = Depends
             await db.commit()
             await db.refresh(user)
             
-        # Generar PIN del momento
-        codigo_enviado = pyotp.TOTP(user.totp_secret).now()
+        # Generar PIN del momento (Válido por 5 minutos sincronizado con security.py)
+        codigo_enviado = pyotp.TOTP(user.totp_secret, interval=300).now()
         # Enviar correo de verdad usando Resend
         email_service.send_2fa_token(user.email, codigo_enviado)
 
