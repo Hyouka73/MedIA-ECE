@@ -1,0 +1,213 @@
+
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:37.9421029Z Collecting fastapi>=0.104.0 (from -r requirements.txt (line 1))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:37.9819252Z   Downloading fastapi-0.135.1-py3-none-any.whl.metadata (30 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:38.8987509Z Collecting uvicorn>=0.24.0 (from uvicorn[standard]>=0.24.0->-r requirements.txt (line 2))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:38.9039139Z   Downloading uvicorn-0.41.0-py3-none-any.whl.metadata (6.7 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.2579045Z Collecting sqlalchemy>=2.0.0 (from -r requirements.txt (line 3))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.2625534Z   Downloading sqlalchemy-2.0.48-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (9.5 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.3213171Z Collecting asyncpg>=0.29.0 (from -r requirements.txt (line 4))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.3264237Z   Downloading asyncpg-0.31.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (4.4 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.4053653Z Collecting alembic>=1.12.0 (from -r requirements.txt (line 5))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.4097847Z   Downloading alembic-1.18.4-py3-none-any.whl.metadata (7.2 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.5736804Z Collecting pydantic>=2.0.0 (from -r requirements.txt (line 6))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.5780975Z   Downloading pydantic-2.12.5-py3-none-any.whl.metadata (90 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.5885655Z      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 90.6/90.6 kB 11.4 MB/s eta 0:00:00
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.6184051Z Collecting pydantic-settings>=2.0.0 (from -r requirements.txt (line 7))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.6233778Z   Downloading pydantic_settings-2.13.1-py3-none-any.whl.metadata (3.4 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.6479145Z Collecting python-jose>=3.3.0 (from python-jose[cryptography]>=3.3.0->-r requirements.txt (line 8))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.6524597Z   Downloading python_jose-3.5.0-py2.py3-none-any.whl.metadata (5.5 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.6735441Z Collecting passlib>=1.7.4 (from passlib[argon2]>=1.7.4->-r requirements.txt (line 9))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.6796473Z   Downloading passlib-1.7.4-py2.py3-none-any.whl.metadata (1.7 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.7012378Z Collecting pyotp>=2.9.0 (from -r requirements.txt (line 10))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.7065284Z   Downloading pyotp-2.9.0-py3-none-any.whl.metadata (9.8 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.9646439Z Collecting cryptography>=41.0.0 (from -r requirements.txt (line 11))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.9693808Z   Downloading cryptography-46.0.5-cp311-abi3-manylinux_2_34_x86_64.whl.metadata (5.7 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.9934931Z Collecting python-multipart>=0.0.9 (from -r requirements.txt (line 12))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:39.9963500Z   Downloading python_multipart-0.0.22-py3-none-any.whl.metadata (1.8 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.0312335Z Collecting httpx>=0.25.0 (from -r requirements.txt (line 13))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.0355891Z   Downloading httpx-0.28.1-py3-none-any.whl.metadata (7.1 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.0719194Z Collecting azure-storage-blob>=12.19.0 (from -r requirements.txt (line 14))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.0761811Z   Downloading azure_storage_blob-12.28.0-py3-none-any.whl.metadata (26 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.1056607Z Collecting resend>=2.1.0 (from -r requirements.txt (line 15))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.1102484Z   Downloading resend-2.23.0-py2.py3-none-any.whl.metadata (2.5 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.3888763Z Collecting Pillow>=10.0.0 (from -r requirements.txt (line 16))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.3932867Z   Downloading pillow-12.1.1-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl.metadata (8.8 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.4145922Z Collecting slowapi>=0.1.9 (from -r requirements.txt (line 17))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.4185487Z   Downloading slowapi-0.1.9-py3-none-any.whl.metadata (3.0 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.4925531Z Collecting starlette>=0.46.0 (from fastapi>=0.104.0->-r requirements.txt (line 1))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.4970004Z   Downloading starlette-0.52.1-py3-none-any.whl.metadata (6.3 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.5404171Z Collecting typing-extensions>=4.8.0 (from fastapi>=0.104.0->-r requirements.txt (line 1))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.5445912Z   Downloading typing_extensions-4.15.0-py3-none-any.whl.metadata (3.3 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.5638403Z Collecting typing-inspection>=0.4.2 (from fastapi>=0.104.0->-r requirements.txt (line 1))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.5691156Z   Downloading typing_inspection-0.4.2-py3-none-any.whl.metadata (2.6 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.5877757Z Collecting annotated-doc>=0.0.2 (from fastapi>=0.104.0->-r requirements.txt (line 1))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.5916993Z   Downloading annotated_doc-0.0.4-py3-none-any.whl.metadata (6.6 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.6325785Z Collecting click>=7.0 (from uvicorn>=0.24.0->uvicorn[standard]>=0.24.0->-r requirements.txt (line 2))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.6368094Z   Downloading click-8.3.1-py3-none-any.whl.metadata (2.6 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.6584178Z Collecting h11>=0.8 (from uvicorn>=0.24.0->uvicorn[standard]>=0.24.0->-r requirements.txt (line 2))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.6624908Z   Downloading h11-0.16.0-py3-none-any.whl.metadata (8.3 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.9227662Z Collecting greenlet>=1 (from sqlalchemy>=2.0.0->-r requirements.txt (line 3))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.9283573Z   Downloading greenlet-3.3.2-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl.metadata (3.7 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.9847264Z Collecting Mako (from alembic>=1.12.0->-r requirements.txt (line 5))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:40.9891582Z   Downloading mako-1.3.10-py3-none-any.whl.metadata (2.9 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:41.0211410Z Collecting annotated-types>=0.6.0 (from pydantic>=2.0.0->-r requirements.txt (line 6))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:41.0253657Z   Downloading annotated_types-0.7.0-py3-none-any.whl.metadata (15 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:41.9041454Z Collecting pydantic-core==2.41.5 (from pydantic>=2.0.0->-r requirements.txt (line 6))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:41.9084285Z   Downloading pydantic_core-2.41.5-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (7.3 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:41.9486741Z Collecting python-dotenv>=0.21.0 (from pydantic-settings>=2.0.0->-r requirements.txt (line 7))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:41.9528313Z   Downloading python_dotenv-1.2.2-py3-none-any.whl.metadata (27 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:41.9861182Z Collecting ecdsa!=0.15 (from python-jose>=3.3.0->python-jose[cryptography]>=3.3.0->-r requirements.txt (line 8))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:41.9902590Z   Downloading ecdsa-0.19.1-py2.py3-none-any.whl.metadata (29 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.0186785Z Collecting rsa!=4.1.1,!=4.4,<5.0,>=4.0 (from python-jose>=3.3.0->python-jose[cryptography]>=3.3.0->-r requirements.txt (line 8))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.0224803Z   Downloading rsa-4.9.1-py3-none-any.whl.metadata (5.6 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.0573459Z Collecting pyasn1>=0.5.0 (from python-jose>=3.3.0->python-jose[cryptography]>=3.3.0->-r requirements.txt (line 8))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.0621165Z   Downloading pyasn1-0.6.2-py3-none-any.whl.metadata (8.4 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.3089062Z Collecting cffi>=2.0.0 (from cryptography>=41.0.0->-r requirements.txt (line 11))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.3132735Z   Downloading cffi-2.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (2.6 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.3594697Z Collecting anyio (from httpx>=0.25.0->-r requirements.txt (line 13))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.3635171Z   Downloading anyio-4.12.1-py3-none-any.whl.metadata (4.3 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.3938665Z Collecting certifi (from httpx>=0.25.0->-r requirements.txt (line 13))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.3976740Z   Downloading certifi-2026.2.25-py3-none-any.whl.metadata (2.5 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.4303927Z Collecting httpcore==1.* (from httpx>=0.25.0->-r requirements.txt (line 13))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.4345671Z   Downloading httpcore-1.0.9-py3-none-any.whl.metadata (21 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.4598850Z Collecting idna (from httpx>=0.25.0->-r requirements.txt (line 13))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.4640873Z   Downloading idna-3.11-py3-none-any.whl.metadata (8.4 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.5128418Z Collecting azure-core>=1.30.0 (from azure-storage-blob>=12.19.0->-r requirements.txt (line 14))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.5177225Z   Downloading azure_core-1.38.2-py3-none-any.whl.metadata (48 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.5235968Z      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 48.1/48.1 kB 11.8 MB/s eta 0:00:00
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.5690303Z Collecting isodate>=0.6.1 (from azure-storage-blob>=12.19.0->-r requirements.txt (line 14))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.5730515Z   Downloading isodate-0.7.2-py3-none-any.whl.metadata (11 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.6198591Z Collecting requests>=2.31.0 (from resend>=2.1.0->-r requirements.txt (line 15))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.6242241Z   Downloading requests-2.32.5-py3-none-any.whl.metadata (4.9 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.6930019Z Collecting limits>=2.3 (from slowapi>=0.1.9->-r requirements.txt (line 17))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.6972065Z   Downloading limits-5.8.0-py3-none-any.whl.metadata (10 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.7384269Z Collecting argon2-cffi>=18.2.0 (from passlib[argon2]>=1.7.4->-r requirements.txt (line 9))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.7426714Z   Downloading argon2_cffi-25.1.0-py3-none-any.whl.metadata (4.1 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.8386567Z Collecting httptools>=0.6.3 (from uvicorn[standard]>=0.24.0->-r requirements.txt (line 2))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.8426857Z   Downloading httptools-0.7.1-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (3.5 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.8960944Z Collecting pyyaml>=5.1 (from uvicorn[standard]>=0.24.0->-r requirements.txt (line 2))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.9007200Z   Downloading pyyaml-6.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.4 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.9538287Z Collecting uvloop>=0.15.1 (from uvicorn[standard]>=0.24.0->-r requirements.txt (line 2))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:42.9580322Z   Downloading uvloop-0.22.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (4.9 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:43.0535954Z Collecting watchfiles>=0.20 (from uvicorn[standard]>=0.24.0->-r requirements.txt (line 2))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:43.0580161Z   Downloading watchfiles-1.1.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl.metadata (4.9 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:43.1719421Z Collecting websockets>=10.4 (from uvicorn[standard]>=0.24.0->-r requirements.txt (line 2))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:43.1762441Z   Downloading websockets-16.0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (6.8 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:43.2083630Z Collecting argon2-cffi-bindings (from argon2-cffi>=18.2.0->passlib[argon2]>=1.7.4->-r requirements.txt (line 9))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:43.2125532Z   Downloading argon2_cffi_bindings-25.1.0-cp39-abi3-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl.metadata (7.4 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:43.2502412Z Collecting pycparser (from cffi>=2.0.0->cryptography>=41.0.0->-r requirements.txt (line 11))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:43.2542370Z   Downloading pycparser-3.0-py3-none-any.whl.metadata (8.2 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:43.2872285Z Collecting six>=1.9.0 (from ecdsa!=0.15->python-jose>=3.3.0->python-jose[cryptography]>=3.3.0->-r requirements.txt (line 8))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:43.2916400Z   Downloading six-1.17.0-py2.py3-none-any.whl.metadata (1.7 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:43.3548302Z Collecting deprecated>=1.2 (from limits>=2.3->slowapi>=0.1.9->-r requirements.txt (line 17))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:43.3592747Z   Downloading deprecated-1.3.1-py2.py3-none-any.whl.metadata (5.9 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:43.3922083Z Collecting packaging>=21 (from limits>=2.3->slowapi>=0.1.9->-r requirements.txt (line 17))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:43.3964409Z   Downloading packaging-26.0-py3-none-any.whl.metadata (3.3 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:43.5389417Z Collecting charset_normalizer<4,>=2 (from requests>=2.31.0->resend>=2.1.0->-r requirements.txt (line 15))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:43.5437880Z   Downloading charset_normalizer-3.4.5-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (39 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:43.6007913Z Collecting urllib3<3,>=1.21.1 (from requests>=2.31.0->resend>=2.1.0->-r requirements.txt (line 15))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:43.6050190Z   Downloading urllib3-2.6.3-py3-none-any.whl.metadata (6.9 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:43.9450856Z Collecting MarkupSafe>=0.9.2 (from Mako->alembic>=1.12.0->-r requirements.txt (line 5))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:43.9493726Z   Downloading markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl.metadata (2.7 kB)
+> build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.1764733Z Collecting wrapt<3,>=1.10 (from deprecated>=1.2->limits>=2.3->slowapi>=0.1.9->-r requirements.txt (line 17))
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.1807184Z   Downloading wrapt-2.1.2-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl.metadata (7.4 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.2665650Z Downloading fastapi-0.135.1-py3-none-any.whl (116 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.2743987Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 117.0/117.0 kB 21.6 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.2783764Z Downloading uvicorn-0.41.0-py3-none-any.whl (68 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.2848581Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 68.8/68.8 kB 14.1 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.2899970Z Downloading sqlalchemy-2.0.48-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (3.3 MB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.3485008Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.3/3.3 MB 59.2 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.3528519Z Downloading asyncpg-0.31.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (3.0 MB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.3816665Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.0/3.0 MB 112.8 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.3861162Z Downloading alembic-1.18.4-py3-none-any.whl (263 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.3916549Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 263.9/263.9 kB 73.5 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.3959104Z Downloading pydantic-2.12.5-py3-none-any.whl (463 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.4037234Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 463.6/463.6 kB 93.1 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.4079930Z Downloading pydantic_core-2.41.5-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (2.1 MB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.4288464Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.1/2.1 MB 111.9 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.4328813Z Downloading pydantic_settings-2.13.1-py3-none-any.whl (58 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.4383681Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 58.9/58.9 kB 14.1 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.4425483Z Downloading python_jose-3.5.0-py2.py3-none-any.whl (34 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.4490395Z Downloading passlib-1.7.4-py2.py3-none-any.whl (525 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.4563390Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 525.6/525.6 kB 99.2 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.4602172Z Downloading pyotp-2.9.0-py3-none-any.whl (13 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.4664280Z Downloading cryptography-46.0.5-cp311-abi3-manylinux_2_34_x86_64.whl (4.5 MB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.5030986Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 4.5/4.5 MB 129.9 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.5072043Z Downloading python_multipart-0.0.22-py3-none-any.whl (24 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.5148070Z Downloading httpx-0.28.1-py3-none-any.whl (73 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.5201107Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 73.5/73.5 kB 20.0 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.5241051Z Downloading httpcore-1.0.9-py3-none-any.whl (78 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.5289486Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.8/78.8 kB 25.0 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.5336952Z Downloading azure_storage_blob-12.28.0-py3-none-any.whl (431 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.5415380Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 431.5/431.5 kB 78.0 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.5455519Z Downloading resend-2.23.0-py2.py3-none-any.whl (52 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.5501389Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 52.6/52.6 kB 17.3 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.5543659Z Downloading pillow-12.1.1-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl (7.0 MB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.6067026Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 7.0/7.0 MB 140.6 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.6108359Z Downloading slowapi-0.1.9-py3-none-any.whl (14 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.6174503Z Downloading annotated_doc-0.0.4-py3-none-any.whl (5.3 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.6253883Z Downloading annotated_types-0.7.0-py3-none-any.whl (13 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.6314986Z Downloading argon2_cffi-25.1.0-py3-none-any.whl (14 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.6379018Z Downloading azure_core-1.38.2-py3-none-any.whl (217 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.6435092Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 218.0/218.0 kB 60.5 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.6473474Z Downloading cffi-2.0.0-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (215 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.6525531Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 215.6/215.6 kB 63.6 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.6563742Z Downloading click-8.3.1-py3-none-any.whl (108 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.6615010Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 108.3/108.3 kB 31.9 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.6653973Z Downloading ecdsa-0.19.1-py2.py3-none-any.whl (150 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.6706142Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 150.6/150.6 kB 43.5 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.6745227Z Downloading greenlet-3.3.2-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl (594 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.6829259Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 594.2/594.2 kB 96.2 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.6870555Z Downloading h11-0.16.0-py3-none-any.whl (37 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.6935988Z Downloading httptools-0.7.1-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (456 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.7003553Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 456.6/456.6 kB 100.1 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.7043546Z Downloading isodate-0.7.2-py3-none-any.whl (22 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.7106805Z Downloading limits-5.8.0-py3-none-any.whl (60 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.7153349Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 61.0/61.0 kB 20.5 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.7193807Z Downloading pyasn1-0.6.2-py3-none-any.whl (83 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.7248734Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 83.4/83.4 kB 22.8 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.7288899Z Downloading python_dotenv-1.2.2-py3-none-any.whl (22 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.7353643Z Downloading pyyaml-6.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (806 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.7450071Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 806.6/806.6 kB 112.2 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.7490830Z Downloading requests-2.32.5-py3-none-any.whl (64 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.7538314Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 64.7/64.7 kB 21.5 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.7581096Z Downloading certifi-2026.2.25-py3-none-any.whl (153 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.7631174Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 153.7/153.7 kB 48.9 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.7669538Z Downloading idna-3.11-py3-none-any.whl (71 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.7718486Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 71.0/71.0 kB 21.5 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.7755888Z Downloading rsa-4.9.1-py3-none-any.whl (34 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.7816663Z Downloading starlette-0.52.1-py3-none-any.whl (74 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.7864891Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 74.3/74.3 kB 25.3 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.7911608Z Downloading anyio-4.12.1-py3-none-any.whl (113 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.7966697Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 113.6/113.6 kB 32.3 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.8011175Z Downloading typing_extensions-4.15.0-py3-none-any.whl (44 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.8055719Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 44.6/44.6 kB 14.5 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.8094422Z Downloading typing_inspection-0.4.2-py3-none-any.whl (14 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.8158174Z Downloading uvloop-0.22.1-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (3.8 MB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.8462004Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 3.8/3.8 MB 135.2 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.8505929Z Downloading watchfiles-1.1.1-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl (456 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.8583404Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 456.1/456.1 kB 81.1 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.8630503Z Downloading websockets-16.0-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (184 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.8689543Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 184.6/184.6 kB 46.3 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.8732501Z Downloading mako-1.3.10-py3-none-any.whl (78 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.8778107Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 78.5/78.5 kB 26.3 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.8819103Z Downloading charset_normalizer-3.4.5-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (193 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.8873473Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 193.9/193.9 kB 59.1 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.8912241Z Downloading deprecated-1.3.1-py2.py3-none-any.whl (11 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.8974093Z Downloading markupsafe-3.0.3-cp311-cp311-manylinux2014_x86_64.manylinux_2_17_x86_64.manylinux_2_28_x86_64.whl (22 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.9039091Z Downloading packaging-26.0-py3-none-any.whl (74 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.9084618Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 74.4/74.4 kB 25.0 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.9123369Z Downloading six-1.17.0-py2.py3-none-any.whl (11 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.9186042Z Downloading urllib3-2.6.3-py3-none-any.whl (131 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.9245067Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 131.6/131.6 kB 32.9 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.9283998Z Downloading argon2_cffi_bindings-25.1.0-cp39-abi3-manylinux_2_26_x86_64.manylinux_2_28_x86_64.whl (87 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.9331836Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 87.1/87.1 kB 29.9 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.9369942Z Downloading pycparser-3.0-py3-none-any.whl (48 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.9412231Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 48.2/48.2 kB 17.6 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.9453403Z Downloading wrapt-2.1.2-cp311-cp311-manylinux1_x86_64.manylinux_2_28_x86_64.manylinux_2_5_x86_64.whl (114 kB)
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:44.9498670Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 114.1/114.1 kB 41.4 MB/s eta 0:00:00
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:45.2767267Z Installing collected packages: passlib, wrapt, websockets, uvloop, urllib3, typing-extensions, six, pyyaml, python-multipart, python-dotenv, pyotp, pycparser, pyasn1, Pillow, packaging, MarkupSafe, isodate, idna, httptools, h11, greenlet, click, charset_normalizer, certifi, asyncpg, annotated-types, annotated-doc, uvicorn, typing-inspection, sqlalchemy, rsa, requests, pydantic-core, Mako, httpcore, ecdsa, deprecated, cffi, anyio, watchfiles, starlette, resend, python-jose, pydantic, limits, httpx, cryptography, azure-core, argon2-cffi-bindings, alembic, slowapi, pydantic-settings, fastapi, azure-storage-blob, argon2-cffi
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:50.0692559Z Successfully installed Mako-1.3.10 MarkupSafe-3.0.3 Pillow-12.1.1 alembic-1.18.4 annotated-doc-0.0.4 annotated-types-0.7.0 anyio-4.12.1 argon2-cffi-25.1.0 argon2-cffi-bindings-25.1.0 asyncpg-0.31.0 azure-core-1.38.2 azure-storage-blob-12.28.0 certifi-2026.2.25 cffi-2.0.0 charset_normalizer-3.4.5 click-8.3.1 cryptography-46.0.5 deprecated-1.3.1 ecdsa-0.19.1 fastapi-0.135.1 greenlet-3.3.2 h11-0.16.0 httpcore-1.0.9 httptools-0.7.1 httpx-0.28.1 idna-3.11 isodate-0.7.2 limits-5.8.0 packaging-26.0 passlib-1.7.4 pyasn1-0.6.2 pycparser-3.0 pydantic-2.12.5 pydantic-core-2.41.5 pydantic-settings-2.13.1 pyotp-2.9.0 python-dotenv-1.2.2 python-jose-3.5.0 python-multipart-0.0.22 pyyaml-6.0.3 requests-2.32.5 resend-2.23.0 rsa-4.9.1 six-1.17.0 slowapi-0.1.9 sqlalchemy-2.0.48 starlette-0.52.1 typing-extensions-4.15.0 typing-inspection-0.4.2 urllib3-2.6.3 uvicorn-0.41.0 uvloop-0.22.1 watchfiles-1.1.1 websockets-16.0 wrapt-2.1.2
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:50.2286224Z 
+  build	Create and Start virtual environment and Install dependencies	2026-03-06T08:30:50.2289464Z [notice] A new release of pip is available: 24.0 -> 26.0.1
+

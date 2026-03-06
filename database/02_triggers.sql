@@ -42,21 +42,45 @@ RETURNS TRIGGER AS $$
 DECLARE
     columna record;
     v_id UUID;
+    v_user_id UUID;
     _ boolean;
 BEGIN
-    v_id := COALESCE(NEW.id_paciente, NEW.id_persona, NEW.id_nota, gen_random_uuid()); -- heurística simple para DDL base
+    -- Determinar el ID del registro según la tabla (Req 6 Forense)
+    CASE TG_TABLE_NAME
+        WHEN 'pacientes' THEN v_id := NEW.id_paciente;
+        WHEN 'personas' THEN v_id := NEW.id_persona;
+        WHEN 'alergias' THEN v_id := NEW.id_alergia;
+        WHEN 'antecedentes_heredofamiliares' THEN v_id := NEW.id_ahf;
+        WHEN 'antecedentes_patologicos' THEN v_id := NEW.id_ap;
+        WHEN 'antecedentes_no_patologicos' THEN v_id := NEW.id_anp;
+        WHEN 'antecedentes_ginecoobstetricos' THEN v_id := NEW.id_ago;
+        WHEN 'inmunizaciones' THEN v_id := NEW.id_inmunizacion;
+        ELSE v_id := gen_random_uuid();
+    END CASE;
     
+    -- Obtener ID del usuario del contexto de la sesión (seteado por el app)
+    BEGIN
+        v_user_id := (SELECT id_usuario FROM current_setting('myapp.current_user', true))::uuid;
+    EXCEPTION WHEN OTHERS THEN
+        v_user_id := NULL;
+    END;
+
     FOR columna IN SELECT column_name FROM information_schema.columns WHERE table_name = TG_TABLE_NAME AND table_schema = TG_TABLE_SCHEMA
     LOOP
-        EXECUTE format('SELECT ($1).%I != ($2).%I', columna.column_name, columna.column_name)
+        -- Evitar comparar columnas de auditoria interna si existieran
+        IF columna.column_name IN ('id_paciente', 'id_persona', 'id_alergia', 'id_ahf', 'id_ap', 'id_anp', 'id_ago', 'id_inmunizacion') THEN
+            CONTINUE;
+        END IF;
+
+        EXECUTE format('SELECT ($1).%I IS DISTINCT FROM ($2).%I', columna.column_name, columna.column_name)
         INTO STRICT _
         USING OLD, NEW;
         
         IF _ THEN
             EXECUTE format('INSERT INTO historial_cambios (tabla_afectada, registro_id, id_usuario, campo_modificado, valor_anterior, valor_nuevo)
-            VALUES ($1, $2, (SELECT id_usuario FROM current_setting(''myapp.current_user'', true)), $3, ($4).%I::text, ($5).%I::text)', 
+            VALUES ($1, $2, $3, $4, ($5).%I::text, ($6).%I::text)', 
             columna.column_name, columna.column_name)
-            USING TG_TABLE_NAME, v_id, columna.column_name, OLD, NEW;
+            USING TG_TABLE_NAME, v_id, v_user_id, columna.column_name, OLD, NEW;
         END IF;
     END LOOP;
     RETURN NEW;

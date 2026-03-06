@@ -1,0 +1,38 @@
+
+  deploy	Login to Azure	2026-03-06T08:15:35.5136204Z [command]/usr/bin/az cloud set -n azurecloud
+  deploy	Login to Azure	2026-03-06T08:15:35.7660646Z Done setting cloud: "azurecloud"
+  deploy	Login to Azure	2026-03-06T08:15:35.9169613Z Federated token details:
+  deploy	Login to Azure	2026-03-06T08:15:35.9183918Z  issuer - https://token.actions.githubusercontent.com
+  deploy	Login to Azure	2026-03-06T08:15:35.9185066Z  subject claim - repo:Hyouka73/MedIA-ECE:ref:refs/heads/main
+  deploy	Login to Azure	2026-03-06T08:15:35.9185987Z  audience - api://AzureADTokenExchange
+  deploy	Login to Azure	2026-03-06T08:15:35.9187312Z  job_workflow_ref - Hyouka73/MedIA-ECE/.github/workflows/main_media-backend-api-chiapas.yml@refs/heads/main
+  deploy	Login to Azure	2026-03-06T08:15:35.9188559Z Attempting Azure CLI login by using OIDC...
+  deploy	Login to Azure	2026-03-06T08:15:37.0941529Z Subscription is set successfully.
+  deploy	Login to Azure	2026-03-06T08:15:37.0953310Z Azure CLI login succeeds by using OIDC.
+  deploy	Run Database Migrations (Alembic)	﻿2026-03-06T08:15:37.1104078Z ##[group]Run cd backend
+  deploy	Run Database Migrations (Alembic)	2026-03-06T08:15:37.1104628Z cd backend
+  deploy	Run Database Migrations (Alembic)	2026-03-06T08:15:37.1105001Z 
+  deploy	Run Database Migrations (Alembic)	2026-03-06T08:15:37.1105474Z # Instalar solo dependencias necesarias para Alembic
+  deploy	Run Database Migrations (Alembic)	2026-03-06T08:15:37.1106192Z python -m pip install --upgrade pip
+  deploy	Run Database Migrations (Alembic)	2026-03-06T08:15:37.1107916Z pip install -r requirements.txt
+  deploy	Run Database Migrations (Alembic)	2026-03-06T08:15:37.1108450Z 
+  deploy	Run Database Migrations (Alembic)	2026-03-06T08:15:37.1109000Z # Obtener DATABASE_URL de las App Settings de Azure dinámicamente
+  deploy	Run Database Migrations (Alembic)	2026-03-06T08:15:37.1110025Z RG=$(az webapp list --query "[?name=='media-backend-api-chiapas'].resourceGroup" -o tsv)
+  deploy	Run Database Migrations (Alembic)	2026-03-06T08:15:37.1111605Z DB_URL=$(az webapp config appsettings list --name media-backend-api-chiapas --resource-group $RG --query "[?name=='DATABASE_URL'].value" -o tsv)
+  deploy	Run Database Migrations (Alembic)	2026-03-06T08:15:37.1113087Z 
+  deploy	Run Database Migrations (Alembic)	2026-03-06T08:15:37.1113600Z # Fix para caracteres especiales de connection string en bash
+  deploy	Run Database Migrations (Alembic)	2026-03-06T08:15:37.1114350Z export DATABASE_URL="${DB_URL//#/%23}"
+  deploy	Run Database Migrations (Alembic)	2026-03-06T08:15:37.1114995Z 
+  deploy	Run Database Migrations (Alembic)	2026-03-06T08:15:37.1115425Z echo "Ejecutando migraciones de base de datos..."
+  deploy	Run Database Migrations (Alembic)	2026-03-06T08:15:37.1116045Z alembic upgrade head
+  deploy	Run Database Migrations (Alembic)	2026-03-06T08:15:37.1116526Z echo "Migraciones completadas."
+  deploy	Run Database Migrations (Alembic)	2026-03-06T08:15:37.1196801Z shell: /usr/bin/bash -e {0}
+  deploy	Run Database Migrations (Alembic)	2026-03-06T08:15:37.1197253Z ##[endgroup]
+  deploy	Run Database Migrations (Alembic)	2026-03-06T08:15:37.1346342Z /home/runner/work/_temp/d13b86b0-0522-4fb6-b746-775bd68b5a65.sh: line 1: cd: backend: No such file or directory
+> deploy	Run Database Migrations (Alembic)	2026-03-06T08:15:37.1377095Z ##[error]Process completed with exit code 1.
+  deploy	Post Login to Azure	﻿2026-03-06T08:15:37.1550183Z Post job cleanup.
+  deploy	Post Login to Azure	2026-03-06T08:15:37.2114002Z Clearing azure cli accounts from the local cache.
+  deploy	Post Login to Azure	2026-03-06T08:15:37.2128601Z [command]/usr/bin/az account clear
+  deploy	Complete job	﻿2026-03-06T08:15:37.8704427Z Cleaning up orphan processes
+  deploy	Complete job	2026-03-06T08:15:37.9711986Z Terminate orphan process: pid (2126) (python3)
+
