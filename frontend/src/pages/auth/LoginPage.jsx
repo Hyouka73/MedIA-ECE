@@ -19,6 +19,14 @@ export default function LoginPage() {
     const [loading, setLoading] = useState(false);
     const [tempToken, setTempToken] = useState(null);
     const [isLocked, setIsLocked] = useState(false);
+    const [timeLeft, setTimeLeft] = useState(0);
+
+    useEffect(() => {
+        if (step === 2 && timeLeft > 0) {
+            const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+            return () => clearTimeout(timer);
+        }
+    }, [step, timeLeft]);
 
     const resetForm = () => {
         setStep(1);
@@ -65,7 +73,8 @@ export default function LoginPage() {
             if (res.requires_2fa) {
                 setTempToken(res.tempToken);
                 setStep(2);
-                toast('Credenciales correctas. Ingrese su código 2FA.', 'info');
+                setTimeLeft(60);
+                toast('Se ha enviado un código a su correo electrónico.', 'info');
             } else {
                 toast('Inicio de sesión exitoso.', 'success');
                 navigate('/dashboard');
@@ -139,7 +148,7 @@ export default function LoginPage() {
                             </div>
                             <p className="text-sm font-semibold text-text-primary">Verificación en dos pasos</p>
                             <p className="text-xs text-text-secondary mt-1 leading-relaxed">
-                                Ingresa el código de 6 dígitos de tu aplicación autenticadora
+                                Hemos enviado un código a tu correo electrónico. Revísalo e ingresa los 6 dígitos.
                             </p>
                         </div>
                         <OtpInput
@@ -156,10 +165,24 @@ export default function LoginPage() {
                         >
                             Verificar y entrar ✓
                         </Button>
+                        {timeLeft > 0 ? (
+                            <p className="w-full text-xs text-text-secondary text-center pt-2">
+                                Podrás solicitar otro código en {timeLeft}s
+                            </p>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={handleLogin}
+                                className="w-full text-xs font-semibold text-primary hover:text-primary-dark text-center pt-2 transition-colors"
+                                disabled={loading || isLocked}
+                            >
+                                Reenviar código
+                            </button>
+                        )}
                         <button
                             type="button"
                             onClick={() => { setStep(1); setOtp(''); }}
-                            className="w-full text-xs text-text-secondary hover:text-text-primary text-center pt-1"
+                            className="w-full text-xs text-text-secondary hover:text-text-primary text-center pt-2"
                             disabled={isLocked}
                         >
                             ← Regresar
