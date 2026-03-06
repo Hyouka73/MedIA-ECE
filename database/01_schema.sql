@@ -404,7 +404,7 @@ CREATE TABLE historial_cambios (
     id_cambio BIGSERIAL PRIMARY KEY,
     tabla_afectada VARCHAR(50) NOT NULL,
     registro_id UUID NOT NULL,
-    id_usuario UUID NOT NULL,
+    id_usuario UUID, -- Nullable para cambios automáticos del sistema o flujos donde el contexto no está seteado
     campo_modificado VARCHAR(50) NOT NULL,
     valor_anterior TEXT,
     valor_nuevo TEXT,
