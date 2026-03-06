@@ -20,7 +20,7 @@ INSERT INTO usuarios_sistema (id_usuario, id_persona, email, password_hash, id_r
 VALUES (
     'b2c3d4e5-f6a7-4b5c-8d9e-0f1a2b3c4d5e',
     'a1b2c3d4-e5f6-4a5b-8c7d-9e0f1a2b3c4d',
-    'admin@media.local',
+    'baka637472@gmail.com',
     '$argon2id$v=19$m=65536,t=3,p=4$OYeQEuJ8D+H83xuD0JqzVg$OjFreNfXV6jJdVMxiH5dE9oghuyJNYZMq7ndSPILK1M', -- MedIA2026!
     1, -- SUPERADMIN ID
     NULL,
