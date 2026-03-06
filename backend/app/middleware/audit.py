@@ -48,7 +48,7 @@ class AuditMiddleware(BaseHTTPMiddleware):
         return "LECTURA", "BAJO"
 
     async def dispatch(self, request: Request, call_next):
-        if request.url.path in self.EXCLUDED_PATHS:
+        if request.url.path in self.EXCLUDED_PATHS or request.url.path.startswith("/static"):
             return await call_next(request)
 
         start_time = time.time()
