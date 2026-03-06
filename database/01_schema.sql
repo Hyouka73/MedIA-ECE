@@ -3,8 +3,7 @@
 -- Esquema principal de la base de datos (40 Entidades)
 -- NOM-004-SSA3-2012 y Cómputo Forense garantizados
 
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
 
 -- ==========================================
 -- DOMINIO 1: Geografía y Catálogos INEGI / Clínicos
