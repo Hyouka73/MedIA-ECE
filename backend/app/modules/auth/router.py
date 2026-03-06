@@ -45,6 +45,7 @@ def _build_user_response(user: User, rol_codigo: str) -> dict:
         "nombre": f"{user.persona.nombre} {user.persona.primer_apellido}" if user.persona else "Usuario",
         "rol": rol_codigo,
         "email": user.email,
+        "url_foto": user.persona.url_foto if user.persona else None,
         "establecimiento": "CSSSA023999"  # TODO: Sacar de usuarios_establecimientos
     }
 
