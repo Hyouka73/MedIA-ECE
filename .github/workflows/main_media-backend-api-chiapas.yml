@@ -76,16 +76,13 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install -r requirements.txt
 
-          # Debug: Intentar obtener Resource Group de forma más directa
-          echo "Obteniendo Resource Group..."
-          RG=$(az webapp show --name media-backend-api-chiapas --query resourceGroup -o tsv)
-          echo "Resource Group: $RG"
-          
-          echo "Obteniendo DATABASE_URL de Azure..."
+          # Configurar variables de entorno directamente para Azure
+          RG="rg-media-chiapas"
+          echo "Obteniendo DATABASE_URL de Azure (RG: $RG)..."
           DB_URL=$(az webapp config appsettings list --name media-backend-api-chiapas --resource-group $RG --query "[?name=='DATABASE_URL'].value" -o tsv)
           
           if [ -z "$DB_URL" ]; then
-            echo "Error: No se pudo obtener DATABASE_URL del App Service."
+            echo "Error: No se pudo obtener DATABASE_URL del App Service. Revisar permisos del Service Principal."
             exit 1
           fi
 
