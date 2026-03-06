@@ -85,14 +85,18 @@ export default function Sidebar() {
                 )}
             </nav>
 
-            <div className="p-4 border-t border-sidebar-hover flex items-center gap-3">
-                <Avatar nombre={user?.nombre} className="w-8 h-8 bg-primary text-xs" />
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{user?.nombre || 'Usuario'}</p>
-                    <p className="text-[10px] text-gray-400 truncate uppercase font-bold tracking-tight">
-                        {user?.rol?.replace('_', ' ') || 'INVITADO'}
-                    </p>
-                </div>
+            <div className="border-t border-sidebar-hover">
+                <Link to="/perfil" className="p-4 flex flex-col gap-3 hover:bg-sidebar-hover transition-colors block cursor-pointer">
+                    <div className="flex items-center gap-3">
+                        <Avatar nombre={user?.nombre} url_foto={user?.url_foto} className="w-8 h-8 bg-primary text-xs flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate text-white">{user?.nombre || 'Usuario'}</p>
+                            <p className="text-[10px] text-gray-400 truncate uppercase font-bold tracking-tight">
+                                {user?.rol?.replace('_', ' ') || 'INVITADO'}
+                            </p>
+                        </div>
+                    </div>
+                </Link>
             </div>
         </aside>
     )

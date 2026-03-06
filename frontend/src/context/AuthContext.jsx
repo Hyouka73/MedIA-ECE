@@ -139,8 +139,12 @@ export const AuthProvider = ({ children }) => {
         setIsAuthenticated(false);
     };
 
+    const updateUser = (newUserData) => {
+        setUser(prev => ({ ...prev, ...newUserData }));
+    };
+
     return (
-        <AuthContext.Provider value={{ token, user, isAuthenticated, login, verify2FA, logout, loading }}>
+        <AuthContext.Provider value={{ token, user, isAuthenticated, login, verify2FA, logout, updateUser, loading }}>
             {children}
         </AuthContext.Provider>
     );

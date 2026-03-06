@@ -14,3 +14,4 @@ httpx>=0.25.0
 azure-storage-blob>=12.19.0
 resend>=2.1.0
 Pillow>=10.0.0
+python-multipart>=0.0.9
