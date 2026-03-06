@@ -58,6 +58,13 @@ app.include_router(admin_router,      prefix="/api/admin",      tags=["Administr
 app.include_router(auditoria_router,  prefix="/api/auditoria",  tags=["Auditoría"])
 
 
+from fastapi.staticfiles import StaticFiles
+import os
+
+if settings.APP_ENV != "production":
+    os.makedirs("static", exist_ok=True)
+    app.mount("/static", StaticFiles(directory="static"), name="static")
+
 @app.get("/", include_in_schema=False)
 async def root():
     return {"status": "ok", "sistema": "MedIA ECE", "version": "1.0.0"}
