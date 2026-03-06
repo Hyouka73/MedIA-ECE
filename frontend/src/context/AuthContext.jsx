@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
+import apiClient from '../api/client';
 
 // Contexto de Autenticación (Req 1 y 4 Forense - JWT in memory, NO localStorage)
 const AuthContext = createContext(null);
@@ -46,9 +47,7 @@ export const AuthProvider = ({ children }) => {
 
         refreshTimerRef.current = setTimeout(async () => {
             try {
-                const response = await axios.post('/api/auth/refresh', null, {
-                    headers: { Authorization: `Bearer ${accessToken}` }
-                });
+                const response = await apiClient.post('/auth/refresh');
                 const newToken = response.data.access_token;
                 setToken(newToken);
                 scheduleTokenRefresh(newToken); // Re-programar con el nuevo token
@@ -90,7 +89,7 @@ export const AuthProvider = ({ children }) => {
 
     const login = async (email, password) => {
         try {
-            const response = await axios.post('/api/auth/login', { email, password });
+            const response = await apiClient.post('/auth/login', { email, password });
 
             // Si requiere 2FA
             if (response.data.requires_2fa) {
@@ -115,7 +114,7 @@ export const AuthProvider = ({ children }) => {
     const verify2FA = async (tempToken, code) => {
         // Re-throw para que el componente pueda leer error.response.data.detail
         // (mensajes de lockout del backend, intentos restantes, etc.)
-        const response = await axios.post('/api/auth/2fa/verify', { temp_token: tempToken, code });
+        const response = await apiClient.post('/auth/2fa/verify', { temp_token: tempToken, code });
         setToken(response.data.access_token);
         setUser(response.data.user);
         setIsAuthenticated(true);
@@ -127,9 +126,7 @@ export const AuthProvider = ({ children }) => {
         // Intentar invalidar en backend (Req Forense 1)
         try {
             if (token && token !== 'fake-jwt-token-for-dev') {
-                await axios.post('/api/auth/logout', null, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
+                await apiClient.post('/auth/logout');
             }
         } catch { /* no-op */ }
 
