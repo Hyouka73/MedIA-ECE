@@ -68,6 +68,25 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_A8A1DB2572A744BFB631B09901CA4452 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_28B19D00C1B94655B81C8DE6353A0A69 }}
 
+      - name: Run Database Migrations (Alembic)
+        run: |
+          cd backend
+
+          # Instalar solo dependencias necesarias para Alembic
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+          # Obtener DATABASE_URL de las App Settings de Azure dinámicamente
+          RG=$(az webapp list --query "[?name=='media-backend-api-chiapas'].resourceGroup" -o tsv)
+          DB_URL=$(az webapp config appsettings list --name media-backend-api-chiapas --resource-group $RG --query "[?name=='DATABASE_URL'].value" -o tsv)
+          
+          # Fix para caracteres especiales de connection string en bash
+          export DATABASE_URL="${DB_URL//#/%23}"
+          
+          echo "Ejecutando migraciones de base de datos..."
+          alembic upgrade head
+          echo "Migraciones completadas."
+
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
