@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import axios from 'axios';
-import apiClient from '../api/client';
+import apiClient, { setTokenGetter } from '../api/client';
 
 // Contexto de Autenticación (Req 1 y 4 Forense - JWT in memory, NO localStorage)
 const AuthContext = createContext(null);
@@ -28,6 +28,11 @@ export const AuthProvider = ({ children }) => {
     // Bypass para Desarrollo Local: Para evitar hacer login constantemente mientras se desarrolla.
     // Solo se activa si VITE_APP_BYPASS_AUTH='true'
     const isDevBypass = import.meta.env.VITE_APP_BYPASS_AUTH === 'true';
+
+    // Sincronizar el token con el cliente API para interceptores
+    useEffect(() => {
+        setTokenGetter(() => token);
+    }, [token]);
 
     // ── Refresh silencioso del JWT ──
     // Calcula cuándo expira el token y programa un refresh 60 segundos antes
