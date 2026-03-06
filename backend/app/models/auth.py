@@ -36,5 +36,6 @@ class Persona(Base):
     primer_apellido = Column(String(100), nullable=False)
     segundo_apellido = Column(String(100))
     curp = Column(String(18), unique=True)
+    url_foto = Column(String)
     
     usuario = relationship("User", back_populates="persona", uselist=False)
