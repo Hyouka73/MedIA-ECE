@@ -53,9 +53,13 @@ token.json
 token.txt
 docs/doc_text.txt
 
-# ── VOLÚMENES DOCKER ───────────────────────────────────────────
+# ── VOLÚMENES DOCKER Y ARCHIVOS LOCALES (NO SUBIR) ───────────────────
 # No subir la data real de la BD del contenedor
 media_postgres_data/
+
+# Archivos estáticos generados por el simulador de Azure (Ej: fotos perfil local)
+backend/static/
+backend/logs/
 
 # ── INSTRUCCIONES PRIVADAS ─────────────────────────────────────
 CI_CD_INSTRUCCIONES.md
