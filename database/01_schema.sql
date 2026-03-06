@@ -172,7 +172,8 @@ CREATE TABLE pacientes_tutores_representantes (
     id_paciente UUID REFERENCES pacientes(id_paciente) ON DELETE CASCADE,
     id_persona UUID REFERENCES personas(id_persona) ON DELETE RESTRICT,
     parentesco VARCHAR(50) NOT NULL,
-    documento_legal_url TEXT -- URL Azure Blob a documento
+    documento_legal_url TEXT, -- URL Azure Blob a documento
+    documento_legal_hash VARCHAR(255) -- Integridad forense del legal
 );
 
 CREATE TABLE alergias (
@@ -291,7 +292,8 @@ CREATE TABLE notas_medicas (
     esta_firmada BOOLEAN DEFAULT FALSE,
     fecha_creacion TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     fecha_firma TIMESTAMPTZ,
-    pdf_hash VARCHAR(255) -- Hash SHA256 para integridad
+    pdf_url TEXT, -- Documento físico de la nota generada (cuando aplique)
+    pdf_hash VARCHAR(255) -- Hash SHA256 para integridad de la firma
 );
 
 CREATE TABLE notas_soap_detalle (
@@ -360,8 +362,7 @@ CREATE TABLE auditoria_accesos (
     tipo_evento VARCHAR(50) NOT NULL, 
     resultado VARCHAR(20) NOT NULL, -- EXITOSO, DENEGADO, FALLIDO
     nivel_severidad VARCHAR(20) NOT NULL CHECK (nivel_severidad IN ('BAJO', 'MEDIO', 'ALTO', 'CRITICO')),
-    detalles JSONB,
-    hash_archivo VARCHAR(255)
+    detalles JSONB
 );
 
 CREATE TABLE incidentes_seguridad (
@@ -372,6 +373,18 @@ CREATE TABLE incidentes_seguridad (
     notas_investigacion TEXT,
     fecha_creacion TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     fecha_resolucion TIMESTAMPTZ
+);
+
+CREATE TABLE auditoria_exportaciones (
+    id_exportacion UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id_usuario UUID REFERENCES usuarios_sistema(id_usuario) ON DELETE RESTRICT,
+    fecha_exportacion TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    tipo_exportacion VARCHAR(50) NOT NULL, -- Ej: EXPEDIENTE_PACIENTE, BACKUP_BD
+    formato VARCHAR(20) NOT NULL, -- PDF, CSV, ZIP
+    archivo_url TEXT NOT NULL, 
+    archivo_hash VARCHAR(255) NOT NULL,
+    direccion_ip INET NOT NULL,
+    motivo TEXT
 );
 
 CREATE TABLE sesiones_invalidas (
