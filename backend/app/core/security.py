@@ -10,7 +10,7 @@ import pyotp
 
 from app.core.config import settings
 
-# Argon2id para hashing de contraseñas (Doc1 §6.2, Doc3 Módulo 1)
+# Argon2id para hashing de contraseñas
 pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 

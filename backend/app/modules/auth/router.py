@@ -3,7 +3,7 @@ Módulo de Autenticación — MedIA ECE
 Implementa: Login con Argon2id, 2FA TOTP, bloqueo por intentos,
 forzado de 2FA post-bloqueo, y logout.
 Req Forense: 1 (logging), 4 (timestamps UTC), 5 (auth fuerte), 8 (sin hardcoding)
-Doc3 §Módulo 1 — Autenticación completa
+Autenticación completa
 """
 from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends, Request
@@ -91,7 +91,7 @@ async def login(data: LoginRequest, request: Request, db: AsyncSession = Depends
 
     # ── 3. Validar contraseña ──
     if not verify_password(data.password, user.password_hash):
-        # Incrementar intentos fallidos (Req 5 + Doc3 §Mod1)
+        # Incrementar intentos fallidos (Req 5 )
         new_attempts = (user.intentos_fallidos or 0) + 1
         await db.execute(
             update(User)

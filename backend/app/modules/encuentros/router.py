@@ -6,10 +6,10 @@ router = APIRouter()
 
 @router.post("/")
 async def create_encuentro(current_user: dict = Depends(require_role("MEDICO_GENERAL","ESPECIALISTA","SUPERADMIN"))):
-    """POST /encuentros — Doc3 §Módulo 5 — TODO Persona 3"""
+    """POST /encuentros — TODO Persona 3"""
     return {"message": "TODO Persona 3: crear encuentro clínico"}
 
 @router.patch("/{id}/cerrar")
 async def cerrar_encuentro(id: str, current_user: dict = Depends(get_current_user)):
-    """PATCH /encuentros/{id}/cerrar — Doc3 §Módulo 5 — TODO Persona 3"""
+    """PATCH /encuentros/{id}/cerrar — TODO Persona 3"""
     return {"message": "TODO Persona 3: cerrar encuentro (irreversible)"}

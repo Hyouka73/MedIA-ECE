@@ -1,5 +1,5 @@
 /**
- * API — Módulo de Autenticación (Doc3 §Módulo 1)
+ * API — Módulo de Autenticación
  * Funciones de llamada a /auth/* centralizadas.
  */
 import api from './client';

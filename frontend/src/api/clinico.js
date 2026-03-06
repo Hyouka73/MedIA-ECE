@@ -1,5 +1,5 @@
 /**
- * API — Módulo Clínico (Doc3 §Módulos 4, 5 y 6)
+ * API — Módulo Clínico
  * Stubs para P4 — implementar encuentros, notas, signos.
  */
 import api from './client';

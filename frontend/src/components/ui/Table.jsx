@@ -2,7 +2,7 @@ import React from 'react';
 import { cn } from './Badge';
 
 /**
- * Table — Componente base composable para tablas paginadas (Doc7 §4)
+ * Table — Componente base composable para tablas paginadas
  * Uso: <Table>
  *        <TableHeader><TableRow><TableHead>Nombre</TableHead></TableRow></TableHeader>
  *        <TableBody><TableRow><TableCell>Dr. López</TableCell></TableRow></TableBody>

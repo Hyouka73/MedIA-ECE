@@ -1,5 +1,5 @@
 /**
- * API Client — Configuración base de Axios (Doc2 §1.1)
+ * API Client — Configuración base de Axios
  * Interceptores para adjuntar JWT y manejar errores globales.
  */
 import axios from 'axios';

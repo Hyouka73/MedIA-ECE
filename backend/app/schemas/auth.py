@@ -1,6 +1,6 @@
 """
 Schemas Pydantic v2 — Autenticación
-Contratos de request/response para el módulo Auth (Doc3 §Módulo 1)
+Contratos de request/response para el módulo Auth
 """
 from pydantic import BaseModel, EmailStr
 from typing import Optional

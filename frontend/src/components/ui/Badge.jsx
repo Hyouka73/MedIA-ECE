@@ -23,7 +23,7 @@ export function Badge({ children, variant = "default", dot = false, className, .
         error: "bg-[#FBDAE0] text-[#901F33]",
         navy: "bg-[#112B58] text-white",
 
-        // Aliases semánticos clínicos (Doc7 §1.3)
+        // Aliases semánticos clínicos
         critica: "bg-[#FBDAE0] text-[#901F33] font-bold",
         moderada: "bg-[#FCECC8] text-[#8F540D] font-bold",
         firmada: "bg-[#C3E8D3] text-[#196038]",

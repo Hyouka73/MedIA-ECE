@@ -3,7 +3,7 @@ import { X } from 'lucide-react';
 import { cn } from './Badge';
 
 /**
- * Dialog (Modal) — Componente base reutilizable (Doc7 §4)
+ * Dialog (Modal) — Componente base reutilizable
  * Uso: <Dialog open={isOpen} onClose={() => setIsOpen(false)} title="Crear Paciente">
  *        <form>...</form>
  *      </Dialog>

@@ -1,5 +1,5 @@
 /**
- * API — Módulo de Pacientes y Personas (Doc3 §Módulos 2 y 3)
+ * API — Módulo de Pacientes y Personas
  * Stubs para P3 — implementar los endpoints aquí.
  */
 import api from './client';

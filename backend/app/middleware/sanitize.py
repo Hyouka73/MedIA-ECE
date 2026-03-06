@@ -1,7 +1,7 @@
 """
 Middleware de Sanitización de Entradas
 Protección contra XSS (bleach) e inyección SQL (regex) en parámetros de query
-Doc2 §1.2 — capa de seguridad de entrada
+capa de seguridad de entrada
 """
 import re
 from starlette.middleware.base import BaseHTTPMiddleware
