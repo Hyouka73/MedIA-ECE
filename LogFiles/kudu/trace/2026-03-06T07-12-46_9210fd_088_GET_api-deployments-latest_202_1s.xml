@@ -1,0 +1,9 @@
+<step title="Incoming Request" date="2026-03-06T07:12:46.969" instance="9210fd" url="/api/deployments/latest?deployer=OneDeploy&amp;time=2026-03-06_07-12-33Z" method="GET" type="request" pid="770,1,41" Host="media-backend-api-chiapas.scm.azurewebsites.net" User-Agent="GITHUBACTIONS_DeployWebAppToAzure_e10ba23f0884ea232daf929628ea7152e28093cc7a9eb197a723e6c48d6278b8_v3.0.7" Authorization="Bea..." Content-Type="application/json; charset=utf-8" Cookie="ARRAffinity=9210fd0c122fc1540c5ef9761b8a41ef990a83aba6c660ea67bdb222b82cd884; ARRAffinitySameSite=9210fd0c122fc1540c5ef9761b8a41ef990a83aba6c660ea67bdb222b82cd884" Content-Length="0" X-ARR-LOG-ID="c265867e-3222-4629-801a-ae127d8bc3f2" CLIENT-IP="132.196.83.40:59394" X-SITE-DEPLOYMENT-ID="media-backend-api-chiapas" WAS-DEFAULT-HOSTNAME="media-backend-api-chiapas.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/api/deployments/latest?deployer=OneDeploy&amp;time=2026-03-06_07-12-33Z" X-Client-IP="132.196.83.40" X-Client-Port="59394" >
+  <step title="Cleanup Xml Logs" date="2026-03-06T07:12:46.970" /><!-- duration: 19ms -->
+  <step title="DeploymentService.GetResult" date="2026-03-06T07:12:47.008" >
+    <step title="DeploymentService.GetLatestDeployment" date="2026-03-06T07:12:47.009" >
+      <step title="DeploymentManager.GetResults" date="2026-03-06T07:12:47.028" /><!-- duration: 701ms -->
+    </step><!-- duration: 730ms -->
+  </step><!-- duration: 740ms -->
+  <step title="Outgoing response" date="2026-03-06T07:12:47.750" type="response" statusCode="202" statusText="Accepted" /><!-- duration: 18ms -->
+</step><!-- duration: 807ms -->

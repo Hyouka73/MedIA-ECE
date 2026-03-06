@@ -1,0 +1,15 @@
+<step title="Incoming Request" date="2026-03-06T05:42:01.200" instance="9210fd" url="/api/publish?async=true&amp;deployer=GITHUB_ONE_DEPLOY&amp;type=zip&amp;message=%7B%22type%22%3A%22deployment%22%2C%22sha%22%3A%2265742d0ac07865fcc5e413e56ac4a2cc4d6fc760%22%2C%22repoName%22%3A%22Hyouka73%2FMedIA-ECE%22%2C%22actor%22%3A%22Hyouka73%22%2C%22slotName%22%3A%22Production%22%2C%22commitMessage%22%3A%22fix(auth)%3A%20adjust%20TOTP%20generation%20interval%20to%205%20minutes%20(300s%20window)%20for%20robust%20email%20delivery%22%7D" method="POST" type="request" pid="770,1,21" Host="media-backend-api-chiapas.scm.azurewebsites.net" User-Agent="GITHUBACTIONS_DeployWebAppToAzure_e10ba23f0884ea232daf929628ea7152e28093cc7a9eb197a723e6c48d6278b8_v3.0.7" Authorization="Bea..." Content-Type="application/octet-stream" Cookie="ARRAffinity=9210fd0c122fc1540c5ef9761b8a41ef990a83aba6c660ea67bdb222b82cd884; ARRAffinitySameSite=9210fd0c122fc1540c5ef9761b8a41ef990a83aba6c660ea67bdb222b82cd884" Transfer-Encoding="chunked" X-ARR-LOG-ID="1c7e02f3-da88-48f6-b57a-f2365a7ff2ba" CLIENT-IP="20.161.71.51:45080" X-SITE-DEPLOYMENT-ID="media-backend-api-chiapas" WAS-DEFAULT-HOSTNAME="media-backend-api-chiapas.scm.azurewebsites.net" X-Forwarded-Proto="https" X-AppService-Proto="https" X-Forwarded-TlsVersion="1.3" X-WAWS-Unencoded-URL="/api/publish?async=true&amp;deployer=GITHUB_ONE_DEPLOY&amp;type=zip&amp;message=%7B%22type%22%3A%22deployment%22%2C%22sha%22%3A%2265742d0ac07865fcc5e413e56ac4a2cc4d6fc760%22%2C%22repoName%22%3A%22Hyouka73%2FMedIA-ECE%22%2C%22actor%22%3A%22Hyouka73%22%2C%22slotName%22%3A%22Production%22%2C%22commitMessage%22%3A%22fix(auth)%3A%20adjust%20TOTP%20generation%20interval%20to%205%20minutes%20(300s%20window)%20for%20robust%20email%20delivery%22%7D" X-Client-IP="20.161.71.51" X-Client-Port="45080" >
+  <step title="OneDeploy" date="2026-03-06T05:42:01.227" >
+    <step title="Starting PushDeployAsync" date="2026-03-06T05:42:01.231" /><!-- duration: 6ms -->
+    <step title="Writing artifact to /tmp/zipdeploy/fcc6b159-584b-4a4d-bc05-07ce7545f3fc.zip" date="2026-03-06T05:42:01.246" >
+      <step title="Writing multipart request body to /tmp/zipdeploy/fcc6b159-584b-4a4d-bc05-07ce7545f3fc.zip" date="2026-03-06T05:42:01.248" /><!-- duration: 18ms -->
+    </step><!-- duration: 31ms -->
+    <step title="Removing previous build artifact&apos;s manifest file" date="2026-03-06T05:42:01.289" >
+      <step title="Start deployment in the background" date="2026-03-06T05:42:01.307" >
+        <step title="Acquiring Deployment Lock" date="2026-03-06T05:42:01.326" /><!-- duration: 2ms -->
+        <step title="Cannot Acquire Deployment Lock already held" date="2026-03-06T05:42:01.337" /><!-- duration: 1ms -->
+      </step><!-- duration: 59ms -->
+      <step title="There is a deployment currently in progress. Please try again when it completes." date="2026-03-06T05:42:01.369" /><!-- duration: 1ms -->
+    </step><!-- duration: 83ms -->
+    <step title="Outgoing response" date="2026-03-06T05:42:01.378" type="response" statusCode="409" statusText="Conflict" /><!-- duration: 17ms -->
+  </step><!-- duration: 178ms -->
