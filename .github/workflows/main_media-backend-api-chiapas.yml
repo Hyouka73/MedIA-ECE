@@ -68,34 +68,34 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_A8A1DB2572A744BFB631B09901CA4452 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_28B19D00C1B94655B81C8DE6353A0A69 }}
 
-      - name: Run Database Migrations (Alembic)
-        run: |
-          cd backend
-          
-          # Instalar dependencias completas para evitar ModuleNotFoundError
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r requirements.txt
-
-          # Debug: Intentar obtener Resource Group de forma más directa
-          echo "Obteniendo Resource Group..."
-          RG=$(az webapp show --name media-backend-api-chiapas --query resourceGroup -o tsv)
-          echo "Resource Group: $RG"
-          
-          echo "Obteniendo DATABASE_URL de Azure..."
-          DB_URL=$(az webapp config appsettings list --name media-backend-api-chiapas --resource-group $RG --query "[?name=='DATABASE_URL'].value" -o tsv)
-          
-          if [ -z "$DB_URL" ]; then
-            echo "Error: No se pudo obtener DATABASE_URL del App Service."
-            exit 1
-          fi
-
-          # Escapar caracteres PostgreSQL (# -> %23)
-          export DATABASE_URL="${DB_URL//#/%23}"
-          export PYTHONPATH=$(pwd)
-          
-          echo "Corriendo: alembic upgrade head"
-          python3 -m alembic upgrade head
-          echo "Migración completada exitosamente."
+#      - name: Run Database Migrations (Alembic)
+#        run: |
+#          cd backend
+#          
+#          # Instalar dependencias completas para evitar ModuleNotFoundError
+#          python3 -m pip install --upgrade pip
+#          python3 -m pip install -r requirements.txt
+#
+#          # Debug: Intentar obtener Resource Group de forma más directa
+#          echo "Obteniendo Resource Group..."
+#          RG=$(az webapp show --name media-backend-api-chiapas --query resourceGroup -o tsv)
+#          echo "Resource Group: $RG"
+#          
+#          echo "Obteniendo DATABASE_URL de Azure..."
+#          DB_URL=$(az webapp config appsettings list --name media-backend-api-chiapas --resource-group $RG --query "[?name=='DATABASE_URL'].value" -o tsv)
+#          
+#          if [ -z "$DB_URL" ]; then
+#            echo "Error: No se pudo obtener DATABASE_URL del App Service."
+#            exit 1
+#          fi
+#
+#          # Escapar caracteres PostgreSQL (# -> %23)
+#          export DATABASE_URL="${DB_URL//#/%23}"
+#          export PYTHONPATH=$(pwd)
+#          
+#          echo "Corriendo: alembic upgrade head"
+#          python3 -m alembic upgrade head
+#          echo "Migración completada exitosamente."
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
