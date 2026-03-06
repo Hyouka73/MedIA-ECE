@@ -159,6 +159,11 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
             await db.refresh(user)
 
         codigo_enviado = pyotp.TOTP(user.totp_secret, interval=300).now()
+        
+        # Facilidad para entorno local
+        if settings.APP_ENV != "production":
+            logger.info(f"🔑 [DEV MODO] CÓDIGO 2FA PARA {user.email}: {codigo_enviado}")
+            
         email_service.send_2fa_token(user.email, codigo_enviado)
 
         return {
