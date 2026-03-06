@@ -79,7 +79,7 @@ MedIA es un sistema de Expediente Clínico Electrónico (ECE) desarrollado para 
 | Frontend | React 18 + Vite + Tailwind CSS |
 | Backend | Python 3.11 + FastAPI + SQLAlchemy async |
 | Base de Datos | PostgreSQL 15 (Docker en dev, Azure Flexible Server en prod) |
-| Autenticación | JWT en memoria + 2FA TOTP + Argon2id |
+| Autenticación | JWT en memoria + Refresh Token (HttpOnly cookie) + 2FA TOTP + Argon2id + Rate Limiting |
 
 ```
 d:\MEDSYS\
@@ -216,17 +216,14 @@ Si necesitas usar scripts de backend manualmente:
 
 ---
 
-## 📝 Tareas Pendientes (TODO)
+## 📝 Pendientes
 
-1. **Azure Blob Storage (Archivos y Fotos)**
-   - Ya se creó la clase base `app.services.storage` para la conexión a nube.
-   - *Pendiente:* Crear el endpoint de "Perfil" (donde el usuario ingresa su foto).
-   - *Pendiente:* Usar la clase `upload_file` para recibir el avatar y devolver la URL generada.
-2. **Forzado de Cambio de Contraseña Inicial**
-   - *Pendiente:* Detectar si el usuario está usando una "contraseña genérica". Si entra por primera vez, bloquear el acceso normal y redirigirlo a la pantalla de "Cambiar contraseña e imagen de perfil".
-3. **Módulo de Seguridad (Azure Monitor)**
-   - *Fase 4-5:* Cuando el módulo de Auditoría esté terminado, integrarle la librería de App Insights (`azure-monitor-opentelemetry`).
-   - Los requisitos específicos de monitoreo y alertas saldrán del análisis pendiente al archivo `Requisitos generales para el Proyecto Integrador.pdf`.
-4. **Correos / SMS en 2FA (Bypass actual)**
-   - Se integró una clase inicial `app.services.email` basada en la API de Resend.com.
-   - *Pendiente:* Crear la cuenta gratuita en Resend y pegar la llave API a las variables de entorno para habilitar correos de verdad. Si no está la llave, los correos caen a la consola local de Python.
+| # | Área | Descripción | Responsable |
+|---|---|---|---|
+| 1 | Catálogos | CIE-10 (~14,400 códigos DGIS) y Cuadro Básico completo | P2 |
+| 2 | Auditoría | Vista de `sesiones_activas` en módulo admin — detección de IP inusual | P3 |
+| 3 | Seguridad | Cifrado Fernet del `totp_secret` en BD (actualmente texto plano) | P3 |
+| 4 | Monitoreo | Integrar `azure-monitor-opentelemetry` al módulo de Auditoría | P4-P5 |
+| 5 | Geografía | `convert_localidades.py` — importar catálogo INEGI completo (~5,000 localidades) | P2 |
+
+> Ver `NOTAS_PENDIENTES.md` para detalle y estado actualizado.
