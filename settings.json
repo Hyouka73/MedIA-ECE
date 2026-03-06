@@ -1,0 +1,27 @@
+[
+    {
+        "name": "ALLOWED_ORIGINS",
+        "value": "https://white-moss-0b6b09c0f.6.azurestaticapps.net,http://localhost:5173",
+        "slotSetting": false
+    },
+    {
+        "name": "APP_ENV",
+        "value": "production",
+        "slotSetting": false
+    },
+    {
+        "name": "DATABASE_URL",
+        "value": "postgresql+asyncpg://mediaadmin:M3di4#_26@media-pg-server.postgres.database.azure.com:5432/media_prod",
+        "slotSetting": false
+    },
+    {
+        "name": "SECRET_KEY",
+        "value": "med1a_suP3r_s3cr3t_2026_kEy88xR",
+        "slotSetting": false
+    },
+    {
+        "name": "FERNET_KEY",
+        "value": "XlJ92dZq4H7N8sP8hB3tT9zY1vW6cM4k=",
+        "slotSetting": false
+    }
+]

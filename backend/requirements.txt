@@ -11,3 +11,5 @@ pyotp>=2.9.0
 cryptography>=41.0.0
 python-multipart>=0.0.6
 httpx>=0.25.0
+azure-storage-blob>=12.19.0
+resend>=2.1.0

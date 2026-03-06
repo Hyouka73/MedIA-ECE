@@ -33,11 +33,14 @@ class Settings(BaseSettings):
     ACCOUNT_LOCKOUT_MINUTES: int = 30
 
     # Azure Blob Storage (opcional en dev)
-    AZURE_STORAGE_ACCOUNT_NAME: Optional[str] = None
-    AZURE_STORAGE_ACCOUNT_KEY: Optional[str] = None
+    AZURE_STORAGE_CONNECTION_STRING: Optional[str] = None
     AZURE_BLOB_CONTAINER_LAB: str = "lab-results"
     AZURE_BLOB_CONTAINER_TUTORES: str = "tutores-docs"
     AZURE_BLOB_SAS_EXPIRY_MINUTES: int = 15
+
+    # Email Service (Resend)
+    RESEND_API_KEY: Optional[str] = None
+    RESEND_FROM_EMAIL: str = "onboarding@resend.dev" # Default para pruebas
 
     model_config = {
         "env_file": ".env",
