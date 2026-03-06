@@ -26,7 +26,7 @@ PUBLIC_PATHS = {
 
 class AuthMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
-        if request.url.path in PUBLIC_PATHS or request.url.path.startswith("/docs"):
+        if request.url.path in PUBLIC_PATHS or request.url.path.startswith("/docs") or request.url.path.startswith("/static"):
             return await call_next(request)
 
         auth_header = request.headers.get("Authorization", "")
