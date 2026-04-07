@@ -59,15 +59,19 @@ def _build_user_response(user: User, rol_codigo: str) -> dict:
 
 
 def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
-    """Cookie HttpOnly Secure SameSite=None para cross-origin (Static Web App ≠ App Service)."""
+    """Cookie HttpOnly Secure SameSite=Lax para desarrollo (en prod: SameSite=None con Secure)."""
+    # En desarrollo sin HTTPS, usamos SameSite=Lax y Secure=False
+    # En producción con HTTPS, cambiar a SameSite=None + Secure=True
+    is_dev = settings.APP_ENV == "development"
+    
     response.set_cookie(
         key=REFRESH_COOKIE_NAME,
         value=refresh_token,
         httponly=True,
-        secure=True,
-        samesite="none",
+        secure=not is_dev,  # False en dev, True en prod
+        samesite="lax" if is_dev else "none",  # Lax en dev, None en prod
         max_age=60 * 60 * 24 * 7,  # 7 días
-        path="/api/auth",
+        path="/",  # Raíz para que funcione en toda la API
     )
 
 
