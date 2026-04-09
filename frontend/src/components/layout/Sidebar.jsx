@@ -13,7 +13,7 @@ const NAV_ITEMS = [
     { id: 'referencias', icon: Send, label: 'Referencias', group: 'CLÍNICA', href: '/referencias', roles: ['SUPERADMIN', 'OMNIADMIN', 'MEDICO_GENERAL', 'ESPECIALISTA'] },
     { id: 'documentos', icon: FileBox, label: 'Documentos', group: 'CLÍNICA', href: '/documentos', roles: ['SUPERADMIN', 'OMNIADMIN', 'MEDICO_GENERAL', 'ESPECIALISTA'] },
     { id: 'auditoria', icon: ShieldAlert, label: 'Auditoría', group: 'SISTEMA', href: '/admin/auditoria', roles: ['SUPERADMIN', 'OMNIADMIN', 'AUDITOR_SEGURIDAD'] },
-    { id: 'admin', icon: Settings, label: 'Administración', group: 'SISTEMA', href: '/admin/ajustes', roles: ['SUPERADMIN', 'OMNIADMIN', 'ADMINISTRADOR'] },
+    {id: 'admin', icon: Settings, label: 'Administración', group: 'SISTEMA', href: '/admin', roles: ['SUPERADMIN', 'OMNIADMIN', 'ADMINISTRADOR'] },
     { id: 'seguridad', icon: Shield, label: 'Seguridad', group: 'SISTEMA', href: '/admin/seguridad', roles: ['SUPERADMIN', 'OMNIADMIN', 'AUDITOR_SEGURIDAD'] },
 ]
 
