@@ -3,12 +3,14 @@ from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import relationship
 from app.models.base import Base
 
+
 class Role(Base):
     __tablename__ = "roles"
     id_rol = Column(Integer, primary_key=True, index=True)
     codigo = Column(String(50), unique=True, nullable=False)
     nombre = Column(String(100), nullable=False)
     descripcion = Column(String)
+
 
 class User(Base):
     __tablename__ = "usuarios_sistema"
@@ -29,6 +31,7 @@ class User(Base):
     role = relationship("Role")
     persona = relationship("Persona", back_populates="usuario")
 
+
 class Persona(Base):
     __tablename__ = "personas"
     id_persona = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
@@ -42,16 +45,20 @@ class Persona(Base):
 
 
 class SesionActiva(Base):
-    """
-    Whitelist de refresh tokens activos (Req Forense 1).
-    Una sesión existe aquí = válida. Logout = borrar fila = cookie muerta al instante.
-    También registra IP y user-agent para auditoría de acceso inusual.
-    """
     __tablename__ = "sesiones_activas"
-    jti = Column(String(36), primary_key=True)          # UUID único del token
+    jti = Column(String(36), primary_key=True)
     id_usuario = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), nullable=False)
-    ip_origen = Column(String(45))                       # IPv4 o IPv6
-    user_agent = Column(String(512))                     # Navegador/dispositivo
+    ip_origen = Column(String(45))
+    user_agent = Column(String(512))
     fecha_creacion = Column(DateTime(timezone=True), nullable=False)
     fecha_expira = Column(DateTime(timezone=True), nullable=False)
 
+
+class Establecimiento(Base):
+    __tablename__ = "establecimientos"
+    id_establecimiento = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    clues = Column(String(20), unique=True, nullable=False)
+    nombre = Column(String(200), nullable=False)
+    id_jurisdiccion = Column(Integer, ForeignKey("jurisdicciones_sanitarias.id_jurisdiccion"))
+    id_localidad = Column(String(9), ForeignKey("cat_localidades.id_localidad"))
+    nivel_atencion = Column(Integer)

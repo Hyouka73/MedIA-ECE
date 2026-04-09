@@ -3,8 +3,6 @@
     Script de inicialización para MedIA ECE en entorno Windows
 .DESCRIPTION
     Este script automatiza el levantamiento de todo el entorno de desarrollo local.
-    Copia las variables de entorno, levanta Docker Compose, instala las dependencias
-    de React y ejecuta los scripts de seeds iniciales.
 #>
 
 Write-Host "Iniciando Setup Automático de MedIA ECE..." -ForegroundColor Cyan
@@ -25,12 +23,10 @@ if (-Not (Test-Path "frontend\.env")) {
     Write-Host " -> frontend/.env ya existe. Omitiendo." -ForegroundColor DarkGray
 }
 
-# 2. Levantar la Base de Datos con Docker Auth
+# 2. Levantar la Base de Datos
 Write-Host "`n[2/4] Levantando PostgreSQL con Docker Compose..." -ForegroundColor Yellow
-# Suponiendo que el daemon de Docker está activo
 docker compose up -d
 
-# Esperar unos segundos a que la BD esté lista
 Write-Host " -> Esperando a que PostgreSQL inicie (15 segundos)..." -ForegroundColor DarkGray
 Start-Sleep -Seconds 15
 
@@ -42,18 +38,20 @@ if (Test-Path "frontend\package.json") {
     Pop-Location
     Write-Host " -> Dependencias de React instaladas." -ForegroundColor Green
 } else {
-    Write-Host " -> No se encontró package.json en frontend/. Revisa la ruta." -ForegroundColor Red
+    Write-Host " -> No se encontró package.json en frontend/." -ForegroundColor Red
 }
 
-# 4. Backend — Entorno Virtual + Dependencias
+# 4. Backend - Entorno Virtual
 Write-Host "`n[4/5] Configurando backend (Entorno Virtual Python)..." -ForegroundColor Yellow
 if (Test-Path "backend\requirements.txt") {
     Push-Location backend
-    if (-Not (Test-Path "venv")) {
-        python -m venv venv
-        Write-Host " -> Entorno virtual creado." -ForegroundColor Green
+    # Usamos .venv para ser consistentes con lo que tenías antes
+    if (-Not (Test-Path ".venv")) {
+        python -m venv .venv
+        Write-Host " -> Entorno virtual .venv creado." -ForegroundColor Green
     }
-    .\venv\Scripts\Activate.ps1
+    # Activación y carga de librerías
+    & ".\.venv\Scripts\Activate.ps1"
     pip install -r requirements.txt --quiet
     deactivate
     Pop-Location
@@ -65,15 +63,15 @@ if (Test-Path "backend\requirements.txt") {
 # 5. Mensaje Final
 Write-Host "`n[5/5] Setup Completo!" -ForegroundColor Cyan
 Write-Host ""
-Write-Host "===== CÓMO ARRANCAR EL SISTEMA =====" -ForegroundColor Cyan
-Write-Host "1. Base de datos ya levantada (Docker). Ver logs: docker compose logs -f"
-Write-Host "2. Backend FastAPI → abre una PWS nueva y ejecuta:"
-Write-Host "   cd backend; .\venv\Scripts\Activate.ps1; uvicorn app.main:app --reload --port 8000" -ForegroundColor Yellow
-Write-Host "3. Frontend React → abre otra PWS nueva y ejecuta:"
+Write-Host "===== COMO ARRANCAR EL SISTEMA =====" -ForegroundColor Cyan
+Write-Host "1. Base de datos ya levantada (Docker)."
+Write-Host "2. Backend FastAPI -> abre una PWS nueva y ejecuta:"
+Write-Host "   cd backend; .\.venv\Scripts\Activate.ps1; uvicorn app.main:app --reload --port 8000" -ForegroundColor Yellow
+Write-Host "3. Frontend React -> abre otra PWS nueva y ejecuta:"
 Write-Host "   cd frontend; npm run dev" -ForegroundColor Yellow
-Write-Host "4. Adminer (BD visual) → http://localhost:8080"
-Write-Host "   Backend API Docs → http://localhost:8000/docs"
-Write-Host "   Frontend → http://localhost:5173"
+Write-Host "4. Adminer (BD visual) -> http://localhost:8080"
+Write-Host "   Backend API Docs -> http://localhost:8000/docs"
+Write-Host "   Frontend -> http://localhost:5173"
 Write-Host ""
 Write-Host "Lanzando el entorno ahora mismo..." -ForegroundColor Green
 & ".\scripts\launch_dev.ps1"
