@@ -393,6 +393,18 @@ CREATE TABLE sesiones_invalidas (
     revocado_en TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE sesiones_activas (
+    jti VARCHAR(36) PRIMARY KEY,
+    id_usuario UUID REFERENCES usuarios_sistema(id_usuario) ON DELETE CASCADE NOT NULL,
+    ip_origen VARCHAR(45),
+    user_agent VARCHAR(512),
+    fecha_creacion TIMESTAMPTZ NOT NULL,
+    fecha_expira TIMESTAMPTZ NOT NULL
+);
+
+CREATE INDEX ix_sesiones_activas_id_usuario ON sesiones_activas(id_usuario);
+CREATE INDEX ix_sesiones_activas_fecha_expira ON sesiones_activas(fecha_expira);
+
 CREATE TABLE bitacora_recuperacion (
     id_recuperacion SERIAL PRIMARY KEY,
     fecha_evento TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
