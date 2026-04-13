@@ -14,6 +14,10 @@ import AdminUsuariosPage         from './pages/admin/AdminUsuariosPage'
 import AdminEstablecimientosPage from './pages/admin/AdminEstablecimientosPage'
 import AdminEspecialidadesPage   from './pages/admin/AdminEspecialidadesPage'
 import AdminRolesPage            from './pages/admin/AdminRolesPage'
+import PacientesListPage from './pages/Pacients/PacientesListPage';
+import ExpedientePage from './pages/Pacients/ExpedientePage';
+import PacienteFichaPage from './pages/Pacients/PacienteFichaPage';
+
 
 const Unauthorized = () => (
   <div className="p-6 flex items-center justify-center text-[#DC2626] font-bold">
@@ -35,6 +39,10 @@ function App() {
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="perfil"    element={<ProfilePage />} />
+                <Route path="pacientes" element={<PacientesListPage />} />
+                <Route path="pacientes/nuevo" element={<PacienteFichaPage />} />
+                <Route path="pacientes/:id/editar" element={<PacienteFichaPage />} />
+                <Route path="expediente/:id" element={<ExpedientePage />} />
 
                 {/* ── Admin ── */}
                 <Route path="admin"                  element={<AdminDashboardPage />} />
