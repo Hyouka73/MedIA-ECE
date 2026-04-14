@@ -61,7 +61,7 @@ export default function AdminRolesPage() {
 
       <Callout variant="info" icon={<ShieldCheck size={16} />}>
         Los permisos están definidos en la base de datos según la tabla{' '}
-        <code className="bg-[#F5F2EC] px-1 rounded text-xs">permisos_rol</code>.
+        <code className="bg-[#F5F2EC] px-1 rounded text-xs"></code>.
         Esta vista es de solo lectura. Para modificar permisos contacta al <strong>SUPERADMIN</strong>.
       </Callout>
 
