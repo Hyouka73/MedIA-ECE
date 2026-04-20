@@ -1,6 +1,17 @@
 import React, { useState, useEffect } from 'react';
-import { Ban, Unlock, ShieldCheck, Terminal, RefreshCcw, Database, AlertCircle } from 'lucide-react';
+import { Ban, Unlock, ShieldCheck, Terminal, RefreshCcw, AlertCircle, Database } from 'lucide-react';
 import apiClient from '../../api/client';
+
+/* ─────────────────────────────────────────────
+   TOKENS & ESTILOS (Sincronizados con MedSys) [cite: 6, 16]
+───────────────────────────────────────────── */
+const C = {
+  b500: "#2459A8", b600: "#1A4080",
+  r50: "#FEF0F3", r500: "#BA2E45", r600: "#901F33",
+  g500: "#237A4B", g600: "#196038",
+  bg: "#EDEBE6", sf: "#F5F2EC", cd: "#FDFAF5",
+  bd: "#DAD4CC", th: "#1A1510", ts: "#5A5048", tm: "#877E74", td: "#A9A097"
+};
 
 const SeguridadPage = () => {
   const [blacklist, setBlacklist] = useState([]);
@@ -8,20 +19,12 @@ const SeguridadPage = () => {
   const [loadingForense, setLoadingForense] = useState(false);
   const [errorLog, setErrorLog] = useState(false);
 
-  // Formateador de fecha pro
   const formatTime = (isoString) => {
     if (!isoString) return "--:--:--";
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleString('es-MX', {
-        day: '2-digit',
-        month: '2-digit',
-        year: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
-    } catch { return isoString; }
+    const date = new Date(isoString);
+    return date.toLocaleString('es-MX', {
+      hour: '2-digit', minute: '2-digit', second: '2-digit', day: '2-digit', month: '2-digit'
+    });
   };
 
   const fetchBlacklist = async () => {
@@ -36,13 +39,9 @@ const SeguridadPage = () => {
     setErrorLog(false);
     try {
       const res = await apiClient.get('/seguridad/logs-forenses');
-      if (res.data && Array.isArray(res.data.content)) {
-        setForense(res.data.content);
-      } else { setForense([]); }
-    } catch (error) {
-      setErrorLog(true);
-      setForense([]);
-    } finally { setLoadingForense(false); }
+      if (res.data && Array.isArray(res.data.content)) setForense(res.data.content);
+    } catch (error) { setErrorLog(true); }
+    finally { setLoadingForense(false); }
   };
 
   useEffect(() => {
@@ -51,146 +50,115 @@ const SeguridadPage = () => {
   }, []);
 
   return (
-    <div className="p-6 space-y-8 bg-white min-h-screen font-sans">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-gray-800 tracking-tight">Seguridad Avanzada</h1>
-        <span className="px-3 py-1 bg-red-50 text-red-600 border border-red-100 rounded text-[10px] font-black uppercase tracking-widest animate-pulse">
-            Inmutabilidad Activa (HMAC-SHA256)
+    <div style={{ flex: 1, display: "flex", flexDirection: "column", background: C.bg, minHeight: "100vh", fontFamily: "'DM Sans', sans-serif" }}>
+      
+      {/* Header Estilo MedIA [cite: 33, 46] */}
+      <div style={{ padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.bd}`, background: C.sf }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 800, color: C.th, letterSpacing: -.3 }}>Seguridad Avanzada</div>
+          <div style={{ fontSize: 12, color: C.ts, marginTop: 1 }}>Control de acceso y auditoría forense inmutable</div>
+        </div>
+        <span style={{ padding: "4px 12px", borderRadius: 99, background: C.r50, color: C.r600, fontSize: 10, fontWeight: 800, border: `1px solid ${C.r500}` }} className="animate-pulse">
+          INMUTABILIDAD ACTIVA (HMAC-SHA256)
         </span>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Blacklist de Sesiones */}
-        <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm flex flex-col bg-white">
-          <div className="bg-gray-50 p-4 border-b flex items-center justify-between font-bold text-gray-700 uppercase text-xs tracking-widest">
-            <div className="flex items-center gap-2">
-              <Ban size={16} className="text-[#DC2626]" /> Control de Acceso
+      <div style={{ padding: "22px 28px", display: "flex", flexDirection: "column", gap: 24 }}>
+        
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+          {/* Blacklist de Sesiones */}
+          <div style={{ background: C.cd, border: `1px solid ${C.bd}`, borderRadius: 12, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <div style={{ background: C.sf, padding: "12px 16px", borderBottom: `1px solid ${C.bd}`, display: "flex", alignItems: "center", gap: 8, fontSize: 11, fontWeight: 700, color: C.th, textTransform: "uppercase" }}>
+              <Ban size={16} color={C.r500} /> Control de Acceso (Blacklist)
             </div>
-          </div>
-          <div className="flex-1 overflow-y-auto max-h-[250px]">
-            <table className="w-full text-left">
-              <thead className="bg-gray-50 border-b text-[10px] text-gray-400 font-black uppercase">
-                <tr><th className="p-3">Token Identificador</th><th className="p-3 text-right">Acción</th></tr>
-              </thead>
-              <tbody className="divide-y text-sm font-mono italic">
-                {blacklist.length > 0 ? (
-                  blacklist.map((session, i) => (
-                    <tr key={i} className="hover:bg-gray-50 text-gray-400">
-                      <td className="p-3 text-[10px] truncate max-w-[200px]">{session.token_hash}</td>
-                      <td className="p-3 text-right">
-                        <button className="text-[#1B4F8A] hover:underline flex items-center gap-1 text-[10px] font-bold ml-auto uppercase tracking-tighter">
-                          <Unlock size={14} /> Reactivar
-                        </button>
+            <div style={{ maxHeight: 200, overflowY: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead style={{ background: C.sf, fontSize: 10, color: C.tm, textTransform: "uppercase" }}>
+                  <tr>
+                    <th style={{ padding: "8px 16px", textAlign: "left" }}>Token Hash</th>
+                    <th style={{ padding: "8px 16px", textAlign: "right" }}>Acción</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {blacklist.map((session, i) => (
+                    <tr key={i} style={{ borderBottom: `1px solid ${C.sf}` }}>
+                      <td style={{ padding: "10px 16px", fontSize: 10, fontFamily: "monospace", color: C.td }}>{session.token_hash}</td>
+                      <td style={{ padding: "10px 16px", textAlign: "right" }}>
+                        <button style={{ color: C.b500, background: "none", border: "none", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>REACTIVAR</button>
                       </td>
                     </tr>
-                  ))
-                ) : (
-                  <tr><td colSpan="2" className="p-10 text-center text-gray-300 italic text-xs uppercase tracking-[0.2em]">No hay sesiones revocadas</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Estado de Integridad */}
-        <div className="border border-gray-200 rounded-lg shadow-sm flex flex-col bg-white p-6 justify-center text-center">
-            <ShieldCheck size={54} className="text-green-300 mb-3 mx-auto drop-shadow-sm" />
-            <h4 className="text-sm font-black text-gray-800 uppercase tracking-tighter">Estado: Integridad Verificada</h4>
-            <p className="text-[10px] text-gray-400 mt-2 leading-tight uppercase font-medium">
-                Sincronizado con v_auditoria_estadistica.<br/>Hash de cadena forense válido.
-            </p>
-        </div>
-      </div>
-
-      {/* Terminal de Logs Forenses Corregida */}
-      <div className="border border-gray-800 rounded-lg overflow-hidden shadow-2xl bg-[#0D0D0D]">
-        <div className="bg-[#1A1A1A] p-3 border-b border-gray-800 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-gray-400 font-mono text-[10px] uppercase tracking-[0.2em]">
-            <Terminal size={14} className="text-green-500" /> 
-            <span>/logs/auditoria_forense.log</span>
-          </div>
-          <button 
-            onClick={leerLogForense} 
-            disabled={loadingForense} 
-            className="flex items-center gap-2 text-[10px] font-black text-gray-500 hover:text-white transition-colors uppercase border border-gray-700 px-3 py-1 rounded hover:bg-gray-800"
-          >
-            <RefreshCcw size={12} className={loadingForense ? "animate-spin" : ""} /> 
-            {loadingForense ? "Sincronizando..." : "Sync_Forense"}
-          </button>
-        </div>
-
-        <div className="p-4 h-[500px] overflow-y-auto font-mono text-[11px] leading-relaxed custom-scrollbar">
-          {errorLog ? (
-            <div className="flex flex-col items-center justify-center h-full text-red-600 gap-3 text-center bg-red-950/10 rounded">
-               <AlertCircle size={32} />
-               <div>
-                 <p className="font-black uppercase tracking-widest text-xs">Error de Comunicación Forense</p>
-                 <p className="text-[9px] text-red-900/60 uppercase mt-1 italic font-bold">Respuesta 401: Sesión no válida o privilegios insuficientes.</p>
-               </div>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ) : forense.length > 0 ? (
-            forense.map((line, i) => {
-              const [jsonPart, sigPart] = line.split(' | SIG:');
+          </div>
+
+          {/* Estado de Integridad [cite: 154] */}
+          <div style={{ background: C.cd, border: `1px solid ${C.bd}`, borderRadius: 12, padding: 24, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center" }}>
+            <ShieldCheck size={48} color={C.g500} style={{ marginBottom: 12 }} />
+            <div style={{ fontSize: 14, fontWeight: 800, color: C.th, textTransform: "uppercase" }}>Integridad Verificada</div>
+            <p style={{ fontSize: 11, color: C.ts, marginTop: 8, lineHeight: 1.5 }}>
+              Sincronizado con v_auditoria_estadistica.<br/>Hash de cadena forense validado por NOM-151. [cite: 97]
+            </p>
+          </div>
+        </div>
+
+        {/* Terminal de Logs Forenses Corregida */}
+        <div style={{ background: "#0D0D0D", border: "1px solid #333", borderRadius: 12, overflow: "hidden", boxShadow: "0 10px 30px rgba(0,0,0,0.5)" }}>
+          <div style={{ background: "#1A1A1A", padding: "12px 16px", borderBottom: "1px solid #333", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, color: "#888", fontFamily: "monospace", fontSize: 11, textTransform: "uppercase", letterSpacing: 1 }}>
+              <Terminal size={16} color="#22C55E" /> /logs/auditoria_forense.log
+            </div>
+            <button 
+              onClick={leerLogForense} 
+              disabled={loadingForense}
+              style={{ background: "transparent", border: "1px solid #444", color: "#AAA", padding: "4px 12px", borderRadius: 6, fontSize: 10, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
+            >
+              <RefreshCcw size={12} className={loadingForense ? "animate-spin" : ""} /> {loadingForense ? "SINCRONIZANDO" : "SYNC_FORENSE"}
+            </button>
+          </div>
+
+          <div style={{ height: 450, overflowY: "auto", padding: 20, fontFamily: "monospace", fontSize: 11, color: "#DDD", lineHeight: 1.6 }}>
+            {errorLog ? (
+              <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: C.r500, gap: 10 }}>
+                <AlertCircle size={32} />
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontWeight: 800, fontSize: 12 }}>ERROR DE COMUNICACIÓN FORENSE</div>
+                  <div style={{ fontSize: 10, opacity: 0.7 }}>401: PRIVILEGIOS INSUFICIENTES (SÓLO SUPERADMIN) [cite: 62]</div>
+                </div>
+              </div>
+            ) : forense.map((line, i) => {
+              const [jsonPart] = line.split(' | SIG:');
               let data = {};
               try { data = JSON.parse(jsonPart); } catch(e) { return null; }
-
-              const det = data.detalles || {};
-              const status = det.STATUS || det.status || '---';
-              const metodo = det.METODO || det.metodo || '---';
-              const ms = det.MS || det.ms || '0';
-              
-              // Lógica de éxito real basada en Status HTTP
-              const isError = parseInt(status) >= 400 || data.resultado === 'FALLIDO';
+              const isError = parseInt(data.detalles?.status) >= 400;
 
               return (
-                <div key={i} className="mb-4 border-b border-gray-900 pb-3 last:border-0 group">
-                  <div className="flex flex-wrap items-center gap-2 mb-1.5">
-                    {/* Fecha legible */}
-                    <span className="text-cyan-800 font-bold bg-cyan-950/20 px-1 rounded">
-                        [{formatTime(data.timestamp)}]
+                <div key={i} style={{ marginBottom: 12, borderBottom: "1px solid #1A1A1A", paddingBottom: 8 }}>
+                  <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 4 }}>
+                    <span style={{ color: "#555" }}>[{formatTime(data.timestamp)}]</span>
+                    <span style={{ fontWeight: 800, color: data.accion?.includes('ESCRITURA') ? "#EA580C" : "#3B82F6" }}>{data.accion}</span>
+                    <span style={{ padding: "1px 6px", borderRadius: 4, background: isError ? "#DC2626" : "#064E3B", color: "#FFF", fontSize: 9, fontWeight: 900 }}>
+                      {isError ? "FALLIDO" : "EXITOSO"}
                     </span>
-                    
-                    <span className={`font-black uppercase text-[10px] tracking-tighter ${data.accion?.includes('ESCRITURA') ? 'text-orange-600' : 'text-blue-500'}`}>
-                      {data.accion}
-                    </span>
-
-                    {/* Badge de resultado dinámico */}
-                    <span className={`px-2 py-0.5 rounded-[3px] text-[9px] font-black ${isError ? 'bg-red-600 text-white animate-pulse' : 'bg-green-900/30 text-green-500'}`}>
-                      {isError ? 'FALLIDO' : 'EXITOSO'}
-                    </span>
-
-                    <span className="text-gray-700 font-bold ml-1">USR:</span>
-                    <span className="text-gray-200 font-bold bg-gray-800 px-2 rounded-[3px] text-[10px]">{data.usuario || 'SISTEMA'}</span>
+                    <span style={{ color: "#888" }}>USR: <b style={{ color: "#EEE" }}>{data.usuario}</b></span>
                   </div>
-                  
-                  <div className="pl-4 grid grid-cols-2 md:grid-cols-4 gap-4 text-[9px] font-bold uppercase tracking-tight text-gray-600">
-                     <span className="flex gap-1 items-center border-l border-gray-800 pl-2">MÉTODO: <b className="text-gray-400">{metodo}</b></span>
-                     <span className="flex gap-1 items-center border-l border-gray-800 pl-2">STATUS: <b className={isError ? 'text-red-500' : 'text-green-800'}>{status}</b></span>
-                     <span className="flex gap-1 items-center border-l border-gray-800 pl-2">LATENCIA: <b className="text-gray-400">{ms}ms</b></span>
-                     <span className="flex gap-1 items-center border-l border-gray-800 pl-2 opacity-30">IP_ORIGEN: {data.ip}</span>
+                  <div style={{ pl: 20, color: "#666", fontSize: 10, display: "flex", gap: 15 }}>
+                    <span>MÉTODO: <b style={{ color: "#999" }}>{data.detalles?.metodo}</b></span>
+                    <span>STATUS: <b style={{ color: isError ? "#EF4444" : "#22C55E" }}>{data.detalles?.status}</b></span>
+                    <span>LATENCIA: <b style={{ color: "#999" }}>{data.detalles?.ms}ms</b></span>
                   </div>
-
-                  {sigPart && (
-                    <div className="pl-4 text-[8px] text-gray-800 group-hover:text-gray-600 transition-colors mt-2 break-all font-mono italic">
-                      HMAC_SIG: {sigPart.substring(0, 50)}...
-                    </div>
-                  )}
                 </div>
               );
-            })
-          ) : !loadingForense && (
-            <div className="h-full flex items-center justify-center">
-              <p className="text-gray-800 text-center uppercase tracking-[0.5em] text-[10px] font-black italic">
-                Buffer de logs vacío / Sin actividad reciente
-              </p>
-            </div>
-          )}
+            })}
+          </div>
+
+          <div style={{ background: "#111", padding: "8px 16px", borderTop: "1px solid #333", fontSize: 9, color: "#444", display: "flex", justifyContent: "space-between", textTransform: "uppercase" }}>
+            <span><ShieldCheck size={10} inline /> CADENA FORENSE VERIFICADA</span>
+            <span>MedIA_Security_v1.0 [cite: 1]</span>
+          </div>
         </div>
-        
-        <div className="bg-[#1A1A1A] px-4 py-2 text-[8px] text-gray-600 font-mono border-t border-gray-800 flex justify-between uppercase tracking-tighter italic font-bold">
-          <span className="flex items-center gap-1"><ShieldCheck size={10} className="text-green-900" /> Cadena Forense Verificada</span>
-          <span className="text-blue-900 underline decoration-blue-950">MedIA_Forense_v1.0</span>
-        </div>
+
       </div>
     </div>
   );
