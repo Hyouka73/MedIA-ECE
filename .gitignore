@@ -52,6 +52,7 @@ yarn-error.log*
 token.json
 token.txt
 docs/doc_text.txt
+docs/PDF
 
 # ── VOLÚMENES DOCKER Y ARCHIVOS LOCALES (NO SUBIR) ───────────────────
 # No subir la data real de la BD del contenedor
