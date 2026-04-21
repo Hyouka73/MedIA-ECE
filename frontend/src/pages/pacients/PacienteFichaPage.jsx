@@ -65,7 +65,7 @@ export default function PacienteFichaPage() {
     const loadPaciente = async () => {
       try {
         setLoading(true);
-        const pacRes = await pacientesAPI.getPaciente(id);
+        const pacRes = await pacientesAPI.getPersona(id);
         if (pacRes.data) {
           const p = pacRes.data;
           setForm({

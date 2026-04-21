@@ -4,6 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { pacientesAPI } from '../../api/pacientes';
 import { clinicoAPI } from '../../api/clinico';
 import { AlertCircle, ChevronLeft, Plus, Clock, FileText, Pill, TrendingUp } from 'lucide-react';
+import PacientesListPage from './PacientesListPage';
 
 /**
  * ExpedientePage — Página de Expediente Clínico del Paciente
@@ -38,38 +39,65 @@ export default function ExpedientePage() {
 
   // Cargar datos del paciente y expediente
   useEffect(() => {
-    if (!tieneAcceso || !id) return;
+  console.log('📍 ExpedientePage montado');
+  console.log('📌 ID de params:', id);
+  console.log('🔑 Usuario tiene acceso:', tieneAcceso);
+  if (!tieneAcceso || !id) return;
 
-    const loadExpediente = async () => {
+  const loadExpediente = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // ✅ CORRECCIÓN: El ID ya viene de useParams()
+      const pacienteId = id;
+      
+      console.log('🔍 Cargando expediente para ID:', pacienteId);
+      
+      // Cargar datos del paciente usando el endpoint correcto
+      const pacRes = await pacientesAPI.getPaciente(pacienteId);
+      
+      // Verificar estructura de respuesta
+      if (pacRes.data?.data) {
+        setPaciente(pacRes.data.data);
+      } else if (pacRes.data) {
+        setPaciente(pacRes.data);
+      } else {
+        throw new Error('No se recibieron datos del paciente');
+      }
+
+      // Cargar encuentros (consultas)
       try {
-        setLoading(true);
-        setError(null);
-
-        // Cargar paciente
-        const pacRes = await pacientesAPI.getPaciente(id);
-        setPaciente(pacRes.data || generarPacienteDemo(id));
-
-        // Cargar encuentros (consultas)
-        try {
-          const encRes = await clinicoAPI.getEncuentros({ id_paciente: id });
-          setEncuentros(encRes.data?.items || []);
-        } catch (err) {
-          console.warn("Encuentros no disponibles, usando datos demo", err);
-          setEncuentros(generarEncuentrosDemo());
+        const encRes = await clinicoAPI.getEncuentros({ id_paciente: pacienteId, page: 1, limit: 20 });
+        if (encRes.data?.data?.items) {
+          setEncuentros(encRes.data.data.items);
+        } else if (encRes.data?.items) {
+          setEncuentros(encRes.data.items);
+        } else {
+          setEncuentros([]);
         }
       } catch (err) {
-        console.error("Error cargando expediente:", err);
-        setError(err.message);
-        // Fallback a datos demo
+        console.warn("Encuentros no disponibles, usando datos demo", err);
+        setEncuentros(generarEncuentrosDemo());
+      }
+      
+    } catch (err) {
+      console.error("Error cargando expediente:", err);
+      setError(err.message);
+      
+      // Fallback a datos demo SOLO en desarrollo
+      if (process.env.NODE_ENV === 'development') {
+        console.warn('⚠️ Usando datos demo para desarrollo');
         setPaciente(generarPacienteDemo(id));
         setEncuentros(generarEncuentrosDemo());
-      } finally {
-        setLoading(false);
       }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    loadExpediente();
-  }, [id, tieneAcceso]);
+  loadExpediente();
+}, [id, tieneAcceso]);
 
   // Datos de demostración
   const generarPacienteDemo = (id) => ({
@@ -210,7 +238,13 @@ export default function ExpedientePage() {
   if (!paciente) return null;
 
   const hasHighAllergy = paciente.alergias?.some(a => a.severidad === "alta");
-  const initials = `${paciente.nombre[0]}${paciente.primer_apellido[0]}`;
+  const getInitials = () => {
+    const nombre = paciente.persona?.nombre || paciente.nombre || '';
+    const apellido = paciente.persona?.primer_apellido || paciente.primer_apellido || '';
+    return `${nombre[0] || ''}${apellido[0] || ''}`.toUpperCase() || 'P';
+  };
+
+  const initials = getInitials();
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#EDEBE6" }}>
