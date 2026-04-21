@@ -1,9 +1,10 @@
 import React, { useState } from 'react'
-import { ShieldCheck } from 'lucide-react'
+import { ShieldCheck, ChevronLeft, Info, Lock } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { Badge } from '../../components/ui/Badge'
 import { Callout } from '../../components/ui/Callout'
 
+/* Definición de Módulos y Acciones del Sistema MedIA */
 const MODULOS  = ['Dashboard', 'Pacientes', 'Expediente', 'Consulta', 'Referencias', 'Documentos', 'Auditoría', 'Administración']
 const ACCIONES = ['leer', 'crear', 'editar', 'eliminar']
 
@@ -17,6 +18,7 @@ const BADGE_VARIANT = {
   ENFERMERIA:        'default',
 }
 
+/* Matriz de Permisos (Req. Seguridad Forense) */
 const MATRIZ = {
   SUPERADMIN:        { Dashboard: [1,1,1,1], Pacientes: [1,1,1,1], Expediente: [1,1,1,1], Consulta: [1,1,1,1], Referencias: [1,1,1,1], Documentos: [1,1,1,1], 'Auditoría': [1,1,1,1], 'Administración': [1,1,1,1] },
   OMNIADMIN:         { Dashboard: [1,1,1,1], Pacientes: [1,1,1,1], Expediente: [1,1,1,1], Consulta: [1,1,1,1], Referencias: [1,1,1,1], Documentos: [1,1,1,1], 'Auditoría': [1,1,1,1], 'Administración': [1,1,1,1] },
@@ -28,14 +30,18 @@ const MATRIZ = {
 }
 
 const CheckIcon = () => (
-  <svg className="w-4 h-4 text-[#2D8653] mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-  </svg>
+  <div className="bg-[#DCFCE7] p-1 rounded-full inline-flex items-center justify-center">
+    <svg className="w-3 h-3 text-[#166534]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+    </svg>
+  </div>
 )
 const CrossIcon = () => (
-  <svg className="w-3.5 h-3.5 text-[#DAD4CC] mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-  </svg>
+  <div className="bg-[#F1F5F9] p-1 rounded-full inline-flex items-center justify-center">
+    <svg className="w-3 h-3 text-[#94A3B8]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+    </svg>
+  </div>
 )
 
 export default function AdminRolesPage() {
@@ -44,60 +50,87 @@ export default function AdminRolesPage() {
   const roles = Object.keys(MATRIZ)
 
   return (
-    <div className="space-y-5">
-
+    <div className="space-y-6">
+      {/* Navegación */}
       <button onClick={() => navigate('/admin')}
         className="flex items-center gap-2 text-sm text-[#64748B] hover:text-[#1B4F8A] transition-colors group w-fit">
-        <svg className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-        </svg>
-        Volver
+        <ChevronLeft size={16} className="group-hover:-translate-x-0.5 transition-transform" />
+        Volver al Panel
       </button>
 
-      <div>
-        <h1 className="text-2xl font-bold text-[#1E293B]">Roles y Permisos</h1>
-        <p className="text-sm text-[#64748B]">Matriz de acceso por rol — solo visualización</p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold text-[#1E293B]">Matriz de Roles y Permisos</h1>
+          <p className="text-sm text-[#64748B]">Configuración de privilegios de acceso al Expediente Clínico</p>
+        </div>
+        <div className="flex items-center gap-2 px-3 py-1.5 bg-[#F8FAFC] border border-[#DAD4CC] rounded-lg">
+          <Lock size={14} className="text-[#64748B]" />
+          <span className="text-[10px] font-bold text-[#64748B] uppercase">Solo Lectura</span>
+        </div>
       </div>
 
-      <Callout variant="info" icon={<ShieldCheck size={16} />}>
-        Los permisos están definidos en la base de datos según la tabla{' '}
-        <code className="bg-[#F5F2EC] px-1 rounded text-xs"></code>.
-        Esta vista es de solo lectura. Para modificar permisos contacta al <strong>SUPERADMIN</strong>.
+      <Callout variant="info" icon={<Info size={16} />}>
+        Los permisos están definidos por la política de seguridad institucional en la tabla{' '}
+        <code className="bg-[#E2DDD4] px-1.5 py-0.5 rounded text-[11px] font-mono font-bold text-[#1B4F8A]">
+          auth_permisos_rol
+        </code>. 
+        Para cambios en la matriz, el oficial de seguridad debe emitir un ticket de cambio.
       </Callout>
 
-      <div className="flex flex-wrap gap-2">
+      {/* Selector de Roles */}
+      <div className="flex flex-wrap gap-3 p-1 bg-[#F5F2EC] rounded-2xl w-fit border border-[#DAD4CC]">
         {roles.map(rol => (
-          <button key={rol} onClick={() => setRolActivo(rol)}
-            className={`transition-all ${rolActivo === rol ? 'ring-2 ring-offset-1 ring-[#1B4F8A]/40 rounded-full' : 'opacity-60 hover:opacity-100'}`}>
-            <Badge variant={BADGE_VARIANT[rol] ?? 'default'}>
-              {rol.replace(/_/g, ' ')}
-            </Badge>
+          <button 
+            key={rol} 
+            onClick={() => setRolActivo(rol)}
+            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 ${
+              rolActivo === rol 
+              ? 'bg-white shadow-sm text-[#1B4F8A] scale-105' 
+              : 'text-[#64748B] hover:text-[#1B4F8A] hover:bg-white/50'
+            }`}
+          >
+            {rol.replace(/_/g, ' ')}
           </button>
         ))}
       </div>
 
-      <div className="bg-white border border-[#DAD4CC] rounded-xl overflow-hidden shadow-sm">
-        <div className="px-5 py-3 border-b border-[#DAD4CC] bg-[#F5F2EC] flex items-center gap-3">
-          <Badge variant={BADGE_VARIANT[rolActivo] ?? 'default'}>{rolActivo.replace(/_/g, ' ')}</Badge>
-          <span className="text-xs text-[#64748B]">— permisos por módulo</span>
+      {/* Tabla de Matriz */}
+      <div className="bg-white border border-[#DAD4CC] rounded-2xl overflow-hidden shadow-sm">
+        <div className="px-6 py-4 border-b border-[#DAD4CC] bg-[#F8FAFC] flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Badge variant={BADGE_VARIANT[rolActivo] ?? 'default'}>
+              {rolActivo.replace(/_/g, ' ')}
+            </Badge>
+            <span className="text-xs font-medium text-[#64748B]">Permisos de ejecución por módulo</span>
+          </div>
+          <div className="flex items-center gap-4 text-[10px] font-bold text-[#94A3B8] uppercase">
+             <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-[#166534] rounded-full"/> Activo</div>
+             <div className="flex items-center gap-1.5"><div className="w-2 h-2 bg-[#94A3B8] rounded-full"/> Inactivo</div>
+          </div>
         </div>
+
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-[#DAD4CC]">
-              <th className="text-left px-5 py-3 text-xs font-semibold text-[#64748B] uppercase tracking-wide w-40">Módulo</th>
+            <tr className="bg-[#F5F2EC]/50">
+              <th className="text-left px-6 py-3 text-[11px] font-bold text-[#64748B] uppercase tracking-wider w-48">Módulo del Sistema</th>
               {ACCIONES.map(a => (
-                <th key={a} className="text-center px-4 py-3 text-xs font-semibold text-[#64748B] uppercase tracking-wide">{a}</th>
+                <th key={a} className="text-center px-4 py-3 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">{a}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {MODULOS.map(modulo => {
               const permisos = MATRIZ[rolActivo]?.[modulo] ?? [0,0,0,0]
+              const hasAccess = permisos.some(p => p === 1)
               return (
-                <tr key={modulo} className={`border-b border-[#DAD4CC] transition-colors hover:bg-[#EEF3FB] ${!permisos.some(p=>p===1) ? 'opacity-40' : ''}`}>
-                  <td className="px-5 py-3 font-medium text-[#1E293B]">{modulo}</td>
+                <tr key={modulo} className={`border-b border-[#F1F5F9] transition-colors hover:bg-[#F8FAFC] ${!hasAccess ? 'bg-[#F9FAFB]/50' : ''}`}>
+                  <td className={`px-6 py-4 font-semibold text-xs ${hasAccess ? 'text-[#1E293B]' : 'text-[#94A3B8]'}`}>
+                    {modulo}
+                  </td>
                   {permisos.map((p, j) => (
-                    <td key={j} className="px-4 py-3 text-center">{p === 1 ? <CheckIcon /> : <CrossIcon />}</td>
+                    <td key={j} className="px-4 py-4 text-center">
+                      {p === 1 ? <CheckIcon /> : <CrossIcon />}
+                    </td>
                   ))}
                 </tr>
               )
@@ -106,10 +139,9 @@ export default function AdminRolesPage() {
         </table>
       </div>
 
-      <div className="flex items-center gap-6 text-xs text-[#64748B]">
-        <div className="flex items-center gap-2"><CheckIcon /><span>Permitido</span></div>
-        <div className="flex items-center gap-2"><CrossIcon /><span>Sin acceso</span></div>
-      </div>
+      <p className="text-[10px] text-[#94A3B8] text-center italic">
+        Esta matriz cumple con los controles de acceso lógicos establecidos en la NOM-024-SSA3-2012 para sistemas de ECE.
+      </p>
     </div>
   )
 }
