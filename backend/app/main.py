@@ -16,6 +16,7 @@ from app.middleware.sanitize import SanitizeMiddleware
 from app.modules.auth.router import router as auth_router
 from app.modules.personas.router import router as personas_router
 from app.modules.pacientes.router import router as pacientes_router
+from app.modules.expediente.router import router as expediente_router
 from app.modules.catalogos.router import router as catalogos_router
 from app.modules.encuentros.router import router as encuentros_router
 from app.modules.admin.router import router as admin_router
@@ -52,6 +53,7 @@ app.add_middleware(SanitizeMiddleware)
 app.include_router(auth_router,       prefix="/api/auth",       tags=["Autenticación"])
 app.include_router(personas_router,   prefix="/api/personas",   tags=["Personas"])
 app.include_router(pacientes_router,  prefix="/api/pacientes",  tags=["Pacientes"])
+app.include_router(expediente_router, prefix="/api/expediente", tags=["Expediente"])
 app.include_router(catalogos_router,  prefix="/api/catalogos",  tags=["Catálogos"])
 app.include_router(encuentros_router, prefix="/api/encuentros", tags=["Encuentros"])
 app.include_router(admin_router,      prefix="/api/admin",      tags=["Administración"])

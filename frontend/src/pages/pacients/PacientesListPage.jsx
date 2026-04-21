@@ -33,36 +33,46 @@ export default function PacientesListPage() {
 
   const tieneAcceso = user && rolesPermitidos.includes(user.rol);
 
-  // Cargar pacientes
-  useEffect(() => {
-    if (!tieneAcceso) return;
+useEffect(() => {
+  if (!tieneAcceso) return;
 
-    const loadPacientes = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+  const loadPacientes = async () => {
+    try {
+      setLoading(true);
+      setError(null);
 
-        const params = {
-          page: page,
-          limit: 10,
-          search: searchQuery || undefined,
-        };
+      const params = {
+        page: page,
+        limit: 10,
+        search: searchQuery || undefined,
+      };
 
-        const response = await pacientesAPI.getPacientes(params);
-        setPacientes(response.data?.items || generarPacientesDemo());
-        setTotalPages(response.data?.pages || 1);
-      } catch (err) {
-        console.error("Error cargando pacientes:", err);
-        setError(err.message);
-        // Usar datos demo como fallback
+      const response = await pacientesAPI.getPacientes(params);
+      
+      const responseData = response.data;
+      
+      if (responseData && responseData.data) {
+        setPacientes(responseData.data.items || []);
+        setTotalPages(responseData.data.pages || 1);
+      } else {
+        // Si no hay datos, usar demo
         setPacientes(generarPacientesDemo());
-      } finally {
-        setLoading(false);
+        setTotalPages(1);
       }
-    };
+      
+    } catch (err) {
+      console.error("Error cargando pacientes:", err);
+      setError(err.message);
+      // Usar datos demo como fallback
+      setPacientes(generarPacientesDemo());
+      setTotalPages(1);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    loadPacientes();
-  }, [page, searchQuery, tieneAcceso]);
+  loadPacientes();
+}, [page, searchQuery, tieneAcceso]);
 
   // Datos de demostración
   const generarPacientesDemo = () => [
@@ -241,12 +251,12 @@ export default function PacientesListPage() {
                   const alergiaAlta = tieneAlergias && paciente.alergias.some((a) => a.severidad === "alta");
 
                   return (
-                    <tr key={paciente.id} className="hover:bg-surface/50 transition-colors">
+                    <tr key={paciente.id_paciente} className="hover:bg-surface/50 transition-colors">
                       <td className="px-6 py-4 text-sm font-medium text-text-primary">{paciente.nombre}</td>
                       <td className="px-6 py-4 text-sm text-text-secondary">{paciente.edad} años</td>
                       <td className="px-6 py-4 text-sm">
                         <span className="px-2 py-1 bg-primary/10 text-primary rounded text-xs font-semibold">
-                          {paciente.tipoSangre}
+                          {paciente.grupo_sanguineo || "Desconocido"}
                         </span>
                       </td>
                       <td className="px-6 py-4 text-sm text-text-secondary">📱 {paciente.telefono}</td>
@@ -268,7 +278,7 @@ export default function PacientesListPage() {
                       <td className="px-6 py-4 text-sm">
                         <div className="flex items-center justify-center gap-2">
                           <button 
-                            onClick={() => navigate(`/expediente/${paciente.id}`)}
+                            onClick={() => navigate(`/expediente/${paciente.id_paciente}`)}
                             className="px-3 py-1 text-xs bg-secondary text-text-primary rounded hover:bg-secondary/80 transition-colors"
                           >
                             📋 Ver

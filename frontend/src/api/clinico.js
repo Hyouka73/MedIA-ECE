@@ -1,25 +1,49 @@
 /**
  * API — Módulo Clínico
- * Stubs para P4 — implementar encuentros, notas, signos.
+ * Servicios para encuentros, notas SOAP, signos vitales, diagnosticos, prescripciones
  */
 import api from './client';
 
 export const clinicoAPI = {
-    // Encuentros
+    // ── Encuentros Clínicos ────────────────────────────────
+    // GET /encuentros — Lista de encuentros (propios o de un paciente)
     getEncuentros: (params) => api.get('/encuentros', { params }),
+    // POST /encuentros — Crear nuevo encuentro
     createEncuentro: (data) => api.post('/encuentros', data),
+    // PATCH /encuentros/:id/cerrar — Cerrar encuentro (irreversible)
     cerrarEncuentro: (id) => api.patch(`/encuentros/${id}/cerrar`),
 
-    // Notas SOAP
+    // ── Signos Vitales ─────────────────────────────────────
+    // POST /encuentros/:id/signos-vitales — Registrar signos vitales
+    registrarSignos: (idEncuentro, data) => api.post(`/encuentros/${idEncuentro}/signos-vitales`, data),
+    // GET /encuentros/:id/signos-vitales — Obtener signos de un encuentro
+    getSignos: (idEncuentro) => api.get(`/encuentros/${idEncuentro}/signos-vitales`),
+
+    // ── Notas SOAP ─────────────────────────────────────────
+    // POST /encuentros/:id/notas — Crear nota SOAP
     crearNota: (idEncuentro, data) => api.post(`/encuentros/${idEncuentro}/notas`, data),
+    // PATCH /notas/:id/firmar — Firmar nota (irreversible)
     firmarNota: (idNota) => api.patch(`/notas/${idNota}/firmar`),
+    // POST /notas/:id/enmienda — Crear enmienda a nota firmada
     crearEnmienda: (idNota, data) => api.post(`/notas/${idNota}/enmienda`, data),
 
-    // Signos vitales
-    registrarSignos: (data) => api.post('/signos-vitales', data),
-    getSignos: (idEncuentro) => api.get('/signos-vitales', { params: { id_encuentro: idEncuentro } }),
+    // ── Diagnósticos ───────────────────────────────────────
+    // POST /encuentros/:id/diagnosticos — Agregar diagnóstico
+    addDiagnostico: (idEncuentro, data) => api.post(`/encuentros/${idEncuentro}/diagnosticos`, data),
 
-    // Catálogos
+    // ── Prescripciones ─────────────────────────────────────
+    // POST /encuentros/:id/prescripciones — Agregar prescripción
+    addPrescripcion: (idEncuentro, data) => api.post(`/encuentros/${idEncuentro}/prescripciones`, data),
+
+    // ── Solicitudes de Estudio ─────────────────────────────
+    // POST /encuentros/:id/solicitudes-estudio — Solicitar estudio
+    addSolicitudEstudio: (idEncuentro, data) => api.post(`/encuentros/${idEncuentro}/solicitudes-estudio`, data),
+
+    // ── Catálogos Clínicos ─────────────────────────────────
+    // GET /catalogos/cie10 — Buscar diagnóstico CIE-10
     buscarCIE10: (q) => api.get('/catalogos/cie10', { params: { q } }),
+    // GET /catalogos/medicamentos — Buscar medicamento
     buscarMedicamentos: (q) => api.get('/catalogos/medicamentos', { params: { q } }),
+    // GET /catalogos/especialidades — Lista de especialidades
+    getEspecialidades: () => api.get('/catalogos/especialidades'),
 };
