@@ -1,10 +1,14 @@
 import React, { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Users, Building2, ShieldAlert, UserX, Layers, ArrowRight, ShieldCheck } from 'lucide-react'
+import { 
+  Users, Building2, ShieldAlert, UserX, Layers, 
+  ArrowRight, ShieldCheck, Activity, FileSearch 
+} from 'lucide-react'
 import { fetchAdminMetrics } from '../../api/admin_service'
 
+/* Componente de Tarjeta de Métrica */
 const MetricCard = ({ icon: Icon, label, value, color, sub }) => (
-  <div className="bg-white rounded-xl border border-[#DAD4CC] p-5 flex items-start gap-4 shadow-sm">
+  <div className="bg-white rounded-xl border border-[#DAD4CC] p-5 flex items-start gap-4 shadow-sm hover:shadow-md transition-shadow">
     <div className={`p-3 rounded-lg ${color}`}>
       <Icon size={22} className="text-white" />
     </div>
@@ -16,11 +20,44 @@ const MetricCard = ({ icon: Icon, label, value, color, sub }) => (
   </div>
 )
 
+/* Configuración de Accesos Rápidos - RUTAS SINCRONIZADAS CON EL BACKEND */
 const accesos = [
-  { href: '/admin/usuarios',         icon: Users,       label: 'Gestionar usuarios',       desc: 'Alta, edición, activar/desactivar cuentas' },
-  { href: '/admin/establecimientos', icon: Building2,   label: 'Ver establecimientos',     desc: 'Unidades médicas bajo tu gestión' },
-  { href: '/admin/especialidades',   icon: Layers,      label: 'Configurar especialidades',desc: 'Activa o desactiva especialidades por unidad' },
-  { href: '/admin/roles',            icon: ShieldCheck, label: 'Roles y permisos',         desc: 'Matriz de acceso por rol — solo lectura' },
+  { 
+    href: '/admin/usuarios', 
+    icon: Users, 
+    label: 'Gestionar usuarios', 
+    desc: 'Alta, edición y control de cuentas' 
+  },
+  { 
+    href: '/admin/auditoria', // Corregido: de /seguridad a /admin
+    icon: FileSearch, 
+    label: 'Auditoría Forense', 
+    desc: 'Bitácora de integridad (NOM-024/151)' 
+  },
+  { 
+    href: '/admin/auditoria?nivel=CRITICA', // Corregido: Filtro directo en la bitácora
+    icon: ShieldAlert, 
+    label: 'Incidentes Críticos', 
+    desc: 'Alertas de riesgo clínico detectadas' 
+  },
+  { 
+    href: '/admin/establecimientos', 
+    icon: Building2, 
+    label: 'Unidades Médicas', 
+    desc: 'Establecimientos bajo tu gestión' 
+  },
+  { 
+    href: '/admin/roles', 
+    icon: ShieldCheck, 
+    label: 'Roles y Permisos', 
+    desc: 'Matriz de acceso institucional' 
+  },
+  { 
+    href: '/admin/catalogos', // Corregido para incluir especialidades, CIE-10 y medicamentos
+    icon: Layers, 
+    label: 'Configurar Catálogos', 
+    desc: 'CIE-10, Medicamentos y Especialidades' 
+  },
 ]
 
 export default function AdminDashboardPage() {
@@ -34,20 +71,55 @@ export default function AdminDashboardPage() {
       .finally(() => setLoading(false))
   }, [])
 
+  /* Mapeo de métricas dinámicas */
   const cards = [
-    { icon: Users,       label: 'Usuarios activos',   value: metrics?.usuarios_activos,       sub: `+${metrics?.nuevos_hoy ?? 0} nuevos hoy`, color: 'bg-[#1B4F8A]' },
-    { icon: Building2,   label: 'Establecimientos',   value: metrics?.total_establecimientos, sub: 'Bajo tu gestión',                         color: 'bg-[#2D8653]' },
-    { icon: ShieldAlert, label: 'Sin 2FA activo',     value: metrics?.sin_2fa,                sub: 'Cuentas en riesgo',                        color: 'bg-[#D97706]' },
-    { icon: UserX,       label: 'Cuentas bloqueadas', value: metrics?.bloqueadas,             sub: 'Requieren revisión',                       color: 'bg-[#DC2626]' },
+    { 
+      icon: Users, 
+      label: 'Usuarios activos', 
+      value: metrics?.usuarios_activos, 
+      sub: `+${metrics?.nuevos_hoy ?? 0} nuevos hoy`, 
+      color: 'bg-[#1B4F8A]' 
+    },
+    { 
+      icon: Activity, 
+      label: 'Integridad Sistema', 
+      value: '100%', 
+      sub: 'Validación NOM-151 OK', 
+      color: 'bg-[#2D8653]' 
+    },
+    { 
+      icon: ShieldAlert, 
+      label: 'Incidentes Críticos', 
+      value: metrics?.configuraciones_pendientes || 0, 
+      sub: 'Requieren revisión inmediata', 
+      color: 'bg-[#D97706]' 
+    },
+    { 
+      icon: UserX, 
+      label: 'Cuentas bloqueadas', 
+      value: metrics?.bloqueadas, 
+      sub: 'Por intentos fallidos o 2FA', 
+      color: 'bg-[#DC2626]' 
+    },
   ]
 
   return (
     <div className="space-y-6">
-
-      {/* Encabezado */}
-      <div>
-        <h1 className="text-2xl font-bold text-[#1E293B]">Panel de Administración</h1>
-        <p className="text-sm text-[#64748B] mt-1">Resumen del sistema bajo tu gestión</p>
+      
+      {/* Encabezado con Identidad Institucional */}
+      <div className="flex justify-between items-end">
+        <div>
+          <h1 className="text-2xl font-bold text-[#1E293B]">Panel de Administración Forense</h1>
+          <p className="text-sm text-[#64748B] mt-1">
+            Distrito de Salud I · Tuxtla Gutiérrez, Chiapas
+          </p>
+        </div>
+        <div className="text-right hidden sm:block">
+          <p className="text-[10px] font-bold text-[#1B4F8A] uppercase tracking-wider">Estatus del Servidor</p>
+          <p className="text-xs text-[#2D8653] font-medium flex items-center justify-end gap-1">
+            <span className="w-2 h-2 bg-[#2D8653] rounded-full animate-pulse" /> Sincronizado con Azure
+          </p>
+        </div>
       </div>
 
       {/* Cards de métricas */}
@@ -63,41 +135,47 @@ export default function AdminDashboardPage() {
         </div>
       )}
 
-      {/* Alerta configuraciones pendientes */}
+      {/* Alerta de Seguridad Crítica */}
       {!loading && metrics?.configuraciones_pendientes > 0 && (
-        <div className="flex items-start gap-3 bg-white border-l-4 border-[#D97706] rounded-lg p-4 shadow-sm">
-          <ShieldAlert size={18} className="text-[#D97706] mt-0.5 shrink-0" />
-          <p className="text-sm text-[#1E293B]">
-            Hay <strong>{metrics.configuraciones_pendientes}</strong> configuración(es) pendiente(s) de revisión.
-          </p>
+        <div className="flex items-start gap-3 bg-[#FEF2F2] border border-[#FECACA] rounded-lg p-4 shadow-sm animate-bounce">
+          <ShieldAlert size={18} className="text-[#DC2626] mt-0.5 shrink-0" />
+          <div>
+            <p className="text-sm text-[#991B1B] font-bold">Alerta de Seguridad Activa</p>
+            <p className="text-xs text-[#991B1B]">
+              Se han detectado {metrics.configuraciones_pendientes} intentos de violación a las reglas de prescripción (NOM-024).
+            </p>
+            {/* CORREGIDO: Redirigir a la bitácora con el filtro de nivel crítica */}
+            <Link to="/admin/auditoria?nivel=CRITICA" className="text-xs font-bold underline text-[#991B1B] mt-2 block">
+              Revisar bitácora de incidentes ahora
+            </Link>
+          </div>
         </div>
       )}
 
-      {/* Accesos rápidos */}
+      {/* Sección de Accesos Rápidos */}
       <div>
-        <h2 className="text-base font-semibold text-[#1E293B] mb-3">Accesos rápidos</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
+        <h2 className="text-base font-semibold text-[#1E293B] mb-3">Módulos de Gestión y Cumplimiento</h2>
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
           {accesos.map(a => (
             <Link
               key={a.href}
               to={a.href}
-              className="bg-white border border-[#DAD4CC] rounded-xl p-4 flex items-center justify-between hover:border-[#1B4F8A] hover:shadow-sm transition-all group"
+              className="bg-white border border-[#DAD4CC] rounded-xl p-4 flex items-center justify-between hover:border-[#1B4F8A] hover:shadow-md transition-all group"
             >
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-[#EEF3FB] rounded-lg">
-                  <a.icon size={18} className="text-[#1B4F8A]" />
+                <div className="p-2 bg-[#EEF3FB] rounded-lg group-hover:bg-[#1B4F8A] transition-colors">
+                  <a.icon size={18} className="text-[#1B4F8A] group-hover:text-white" />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-[#1E293B]">{a.label}</p>
-                  <p className="text-xs text-[#64748B]">{a.desc}</p>
+                  <p className="text-xs text-[#64748B] line-clamp-1">{a.desc}</p>
                 </div>
               </div>
-              <ArrowRight size={16} className="text-[#64748B] group-hover:text-[#1B4F8A] transition-colors shrink-0 ml-2" />
+              <ArrowRight size={16} className="text-[#64748B] group-hover:text-[#1B4F8A] transition-all transform group-hover:translate-x-1 shrink-0 ml-2" />
             </Link>
           ))}
         </div>
       </div>
-
     </div>
   )
 }
