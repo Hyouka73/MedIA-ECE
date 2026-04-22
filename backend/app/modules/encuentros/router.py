@@ -13,3 +13,9 @@ async def create_encuentro(current_user: dict = Depends(require_role("MEDICO_GEN
 async def cerrar_encuentro(id: str, current_user: dict = Depends(get_current_user)):
     """PATCH /encuentros/{id}/cerrar — TODO Persona 3"""
     return {"message": "TODO Persona 3: cerrar encuentro (irreversible)"}
+
+
+@router.get("/")
+async def create_encuentro(current_user: dict = Depends(require_role("MEDICO_GENERAL","ESPECIALISTA","SUPERADMIN"))):
+    """GET /encuentros — TODO Persona 3"""
+    return {"message": "TODO Persona 3: crear encuentro clínico"}
