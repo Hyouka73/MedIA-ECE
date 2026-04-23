@@ -143,7 +143,7 @@ async def get_persona(
 
 
 # ── POST / — Crear nueva persona ────────────────────────────────────────
-@router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_persona(
     persona_in: PersonaCreateIn,
     current_user: dict = Depends(get_current_user),
@@ -168,7 +168,7 @@ async def create_persona(
             nombre=persona_in.nombre,
             primer_apellido=persona_in.primer_apellido,
             segundo_apellido=persona_in.segundo_apellido,
-            curp=persona_in.curp,
+            curp=Optional[persona_in.curp] if persona_in.curp else None,
             fecha_nacimiento=persona_in.fecha_nacimiento,
             sexo=persona_in.sexo,
             id_localidad=persona_in.id_localidad,

@@ -197,7 +197,7 @@ async def create_paciente(
                 nombre=persona_data.nombre,
                 primer_apellido=persona_data.primer_apellido,
                 segundo_apellido=persona_data.segundo_apellido,
-                curp=persona_data.curp,
+                curp=Optional[persona_data.curp] if persona_data.curp else None,
                 fecha_nacimiento=persona_data.fecha_nacimiento,
                 sexo=persona_data.sexo,
                 id_localidad=persona_data.id_localidad,
@@ -262,10 +262,9 @@ async def get_paciente(
 ):
     """GET /pacientes/{id} — Obtiene un paciente por ID"""
     try:
-        # ✅ CORRECCIÓN: Usar joinedload para cargar la relación persona
         stmt = (
             select(Paciente)
-            .options(joinedload(Paciente.persona))  # ← ESTO ES LO QUE FALTA
+            .options(joinedload(Paciente.persona))  
             .where(
                 Paciente.id_paciente == id_paciente,
                 Paciente.eliminado_en == None
@@ -290,10 +289,10 @@ async def get_paciente(
                 "curp": persona.curp,
                 "fecha_nacimiento": persona.fecha_nacimiento.isoformat() if persona.fecha_nacimiento else None,
                 "sexo": persona.sexo,
-                "id_localidad": persona.id_localidad,
+                "id_localidad": str(persona.id_localidad) if persona.id_localidad else None,
                 "calle_numero": persona.calle_numero,
                 "referencia_geografica": persona.referencia_geografica,
-                "id_lengua_materna": persona.id_lengua_materna,
+                "id_lengua_materna": str(persona.id_lengua_materna) if persona.id_lengua_materna else None,
                 "telefono": persona.telefono,
                 "url_foto": persona.url_foto,
                 "fecha_registro": persona.fecha_registro.isoformat() if persona.fecha_registro else None,
@@ -332,7 +331,6 @@ async def get_expediente(
         if not tiene_acceso:
             raise HTTPException(status_code=403, detail="Acceso denegado al expediente clínico")
 
-        # ✅ CORRECCIÓN: Usar joinedload
         stmt = (
             select(Paciente)
             .options(joinedload(Paciente.persona))
