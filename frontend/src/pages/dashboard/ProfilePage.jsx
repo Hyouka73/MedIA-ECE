@@ -1,5 +1,4 @@
 import React, { useState, useRef } from 'react';
-
 import { useAuth } from '../../context/AuthContext';
 import { Camera, LogOut, Loader2, UploadCloud } from 'lucide-react';
 import apiClient from '../../api/client';
@@ -16,11 +15,6 @@ export default function ProfilePage() {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (!user?.id_persona) {
-            addToast('No se puede subir la foto: ID de persona no disponible. Vuelve a iniciar sesión.', 'error');
-            return;
-        }
-
         if (!file.type.startsWith('image/')) {
             addToast('Por favor selecciona una imagen válida', 'error');
             return;
@@ -31,7 +25,7 @@ export default function ProfilePage() {
 
         setUploading(true);
         try {
-            const { data } = await apiClient.post(`/personas/${user.id_persona}/avatar`, formData, {
+            const { data } = await apiClient.post('/personas/avatar', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' }
             });
 

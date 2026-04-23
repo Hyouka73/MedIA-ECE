@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { pacientesAPI } from '../../api/pacientes';
 import { AlertCircle, Plus } from 'lucide-react';
+import { Languages } from 'lucide-react';
 
 /**
  * PacientesListPage — Página de Listado de Pacientes
@@ -241,6 +242,7 @@ useEffect(() => {
                   <th className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Grupo Sangre</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Teléfono</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Alergias</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Idioma</th>
                   <th className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Última Consulta</th>
                   <th className="px-6 py-3 text-center text-xs font-semibold text-text-secondary uppercase tracking-wide">Acciones</th>
                 </tr>
@@ -270,6 +272,16 @@ useEffect(() => {
                               {paciente.alergias.length} {paciente.alergias.length === 1 ? "alergia" : "alergias"}
                             </span>
                           </div>
+                        ) : (
+                          <span className="text-text-secondary text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 text-sm">
+                        {paciente.tiene_barrera_linguistica ? (
+                          <span className="flex items-center gap-1 text-warning">
+                            <Languages size={16} />
+                             <span className="text-xs">Barrera Lingüística</span>
+                          </span>
                         ) : (
                           <span className="text-text-secondary text-xs">—</span>
                         )}

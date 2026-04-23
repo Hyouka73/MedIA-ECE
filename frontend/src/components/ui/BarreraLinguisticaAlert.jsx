@@ -17,6 +17,7 @@ export const BarreraLinguisticaAlert = ({
 
   const tieneLengua = paciente.persona.id_lengua_materna != null;
   const lenguaMaterna = paciente.persona.id_lengua_materna;
+  const nombreLengua = tieneLengua ? paciente.persona.nombre_lengua_materna : "No especificada";
 
   const styles = {
     small: {
@@ -79,7 +80,7 @@ export const BarreraLinguisticaAlert = ({
         {showLabel && size !== 'small' && (
           <div style={{ fontSize: 12, color: '#5A5048' }}>
             {tieneLengua ? (
-              <>El paciente requiere atención en lengua indígena (ID: {lenguaMaterna})</>
+              <>El paciente requiere atención en lengua indígena (ID: {lenguaMaterna}, Nombre: {nombreLengua})</>
             ) : (
               <>Se recomienda verificar la lengua materna del paciente</>
             )}

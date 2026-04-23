@@ -14,14 +14,6 @@ export const pacientesAPI = {
     createPersona: (data) => api.post('/personas', data),
     // PATCH /personas/:id — Actualizar persona
     updatePersona: (id, data) => api.patch(`/personas/${id}`, data),
-    // POST /personas/:id/avatar — Subir avatar
-    uploadAvatar: (id, file) => {
-        const formData = new FormData();
-        formData.append('file', file);
-        return api.post(`/personas/${id}/avatar`, formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
-    },
     
     // ── Pacientes ─────────────────────────────────────────
     // GET /pacientes — Lista paginada
