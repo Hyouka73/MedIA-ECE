@@ -14,6 +14,7 @@ const api = axios.create({
     withCredentials: true,  // Enviar cookies HttpOnly en requests cross-origin (refresh token)
 });
 
+
 /**
  * Interceptor: Adjunta el token JWT a cada request.
  * Se configura desde AuthContext al hacer login.

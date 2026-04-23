@@ -21,6 +21,9 @@
 
 | # | Resuelto en | Descripción |
 |---|---|---|
+| 15 | S6 | PacienteFichaPage.jsx desarrollada — formulario de registro/edición con validaciones (CURP, teléfono, requeridos), 3 secciones (Personal, Ubicación, Clínico), control de acceso (6 roles) y manejo completo de errores |
+| 14 | S6 | ExpedientePage.jsx desarrollada — vista completa de expediente con pestañas (Antecedentes, Medicamentos, Estudios, Notas, Encuentros), alergias por severidad, encontros expandibles y control de acceso por rol |
+| 13 | S6 | PacientesListPage.jsx desarrollada — tabla completa con búsqueda, filtros, paginación y control de acceso por rol |
 | 1 | S3 | Hashes Argon2id truncados en semillas — regenerados correctamente |
 | 2 | S3 | Bloqueo por intentos fallidos no se aplicaba — backend ahora incrementa `intentos_fallidos` |
 | 3 | S3 | Auditoría solo en logger — ahora persiste en `auditoria_accesos` en BD |
