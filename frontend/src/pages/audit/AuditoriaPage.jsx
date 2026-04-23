@@ -2,17 +2,15 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   ShieldAlert,
   Download,
-  CheckCircle,
-  Clock,
   Eye,
   X,
   ShieldX,
-  ShieldCheck,
   AlertTriangle,
   MapPin,
   RefreshCw,
   Ban,
-  Lock
+  Lock,
+  Clock
 } from 'lucide-react';
 import apiClient from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
@@ -35,8 +33,23 @@ const pickFirst = (...values) => {
   return '';
 };
 
+const normalize = (value) =>
+  String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toUpperCase();
+
+const getItemsFromResponse = (data) => {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.results)) return data.results;
+  if (Array.isArray(data?.data)) return data.data;
+  return [];
+};
+
 const getResultado = (item) =>
-  pickFirst(item?.resultado, item?.estado, 'PENDIENTE').toUpperCase();
+  normalize(pickFirst(item?.resultado, item?.estado, 'PENDIENTE'));
 
 const getEvento = (item) =>
   pickFirst(item?.tipo_evento, item?.accion, item?.evento, 'EVENTO');
@@ -48,9 +61,12 @@ const getIp = (item) =>
   pickFirst(item?.direccion_ip, item?.ip_origen, item?.ip, item?.cliente_ip, '127.0.0.1');
 
 const getSeveridad = (item) =>
-  pickFirst(item?.nivel_severidad, 'MEDIO').toUpperCase();
+  normalize(pickFirst(item?.nivel_severidad, item?.severidad, 'MEDIO'));
 
-const esCritico = (item) => getSeveridad(item) === 'CRITICO';
+const esCritico = (item) => {
+  const sev = getSeveridad(item);
+  return sev === 'CRITICO' || sev === 'CRITICA';
+};
 
 const badgeResultado = (resultado) => {
   if (resultado === 'RESUELTO' || resultado === 'EXITOSO') return 'success';
@@ -61,8 +77,8 @@ const badgeResultado = (resultado) => {
 
 const Bdg = ({ v = "default", children, dot }) => {
   const variants = {
-    error:   { bg: "#FEF0F3", color: "#901F33" },
-    blue:    { bg: "#EEF3FB", color: "#1A4080" },
+    error: { bg: "#FEF0F3", color: "#901F33" },
+    blue: { bg: "#EEF3FB", color: "#1A4080" },
     success: { bg: "#E6F4EA", color: "#137333" },
     warning: { bg: "#FFF4E5", color: "#B45309" },
     default: { bg: "#E2DDD4", color: "#605850" }
@@ -89,7 +105,7 @@ const Bdg = ({ v = "default", children, dot }) => {
   );
 };
 
-const DetalleModal = ({ log, onClose, onResolve }) => {
+const DetalleModal = ({ log, onClose }) => {
   if (!log) return null;
 
   const detalles = log.detalles || {};
@@ -218,46 +234,26 @@ const DetalleModal = ({ log, onClose, onResolve }) => {
             Cerrar
           </button>
 
-          {critico && resultado !== "RESUELTO" && (
-            <>
-              <button
-                onClick={() => { onResolve(log.id_auditoria, "EN_PROCESO"); onClose(); }}
-                style={{
-                  background: "#B45309",
-                  border: "none",
-                  color: "#fff",
-                  padding: "8px 16px",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6
-                }}
-              >
-                <Clock size={14} /> En Proceso
-              </button>
-
-              <button
-                onClick={() => { onResolve(log.id_auditoria, "RESUELTO"); onClose(); }}
-                style={{
-                  background: C.g500,
-                  border: "none",
-                  color: "#fff",
-                  padding: "8px 16px",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6
-                }}
-              >
-                <CheckCircle size={14} /> Marcar Resuelto
-              </button>
-            </>
+          {critico && (
+            <button
+              disabled
+              style={{
+                background: C.bd,
+                border: "none",
+                color: C.ts,
+                padding: "8px 16px",
+                borderRadius: 8,
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "not-allowed",
+                opacity: 0.8,
+                display: "flex",
+                alignItems: "center",
+                gap: 6
+              }}
+            >
+              <Clock size={14} /> Pendiente de migración
+            </button>
           )}
         </div>
       </div>
@@ -274,14 +270,26 @@ const IncidentesDrawer = ({ open, onClose, token, refreshKey }) => {
     setLoading(true);
 
     try {
-      const res = await apiClient.get('/auditoria', {
-        params: { limit: 50, nivel_severidad: 'CRITICO' },
-        headers: { Authorization: `Bearer ${token}` }
+      const requests = [1, 2, 3].map(page =>
+        apiClient.get('/auditoria/incidentes/criticos', {
+          params: { page, limit: 50 },
+          headers: { Authorization: `Bearer ${token}` }
+        })
+      );
+
+      const responses = await Promise.all(requests);
+      const merged = responses.flatMap(res => getItemsFromResponse(res?.data));
+
+      const uniqueMap = new Map();
+      merged.forEach(item => {
+        uniqueMap.set(item.id_auditoria, item);
       });
 
-      const items = Array.isArray(res?.data?.items) ? res.data.items : (Array.isArray(res?.data?.results) ? res.data.results : []);
-      const filtrados = items.filter(item => esCritico(item) && getResultado(item) !== 'RESUELTO');
-      setIncidentes(filtrados);
+      const uniqueItems = Array.from(uniqueMap.values()).sort((a, b) =>
+        new Date(b.timestamp_evento).getTime() - new Date(a.timestamp_evento).getTime()
+      );
+
+      setIncidentes(uniqueItems);
     } catch (e) {
       console.error("Error incidentes:", e);
       setIncidentes([]);
@@ -289,15 +297,6 @@ const IncidentesDrawer = ({ open, onClose, token, refreshKey }) => {
       setLoading(false);
     }
   }, [token]);
-
-  const handleCambiarEstado = async (id, nuevoEstado) => {
-    try {
-      await apiClient.patch(`/auditoria/incidentes/${id}/estado`, { estado: nuevoEstado });
-      await fetchIncidentes();
-    } catch (e) {
-      alert("Error al actualizar el incidente");
-    }
-  };
 
   useEffect(() => {
     if (open) fetchIncidentes();
@@ -324,6 +323,7 @@ const IncidentesDrawer = ({ open, onClose, token, refreshKey }) => {
         right: 0,
         bottom: 0,
         width: 520,
+        maxWidth: "95vw",
         background: C.bg,
         boxShadow: "-8px 0 40px rgba(0,0,0,0.15)",
         zIndex: 8001,
@@ -345,8 +345,10 @@ const IncidentesDrawer = ({ open, onClose, token, refreshKey }) => {
           zIndex: 1
         }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: C.th }}>Incidentes Críticos</div>
-            <div style={{ fontSize: 11, color: C.ts, marginTop: 2 }}>Eventos críticos pendientes de atención</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: C.th }}>Histórico de Incidentes</div>
+            <div style={{ fontSize: 11, color: C.ts, marginTop: 2 }}>
+              Consulta extendida de incidentes críticos detectados
+            </div>
           </div>
 
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -375,9 +377,20 @@ const IncidentesDrawer = ({ open, onClose, token, refreshKey }) => {
         </div>
 
         <div style={{ padding: "16px 22px", display: "flex", flexDirection: "column", gap: 14 }}>
+          <div style={{
+            background: "#EEF3FB",
+            border: "1px solid #C8D6EC",
+            borderRadius: 10,
+            padding: "12px 14px",
+            fontSize: 11,
+            color: C.ts
+          }}>
+            Se consulta más de una página para evitar que el histórico visible quede limitado solo a los primeros 50 registros.
+          </div>
+
           {loading ? (
             <div style={{ textAlign: "center", padding: 40, color: C.td }}>
-              Cargando incidentes críticos...
+              Cargando histórico de incidentes...
             </div>
           ) : incidentes.length === 0 ? (
             <div style={{
@@ -388,12 +401,13 @@ const IncidentesDrawer = ({ open, onClose, token, refreshKey }) => {
               textAlign: "center",
               color: C.td
             }}>
-              ✅ Sin incidentes críticos pendientes
+              Sin incidentes en el histórico consultado
             </div>
           ) : (
             incidentes.map((inc) => {
               const detalles = inc.detalles || {};
               const resultado = getResultado(inc);
+
               const borderColor =
                 resultado === 'ABIERTO' ? '#DC2626'
                 : resultado === 'EN_PROCESO' ? '#D97706'
@@ -478,47 +492,27 @@ const IncidentesDrawer = ({ open, onClose, token, refreshKey }) => {
                     </div>
                   </div>
 
-                  {resultado !== 'RESUELTO' && (
-                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                      <button
-                        onClick={() => handleCambiarEstado(inc.id_auditoria, 'EN_PROCESO')}
-                        style={{
-                          background: "#D97706",
-                          border: "none",
-                          color: "#fff",
-                          padding: "6px 12px",
-                          borderRadius: 7,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4
-                        }}
-                      >
-                        <Clock size={12} /> En Proceso
-                      </button>
-
-                      <button
-                        onClick={() => handleCambiarEstado(inc.id_auditoria, 'RESUELTO')}
-                        style={{
-                          background: C.g500,
-                          border: "none",
-                          color: "#fff",
-                          padding: "6px 12px",
-                          borderRadius: 7,
-                          fontSize: 11,
-                          fontWeight: 700,
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 4
-                        }}
-                      >
-                        <ShieldCheck size={12} /> Marcar Resuelto
-                      </button>
-                    </div>
-                  )}
+                  <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                    <button
+                      disabled
+                      style={{
+                        background: C.bd,
+                        border: "none",
+                        color: C.ts,
+                        padding: "6px 12px",
+                        borderRadius: 7,
+                        fontSize: 11,
+                        fontWeight: 700,
+                        cursor: "not-allowed",
+                        opacity: 0.8,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4
+                      }}
+                    >
+                      <Clock size={12} /> Pendiente de migración
+                    </button>
+                  </div>
                 </div>
               );
             })
@@ -597,6 +591,7 @@ const BlacklistDrawer = ({ open, onClose, token, refreshKey }) => {
         right: 0,
         bottom: 0,
         width: 460,
+        maxWidth: "95vw",
         background: C.bg,
         boxShadow: "-8px 0 40px rgba(0,0,0,0.15)",
         zIndex: 8101,
@@ -729,7 +724,7 @@ const AuditoriaPage = () => {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [blacklistOpen, setBlacklistOpen] = useState(false);
   const [drawerRefreshKey, setDrawerRefreshKey] = useState(0);
-  const [blacklistRefreshKey, setBlacklistRefreshKey] = useState(0);
+  const [blacklistRefreshKey] = useState(0);
 
   const fetchStats = useCallback(async () => {
     if (!token) return;
@@ -753,10 +748,7 @@ const AuditoriaPage = () => {
         headers: { Authorization: `Bearer ${token}` }
       });
 
-      const items = Array.isArray(res?.data?.items)
-        ? res.data.items
-        : (Array.isArray(res?.data?.results) ? res.data.results : []);
-
+      const items = getItemsFromResponse(res?.data);
       setLogs(items);
     } catch (e) {
       console.error("Error logs:", e);
@@ -778,21 +770,6 @@ const AuditoriaPage = () => {
       setBlacklistCount(0);
     }
   }, [token]);
-
-  const handleResolve = async (id, nuevoEstado) => {
-    try {
-      await apiClient.patch(
-        `/auditoria/incidentes/${id}/estado`,
-        { estado: nuevoEstado },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-
-      await Promise.all([fetchLogs(), fetchStats()]);
-      setDrawerRefreshKey(prev => prev + 1);
-    } catch (e) {
-      alert("Error al actualizar el estado del incidente");
-    }
-  };
 
   useEffect(() => {
     if (token) {
@@ -823,7 +800,6 @@ const AuditoriaPage = () => {
         <DetalleModal
           log={logSeleccionado}
           onClose={() => setLogSeleccionado(null)}
-          onResolve={handleResolve}
         />
       )}
 
@@ -850,7 +826,7 @@ const AuditoriaPage = () => {
         background: C.sf
       }}>
         <div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: C.th, letterSpacing: -.3 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: C.th, letterSpacing: -0.3 }}>
             Auditoría Forense
           </div>
           <div style={{ fontSize: 12, color: C.ts, marginTop: 1 }}>
@@ -904,7 +880,7 @@ const AuditoriaPage = () => {
               alignItems: "center",
               gap: 6
             }}>
-              CRÍTICOS DETECTADOS
+              HISTÓRICO DE INCIDENTES
               <ShieldAlert
                 size={14}
                 style={criticosActivos > 0 ? { animation: "pulse 1.5s ease-in-out infinite" } : {}}
@@ -914,7 +890,7 @@ const AuditoriaPage = () => {
               {criticosActivos}
             </div>
             <div style={{ fontSize: 10, color: criticosActivos > 0 ? C.r600 : C.tm, marginTop: 4 }}>
-              Clic para revisar eventos críticos →
+              Clic para revisar el histórico ampliado →
             </div>
           </div>
 
@@ -1046,23 +1022,24 @@ const AuditoriaPage = () => {
                           <Eye size={11} /> Ver
                         </button>
 
-                        {critico && resultado !== 'RESUELTO' && (
+                        {critico && (
                           <button
-                            onClick={() => handleResolve(log.id_auditoria, 'RESUELTO')}
+                            disabled
                             style={{
-                              background: C.g500,
-                              color: "#fff",
+                              background: C.bd,
+                              color: C.ts,
                               border: "none",
                               padding: "3px 8px",
                               borderRadius: 6,
                               fontSize: 10,
-                              cursor: "pointer",
+                              cursor: "not-allowed",
+                              opacity: 0.8,
                               display: "flex",
                               alignItems: "center",
                               gap: 4
                             }}
                           >
-                            <CheckCircle size={11} /> Resolver
+                            <Clock size={11} /> Pendiente de migración
                           </button>
                         )}
                       </div>

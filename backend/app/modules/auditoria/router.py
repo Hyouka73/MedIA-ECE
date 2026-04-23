@@ -123,18 +123,34 @@ async def update_incidente_status(
 ):
     nuevo_estado = str(payload.get("estado", "")).strip().upper()
 
-    if nuevo_estado not in {"RESUELTO", "EN_PROCESO"}:
+    if nuevo_estado not in {"EN_PROCESO", "RESUELTO"}:
         raise HTTPException(status_code=400, detail="Estado inválido")
 
-    result = await db.execute(
+    incidente = await db.scalar(
+        select(AuditoriaAcceso).where(AuditoriaAcceso.id_auditoria == id_log)
+    )
+
+    if not incidente:
+        raise HTTPException(status_code=404, detail="Incidente no encontrado")
+
+    severidad = (incidente.nivel_severidad or "").upper()
+    if severidad not in {"CRITICO", "CRITICA"}:
+        raise HTTPException(status_code=400, detail="Solo se pueden gestionar incidentes críticos")
+
+    estado_actual = (incidente.resultado or "").strip().upper()
+
+    if estado_actual == "RESUELTO":
+        raise HTTPException(
+            status_code=409,
+            detail="El incidente ya fue resuelto y no puede modificarse"
+        )
+
+    await db.execute(
         update(AuditoriaAcceso)
         .where(AuditoriaAcceso.id_auditoria == id_log)
         .values(resultado=nuevo_estado)
         .execution_options(synchronize_session="fetch")
     )
-
-    if result.rowcount == 0:
-        raise HTTPException(status_code=404, detail="Incidente no encontrado")
 
     await db.commit()
 
