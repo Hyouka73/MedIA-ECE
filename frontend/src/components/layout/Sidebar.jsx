@@ -15,7 +15,6 @@ const NAV_ITEMS = [
     
     { id: 'auditoria', icon: ShieldAlert, label: 'Auditoría', group: 'SISTEMA', href: '/audit/logs', roles: ['SUPERADMIN', 'OMNIADMIN', 'AUDITOR_SEGURIDAD'] },
     { id: 'admin', icon: Settings, label: 'Administración', group: 'SISTEMA', href: '/admin', roles: ['SUPERADMIN', 'OMNIADMIN', 'ADMINISTRADOR'] },
-    { id: 'seguridad', icon: Shield, label: 'Seguridad', group: 'SISTEMA', href: '/audit/seguridad', roles: ['SUPERADMIN', 'OMNIADMIN', 'AUDITOR_SEGURIDAD'] },
 ]
 
 export default function Sidebar() {

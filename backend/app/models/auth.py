@@ -121,7 +121,7 @@ class Lengua(Base):
     familia = Column(String(100), nullable=True)
 
 
-# ── AUDITORÍA Y SEGURIDAD (Persona 5 - Implementación Ciclo de Vida) ────
+# ── AUDITORÍA Y SEGURIDAD (Persona 5 - Mapeo Sincronizado con BD) ────────
 
 class AuditoriaAcceso(Base):
     __tablename__ = "auditoria_accesos"
@@ -129,15 +129,18 @@ class AuditoriaAcceso(Base):
     id_auditoria = Column(BigInteger, primary_key=True, index=True)
     timestamp_evento = Column(DateTime(timezone=True), server_default=func.now())
     id_usuario = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), nullable=True)
-    ip_origen = Column(INET, nullable=True)
-    user_agent = Column(String, nullable=True)
-    modulo_accion = Column(String(100), nullable=False)
-    accion = Column(String(50), nullable=False)
-    nivel_severidad = Column(String(20), default="INFO") # INFO, ADVERTENCIA, CRITICA
+    
+    # ✅ MAPEOS REALES SEGÚN INFORMATION_SCHEMA
+    ip_origen = Column("direccion_ip", INET, nullable=True) 
+    modulo_accion = Column("modulo_funcion", String, nullable=False) 
+    accion = Column("tipo_evento", String, nullable=False) 
+    resultado = Column("resultado", String, server_default="ABIERTO") 
+    nivel_severidad = Column(String(20), default="INFO") 
     detalles = Column(JSON, nullable=True)
     
-    # Campo para gestionar el ciclo de vida de incidentes
-    estado = Column(String(20), server_default="ABIERTO") # ABIERTO, EN_PROCESO, RESUELTO, CERRADO
+    # Nuevas columnas encontradas en tu consulta SQL
+    id_establecimiento_origen = Column(UUID(as_uuid=True), nullable=True)
+    id_establecimiento_dato = Column(UUID(as_uuid=True), nullable=True)
 
     usuario = relationship("User")
 
@@ -161,5 +164,6 @@ class Alergia(Base):
     __tablename__ = "alergias"
     id_alergia = Column(BigInteger, primary_key=True, index=True)
     id_paciente = Column(UUID(as_uuid=True), ForeignKey("pacientes.id_paciente"), nullable=False)
-    descripcion = Column(String(255), nullable=False)
+    alergia = Column(String(255), nullable=False) 
+    severidad = Column(String(20), default="INFO")
     fecha_registro = Column(DateTime(timezone=True), server_default=func.now())
