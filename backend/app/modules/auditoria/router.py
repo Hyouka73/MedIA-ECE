@@ -7,6 +7,14 @@ from app.models.auth import AuditoriaAcceso
 
 router = APIRouter()
 
+ESTADOS_INCIDENTE = {"ABIERTO", "ENINVESTIGACION", "ERRADICADO", "CERRADO"}
+TRANSICIONES_VALIDAS = {
+    "ABIERTO": {"ENINVESTIGACION", "CERRADO"},
+    "ENINVESTIGACION": {"ERRADICADO", "CERRADO"},
+    "ERRADICADO": {"CERRADO"},
+    "CERRADO": set(),
+}
+
 
 def critico_condition():
     return or_(
@@ -20,7 +28,7 @@ def critico_activo_condition():
         critico_condition(),
         or_(
             AuditoriaAcceso.resultado.is_(None),
-            AuditoriaAcceso.resultado != "RESUELTO"
+            AuditoriaAcceso.resultado.not_in(["ERRADICADO", "CERRADO", "RESUELTO"])
         )
     )
 
@@ -94,23 +102,35 @@ async def get_audit_stats(
 
 @router.get("/incidentes/criticos")
 async def get_incidentes_criticos(
+    page: int = Query(1, ge=1),
     limit: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_role("SUPERADMIN", "OMNIADMIN", "AUDITOR_SEGURIDAD"))
 ):
+    offset = (page - 1) * limit
+
     query = (
         select(AuditoriaAcceso)
         .where(critico_activo_condition())
         .order_by(AuditoriaAcceso.timestamp_evento.desc())
+        .offset(offset)
         .limit(limit)
     )
 
     result = await db.execute(query)
     items = result.scalars().all()
 
+    total = await db.scalar(
+        select(func.count())
+        .select_from(AuditoriaAcceso)
+        .where(critico_activo_condition())
+    )
+
     return {
         "items": items,
-        "total": len(items)
+        "total": total or 0,
+        "page": page,
+        "limit": limit
     }
 
 
@@ -119,11 +139,11 @@ async def update_incidente_status(
     id_log: int,
     payload: dict = Body(...),
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role("SUPERADMIN", "AUDITOR_SEGURIDAD"))
+    current_user: dict = Depends(require_role("SUPERADMIN", "OMNIADMIN"))
 ):
     nuevo_estado = str(payload.get("estado", "")).strip().upper()
 
-    if nuevo_estado not in {"EN_PROCESO", "RESUELTO"}:
+    if nuevo_estado not in ESTADOS_INCIDENTE:
         raise HTTPException(status_code=400, detail="Estado inválido")
 
     incidente = await db.scalar(
@@ -133,16 +153,21 @@ async def update_incidente_status(
     if not incidente:
         raise HTTPException(status_code=404, detail="Incidente no encontrado")
 
-    severidad = (incidente.nivel_severidad or "").upper()
+    severidad = (incidente.nivel_severidad or "").strip().upper()
     if severidad not in {"CRITICO", "CRITICA"}:
         raise HTTPException(status_code=400, detail="Solo se pueden gestionar incidentes críticos")
 
-    estado_actual = (incidente.resultado or "").strip().upper()
+    estado_actual = (incidente.resultado or "ABIERTO").strip().upper()
+    if estado_actual not in ESTADOS_INCIDENTE:
+        estado_actual = "ABIERTO"
 
-    if estado_actual == "RESUELTO":
+    if nuevo_estado == estado_actual:
+        raise HTTPException(status_code=409, detail="El incidente ya tiene ese estado")
+
+    if nuevo_estado not in TRANSICIONES_VALIDAS.get(estado_actual, set()):
         raise HTTPException(
             status_code=409,
-            detail="El incidente ya fue resuelto y no puede modificarse"
+            detail=f"Transición inválida: {estado_actual} -> {nuevo_estado}"
         )
 
     await db.execute(
@@ -156,5 +181,5 @@ async def update_incidente_status(
 
     return {
         "status": "success",
-        "message": f"Incidente marcado como {nuevo_estado}"
+        "message": f"Incidente actualizado de {estado_actual} a {nuevo_estado}"
     }
