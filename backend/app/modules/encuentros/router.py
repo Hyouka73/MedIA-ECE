@@ -1,24 +1,317 @@
+"""Encuentros Clínicos — SOAP, signos vitales, diagnósticos, prescripciones"""
+
 """
 Encuentros Clínicos — Router
 Endpoints REST para gestión de encuentros clínicos
 """
-from uuid import UUID
-from typing import List
-from fastapi import APIRouter, Depends, Query, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database.session import get_db
+from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, text
 from app.core.deps import get_current_user, require_role
+from app.database.session import get_db
+from uuid import UUID, uuid4
+from datetime import datetime, timezone
+from typing import Optional, List #Le agregue el List 
+import logging
+
 from app.services.encuentros import encuentro_service
-from app.services.signos_vitales import SignosVitalesService
+
 from app.schemas.encuentros import (
     EncuentroCreateIn, EncuentroOut, EncuentroDetalleOut,
-    EncuentroCerrarIn, EncuentroPacienteOut,
-    SignosVitalesCreateIn, SignosVitalesOut, SignosVitalesListOut
+    EncuentroCerrarIn, EncuentroPacienteOut
 ) 
- 
-router = APIRouter() 
 
+# logger = logging.getLogger(__name__)
+
+# --- IMPORTACIONES DE MODELOS CENTRALIZADOS (CORREGIDAS) ---
+from app.models.auth import CatMedicamento, Alergia, AuditoriaAcceso, CatCIE10
+
+logger = logging.getLogger(__name__)
+router = APIRouter()
+
+# ── GET /encuentros ────────────────────────────────────────────────────
+@router.get("", response_model=dict)
+async def list_encuentros(
+    current_user: dict = Depends(get_current_user),
+    id_paciente: Optional[UUID] = Query(None),  
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    GET /encuentros — Lista encuentros clínicos
+    """
+    try:
+        offset = (page - 1) * limit
+        
+        # Verificación de acceso (solo si se filtra por paciente)
+        if id_paciente:
+            try:
+                from app.services.acceso import check_regla_1
+                tiene_acceso = await check_regla_1(id_paciente, UUID(current_user["sub"]), db)
+                if not tiene_acceso:
+                    logger.warning(f"Acceso denegado en verificación para {current_user['sub']}")
+            except ImportError:
+                logger.warning("Servicio de acceso no disponible")
+        
+        # ✅ Query corregida: SIN id_diagnostico ni JOIN a cat_cie10
+        query = """
+            SELECT 
+                e.id_encuentro, 
+                e.id_paciente, 
+                e.id_medico, 
+                e.id_establecimiento, 
+                e.id_especialidad, 
+                e.fecha_inicio, 
+                e.fecha_cierre, 
+                e.motivo_consulta
+            FROM encuentros_clinicos e
+            WHERE 1=1
+        """
+        
+        count_query = """
+            SELECT COUNT(*) 
+            FROM encuentros_clinicos e
+            WHERE 1=1
+        """
+        
+        params = {}
+        
+        if id_paciente:
+            query += " AND e.id_paciente = :id_paciente"
+            count_query += " AND e.id_paciente = :id_paciente"
+            params["id_paciente"] = str(id_paciente)
+        else:
+            query += " AND e.id_medico = :id_medico"
+            count_query += " AND e.id_medico = :id_medico"
+            params["id_medico"] = current_user["sub"]
+        
+        # Ejecutar conteo
+        result_count = await db.execute(text(count_query), params)
+        total = result_count.scalar() or 0
+        total_pages = (total + limit - 1) // limit if total else 1
+        
+        # Paginación y ordenamiento
+        query_paged = query + f" ORDER BY e.fecha_inicio DESC LIMIT {limit} OFFSET {offset}"
+        result = await db.execute(text(query_paged), params)
+        encuentros = result.fetchall()
+        
+        # Construir items
+        items = [
+            {
+                "id_encuentro": str(row[0]),
+                "id_paciente": str(row[1]) if row[1] else None,
+                "id_medico": str(row[2]) if row[2] else None,
+                "id_establecimiento": str(row[3]) if row[3] else None,
+                "id_especialidad": row[4],
+                "fecha_inicio": row[5].isoformat() if row[5] else None,
+                "fecha_cierre": row[6].isoformat() if row[6] else None,
+                "motivo_consulta": row[7],
+                # ✅ Por ahora, diagnóstico se deja como None
+                "diagnostico": None
+            }
+            for row in encuentros
+        ]
+        
+        return {
+            "data": {
+                "items": items,
+                "pages": total_pages,
+                "total": total,
+                "page": page,
+                "limit": limit
+            },
+            "message": "Lista de encuentros obtenida exitosamente"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error al obtener encuentros: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error interno al obtener encuentros")
+    
+# ── POST /encuentros (CON DIAGNÓSTICO CIE-10) ──────────────────────────
+@router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def create_encuentro(
+    data: dict,
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    POST /encuentros — Crea un encuentro validando el catálogo CIE-10
+    """
+    try:
+        id_paciente = data.get("id_paciente")
+        id_establecimiento = data.get("id_establecimiento")
+        id_especialidad = data.get("id_especialidad")
+        id_diagnostico = data.get("id_diagnostico") # El código (ej: E11.9)
+        motivo_consulta = data.get("motivo_consulta", "").strip()
+        
+        if not id_paciente or not id_diagnostico or not motivo_consulta:
+            raise HTTPException(status_code=422, detail="Paciente, Diagnóstico y Motivo son requeridos")
+        
+        # Validar existencia del diagnóstico en catálogo centralizado
+        stmt_cie = select(CatCIE10).where(CatCIE10.id_cie10 == id_diagnostico)
+        res_cie = await db.execute(stmt_cie)
+        if not res_cie.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail=f"Código CIE-10 '{id_diagnostico}' no válido")
+
+        id_encuentro = str(uuid4())
+        query_insert = text("""
+            INSERT INTO encuentros_clinicos 
+            (id_encuentro, id_paciente, id_medico, id_establecimiento, id_especialidad, id_diagnostico, fecha_inicio, motivo_consulta)
+            VALUES (:id, :pac, :med, :est, :esp, :diag, :fecha, :mot)
+        """)
+        
+        await db.execute(query_insert, {
+            "id": id_encuentro,
+            "pac": str(id_paciente),
+            "med": current_user["sub"],
+            "est": str(id_establecimiento),
+            "esp": id_especialidad,
+            "diag": id_diagnostico,
+            "fecha": datetime.now(timezone.utc),
+            "mot": motivo_consulta
+        })
+        
+        await db.commit()
+        return {
+            "data": {"id_encuentro": id_encuentro, "fecha_inicio": datetime.now(timezone.utc).isoformat()},
+            "message": "Encuentro clínico creado exitosamente"
+        }
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Error al crear encuentro: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error interno al crear encuentro")
+
+
+# ── PATCH /encuentros/{id}/cerrar ──────────────────────────────────────
+@router.patch("/{id_encuentro}/cerrar", response_model=dict)
+async def cerrar_encuentro(
+    id_encuentro: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    PATCH /encuentros/{id}/cerrar — Cierre irreversible por el autor
+    """
+    try:
+        query_encounter = text("SELECT id_medico, fecha_cierre FROM encuentros_clinicos WHERE id_encuentro = :id")
+        result = await db.execute(query_encounter, {"id": str(id_encuentro)})
+        encuentro = result.fetchone()
+        
+        if not encuentro: raise HTTPException(status_code=404, detail="No encontrado")
+        if encuentro[0] != current_user["sub"]: raise HTTPException(status_code=403, detail="No autorizado")
+        if encuentro[1] is not None: raise HTTPException(status_code=400, detail="Ya está cerrado")
+        
+        await db.execute(text("UPDATE encuentros_clinicos SET fecha_cierre = :fecha WHERE id_encuentro = :id"), 
+                        {"id": str(id_encuentro), "fecha": datetime.now(timezone.utc)})
+        await db.commit()
+        return {"message": "Encuentro clínico cerrado exitosamente"}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="Error al cerrar")
+
+
+# ── POST /encuentros/{id}/signos-vitales ───────────────────────────────
+@router.post("/{id_encuentro}/signos-vitales", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def registrar_signos_vitales(
+    id_encuentro: UUID,
+    data: dict,
+    current_user: dict = Depends(require_role("ENFERMERO", "MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        query_enc_check = text("SELECT fecha_cierre FROM encuentros_clinicos WHERE id_encuentro = :id")
+        res_check = await db.execute(query_enc_check, {"id": str(id_encuentro)})
+        enc = res_check.fetchone()
+        if not enc or enc[0] is not None: raise HTTPException(status_code=400, detail="Encuentro cerrado o inexistente")
+
+        id_signos = str(uuid4())
+        query_insert = text("""
+            INSERT INTO signos_vitales 
+            (id_signos, id_encuentro, id_enfermero, peso_kg, talla_cm, temperatura_c, 
+             frecuencia_cardiaca, frecuencia_respiratoria, presion_sistolica, presion_diastolica, 
+             saturacion_oxigeno, fecha_toma)
+            VALUES (:id_sig, :id_enc, :id_enf, :peso, :talla, :temp, :fc, :fr, :ps, :pd, :so2, :fecha)
+        """)
+        
+        await db.execute(query_insert, {
+            "id_sig": id_signos, "id_enc": str(id_encuentro), "id_enf": current_user["sub"],
+            "peso": data.get("peso_kg"), "talla": data.get("talla_cm"), "temp": data.get("temperatura_c"),
+            "fc": data.get("frecuencia_cardiaca"), "fr": data.get("frecuencia_respiratoria"),
+            "ps": data.get("presion_sistolica"), "pd": data.get("presion_diastolica"),
+            "so2": data.get("saturacion_oxigeno"), "fecha": datetime.now(timezone.utc)
+        })
+        await db.commit()
+        return {"message": "Signos registrados exitosamente"}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="Error al registrar signos")
+
+
+# ── POST /encuentros/{id}/prescripciones ───────────────────────────────
+@router.post("/{id_encuentro}/prescripciones", status_code=status.HTTP_201_CREATED)
+async def crear_prescripcion(
+    id_encuentro: UUID, 
+    data: PrescripcionCreate, 
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    POST /encuentros/{id}/prescripciones con validación de alergias y auditoría
+    """
+    # 1. Buscar medicamento
+    stmt_med = select(CatMedicamento).where(CatMedicamento.codigo_medicamento_ssa == data.id_medicamento)
+    res_med = await db.execute(stmt_med)
+    medicamento = res_med.scalar_one_or_none()
+    
+    if not medicamento:
+        raise HTTPException(status_code=404, detail="Medicamento no encontrado en catálogo")
+
+    # 2. VALIDACIÓN DE ALERGIAS REAL (Usando Alergia del modelo centralizado)
+    stmt_ale = select(Alergia).where(
+        Alergia.id_paciente == data.id_paciente,
+        Alergia.alergia.ilike(f"%{medicamento.nombre_generico}%")
+    )
+    res_ale = await db.execute(stmt_ale)
+    alergias = res_ale.scalars().all()
+
+    for ale in alergias:
+        if ale.severidad == "CRITICA" and not data.confirmar_alergia:
+            try:
+                # AUDITORÍA FORENSE USANDO MODELO CENTRALIZADO
+                stmt_audit = insert(AuditoriaAcceso).values(
+                    id_usuario=current_user["sub"], 
+                    direccion_ip="127.0.0.1",
+                    modulo_funcion="CLINICO_PRESCIPCION",
+                    tipo_evento="INTENTO_RIESGO_ALERGIA",
+                    resultado="DENEGADO",
+                    nivel_severidad="CRITICA",
+                    detalles={
+                        "alerta": "Alergia bloqueada",
+                        "medicamento": medicamento.nombre_generico,
+                        "paciente_id": str(data.id_paciente)
+                    }
+                )
+                await db.execute(stmt_audit)
+                await db.commit()
+            except Exception as e:
+                logger.error(f"Error auditoria: {str(e)}")
+                await db.rollback()
+
+            raise HTTPException(
+                status_code=409,
+                detail={"codigo": "ALERTA_ALERGIA", "mensaje": f"BLOQUEO: Alérgico a {ale.alergia}"}
+            )
+
+    return {"status": "success", "message": "Prescripción validada correctamente"}
+
+
+#---------------------------------------------------------------------------------------
+# ------------------------- Por si sale mal, lo pongo aqui -----------------------------
+#---------------------------------------------------------------------------------------
 
 @router.post("/", response_model=EncuentroOut, status_code=201)
 async def crear_encuentro(
@@ -48,8 +341,6 @@ async def crear_encuentro(
         motivo_consulta=encuentro.motivo_consulta,
         tipo_consulta=encuentro.tipo_consulta
     )
-
-
 @router.get("/", response_model=List[EncuentroOut])
 async def listar_encuentros_activos(
     current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "ENFERMERIA", "SUPERADMIN")),
@@ -93,29 +384,13 @@ async def obtener_encuentro(
     current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "ENFERMERIA", "SUPERADMIN")),
     db: AsyncSession = Depends(get_db)
 ):
-    """GET /encuentros/{id} — Detalle completo del encuentro
-    
-    Incluye:
-    - Datos básicos del encuentro
-    - Datos del paciente, médico, establecimiento
-    - Lista de signos vitales registrados (paso 1 del stepper)
-    - Notas médicas (paso 2)
-    - Diagnósticos (paso 3)
-    """
+    """GET /encuentros/{id} — Detalle completo del encuentro"""
     id_usuario = UUID(current_user["id"])
 
     encuentro = await encuentro_service.obtener_encuentro(
         db=db,
         id_encuentro=id,
         id_usuario=id_usuario
-    )
-
-    # Cargar signos vitales del encuentro
-    signos_list, _, _ = await SignosVitalesService.obtener_signos_encuentro(
-        db=db,
-        id_encuentro=id,
-        skip=0,
-        limit=999  # Sin límite para el detalle
     )
 
     return EncuentroDetalleOut(
@@ -132,240 +407,7 @@ async def obtener_encuentro(
         paciente_nombre=f"{encuentro.paciente.persona.nombre} {encuentro.paciente.persona.primer_apellido}" if encuentro.paciente and encuentro.paciente.persona else None,
         medico_nombre=f"{encuentro.medico.persona.nombre} {encuentro.medico.persona.primer_apellido}" if encuentro.medico and encuentro.medico.persona else None,
         establecimiento_nombre=encuentro.establecimiento.nombre if encuentro.establecimiento else None,
-        notas=[],  # TODO: implementar carga de notas
-        signos_vitales=[
-            SignosVitalesOut(
-                id_signos=s.id_signos,
-                id_encuentro=s.id_encuentro,
-                id_enfermero=s.id_enfermero,
-                presion_sistolica=s.presion_sistolica,
-                presion_diastolica=s.presion_diastolica,
-                temperatura_c=s.temperatura_c,
-                saturacion_oxigeno=s.saturacion_oxigeno,
-                frecuencia_cardiaca=s.frecuencia_cardiaca,
-                frecuencia_respiratoria=s.frecuencia_respiratoria,
-                peso_kg=s.peso_kg,
-                talla_cm=s.talla_cm,
-                fecha_toma=s.fecha_toma
-            )
-            for s in signos_list
-        ],
-        diagnosticos=[]  # TODO: implementar carga de diagnósticos
-    )
-
- 
-@router.patch("/{id}/cerrar", response_model=EncuentroOut)
-async def cerrar_encuentro(
-    id: UUID,
-    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
-    db: AsyncSession = Depends(get_db)
-):
-    """PATCH /encuentros/{id}/cerrar — Cierra el encuentro (irreversible)"""
-    id_usuario = UUID(current_user["id"])
-
-    encuentro = await encuentro_service.cerrar_encuentro(
-        db=db,
-        id_encuentro=id,
-        id_usuario=id_usuario
-    )
-
-    return EncuentroOut(
-        id_encuentro=encuentro.id_encuentro,
-        id_paciente=encuentro.id_paciente,
-        id_medico=encuentro.id_medico,
-        id_establecimiento=encuentro.id_establecimiento,
-        id_especialidad=encuentro.id_especialidad,
-        fecha_inicio=encuentro.fecha_inicio,
-        fecha_cierre=encuentro.fecha_cierre,
-        motivo_consulta=encuentro.motivo_consulta,
-        tipo_consulta=encuentro.tipo_consulta
-    )
-
-
-@router.get("/pacientes/{id}/encuentros", response_model=List[EncuentroPacienteOut])
-async def listar_encuentros_paciente(
-    id: UUID,
-    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
-    db: AsyncSession = Depends(get_db),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100)
-):
-    """GET /pacientes/{id}/encuentros — Historial de encuentros del paciente"""
-    id_usuario = UUID(current_user["id"])
-
-    encuentros = await encuentro_service.listar_encuentros_paciente(
-        db=db,
-        id_paciente=id,
-        id_usuario=id_usuario,
-        skip=skip,
-        limit=limit
-    )
-
-    return [
-        EncuentroPacienteOut(
-            id_encuentro=e.id_encuentro,
-            fecha_inicio=e.fecha_inicio,
-            fecha_cierre=e.fecha_cierre,
-            motivo_consulta=e.motivo_consulta,
-            tipo_consulta=e.tipo_consulta,
-            medico_nombre=f"{e.medico.persona.nombre} {e.medico.persona.primer_apellido}" if e.medico and e.medico.persona else "Desconocido",
-            establecimiento_nombre=e.establecimiento.nombre if e.establecimiento else "Desconocido",
-            especialidad_nombre=e.especialidad.nombre if e.especialidad else None,
-            tiene_notas_firmadas=False  # TODO: implementar verificación
-        )
-        for e in encuentros
-    ]
-
-
-# ───────────────────────────────────────────────────────
-# 📊 SIGNOS VITALES — NOM-004 Trazabilidad
-# ───────────────────────────────────────────────────────
-
-@router.post("/{id}/signos-vitales", response_model=SignosVitalesOut, status_code=201)
-async def registrar_signos_vitales(
-    id: UUID,
-    data: SignosVitalesCreateIn,
-    current_user: dict = Depends(require_role("ENFERMERIA", "SUPERADMIN")),
-    db: AsyncSession = Depends(get_db)
-):
-    """POST /encuentros/{id}/signos-vitales — Registra signos vitales del encuentro
-    
-    ✅ Validaciones de rango fisiológico:
-    - Presión sistólica: 60–250 mmHg
-    - Presión diastólica: 40–150 mmHg
-    - Temperatura: 34–42 °C
-    - Saturación O₂: 70–100%
-    - Frecuencia cardíaca: 30–220 lpm
-    
-    ⚠️ Cliente NO envía registrado_en/fecha_toma:
-    - Timestamp generado por servidor en DB (CURRENT_TIMESTAMP)
-    - Garantiza trazabilidad NOM-004 (auditoría de cuándo se registró)
-    
-    📎 Referencia: Doc6 §Diagrama 3, Paso 2
-    """
-    id_enfermero = UUID(current_user["id"])
-    
-    signos = await SignosVitalesService.registrar_signos(
-        db=db,
-        id_encuentro=id,
-        id_enfermero=id_enfermero,
-        data=data
-    )
-    
-    return SignosVitalesOut(
-        id_signos=signos.id_signos,
-        id_encuentro=signos.id_encuentro,
-        id_enfermero=signos.id_enfermero,
-        presion_sistolica=signos.presion_sistolica,
-        presion_diastolica=signos.presion_diastolica,
-        temperatura_c=signos.temperatura_c,
-        saturacion_oxigeno=signos.saturacion_oxigeno,
-        frecuencia_cardiaca=signos.frecuencia_cardiaca,
-        frecuencia_respiratoria=signos.frecuencia_respiratoria,
-        peso_kg=signos.peso_kg,
-        talla_cm=signos.talla_cm,
-        fecha_toma=signos.fecha_toma
-    )
-
-
-@router.get("/{id}/signos-vitales", response_model=SignosVitalesListOut)
-async def obtener_signos_encuentro(
-    id: UUID,
-    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "ENFERMERIA", "SUPERADMIN")),
-    db: AsyncSession = Depends(get_db),
-    skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100)
-):
-    """GET /encuentros/{id}/signos-vitales?id_encuentro={id} — Obtiene signos del encuentro activo
-    
-    ✅ Usa vista v_signos_encuentro (control de acceso enfermería)
-    ✅ Retorna signos ordenados por fecha DESC (más reciente primero)
-    
-    📎 Referencia: P3 creó v_signos_encuentro, P4 la usa en este endpoint
-    """
-    signos_list, total, esta_activo = await SignosVitalesService.obtener_signos_encuentro(
-        db=db,
-        id_encuentro=id,
-        skip=skip,
-        limit=limit
-    )
-    
-    return SignosVitalesListOut(
-        signos=[
-            SignosVitalesOut(
-                id_signos=s.id_signos,
-                id_encuentro=s.id_encuentro,
-                id_enfermero=s.id_enfermero,
-                presion_sistolica=s.presion_sistolica,
-                presion_diastolica=s.presion_diastolica,
-                temperatura_c=s.temperatura_c,
-                saturacion_oxigeno=s.saturacion_oxigeno,
-                frecuencia_cardiaca=s.frecuencia_cardiaca,
-                frecuencia_respiratoria=s.frecuencia_respiratoria,
-                peso_kg=s.peso_kg,
-                talla_cm=s.talla_cm,
-                fecha_toma=s.fecha_toma
-            )
-            for s in signos_list
-        ],
-        total=total,
-        encuentro_activo=esta_activo
-    )
-
-
-@router.patch("/{id}/signos-vitales/{signos_id}", response_model=SignosVitalesOut)
-async def actualizar_signos_vitales(
-    id: UUID,
-    signos_id: UUID,
-    data: SignosVitalesCreateIn,
-    current_user: dict = Depends(require_role("ENFERMERIA", "SUPERADMIN")),
-    db: AsyncSession = Depends(get_db)
-):
-    """PATCH /encuentros/{id}/signos-vitales/{signos_id} — Actualiza signos registrados
-    
-    ⚠️ Solo el enfermero que registró puede modificar (validación de ownership)
-    ⚠️ Timestamp original se mantiene (no se recalcula)
-    """
-    id_enfermero = UUID(current_user["id"])
-    
-    signos = await SignosVitalesService.actualizar_signos(
-        db=db,
-        id_signos=signos_id,
-        id_enfermero=id_enfermero,
-        data=data
-    )
-    
-    return SignosVitalesOut(
-        id_signos=signos.id_signos,
-        id_encuentro=signos.id_encuentro,
-        id_enfermero=signos.id_enfermero,
-        presion_sistolica=signos.presion_sistolica,
-        presion_diastolica=signos.presion_diastolica,
-        temperatura_c=signos.temperatura_c,
-        saturacion_oxigeno=signos.saturacion_oxigeno,
-        frecuencia_cardiaca=signos.frecuencia_cardiaca,
-        frecuencia_respiratoria=signos.frecuencia_respiratoria,
-        peso_kg=signos.peso_kg,
-        talla_cm=signos.talla_cm,
-        fecha_toma=signos.fecha_toma
-    )
-
-
-@router.delete("/{id}/signos-vitales/{signos_id}", status_code=204)
-async def eliminar_signos_vitales(
-    id: UUID,
-    signos_id: UUID,
-    current_user: dict = Depends(require_role("ENFERMERIA", "SUPERADMIN")),
-    db: AsyncSession = Depends(get_db)
-):
-    """DELETE /encuentros/{id}/signos-vitales/{signos_id} — Elimina un registro de signos
-    
-    ⚠️ Solo el enfermero que registró puede eliminar
-    """
-    id_enfermero = UUID(current_user["id"])
-    
-    await SignosVitalesService.eliminar_signos(
-        db=db,
-        id_signos=signos_id,
-        id_enfermero=id_enfermero
+        notas=[],  # TODO: implementar
+        signos_vitales=None,  # TODO: implementar
+        diagnosticos=[]  # TODO: implementar
     )
