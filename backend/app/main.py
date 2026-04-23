@@ -2,7 +2,7 @@
 MedIA ECE — FastAPI Backend
 Punto de entrada principal de la aplicación
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -22,6 +22,8 @@ from app.modules.encuentros.router import router as encuentros_router
 from app.modules.admin.router import router as admin_router
 from app.modules.auditoria.router import router as auditoria_router
 
+import os
+
 limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
@@ -36,7 +38,6 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # Orden correcto: Sanitize → CORS → Auth → Audit
-# (Starlette aplica middlewares en orden inverso de declaración)
 app.add_middleware(AuditMiddleware)
 app.add_middleware(AuthMiddleware)
 app.add_middleware(
@@ -49,19 +50,36 @@ app.add_middleware(
 app.add_middleware(SanitizeMiddleware)
 
 # ── Routers por Módulo ──────────────────────────────────────────────────
-# Se agrega prefijo internacional /api para consistencia con el proxy del frontend
 app.include_router(auth_router,       prefix="/api/auth",       tags=["Autenticación"])
 app.include_router(personas_router,   prefix="/api/personas",   tags=["Personas"])
 app.include_router(pacientes_router,  prefix="/api/pacientes",  tags=["Pacientes"])
 app.include_router(expediente_router, prefix="/api/expediente", tags=["Expediente"])
 app.include_router(catalogos_router,  prefix="/api/catalogos",  tags=["Catálogos"])
 app.include_router(encuentros_router, prefix="/api/encuentros", tags=["Encuentros"])
-app.include_router(admin_router,      prefix="/api/admin",      tags=["Administración"])
-app.include_router(auditoria_router,  prefix="/api/auditoria",  tags=["Auditoría"])
+app.include_router(admin_router,       prefix="/api/admin",       tags=["Administración"])
+app.include_router(auditoria_router,   prefix="/api/auditoria",   tags=["Auditoría"])
 
+# ── Persona 5: Endpoint de Seguridad Avanzada (Logs Forenses) ───────────
+@app.get("/api/seguridad/logs-forenses", tags=["Auditoría"])
+async def get_forensic_logs():
+    log_path = os.path.join(os.getcwd(), "logs", "auditoria_forense.log")
+    if not os.path.exists(log_path):
+        return {"content": ["> SISTEMA: Archivo de auditoría forense no encontrado."]}
+    try:
+        with open(log_path, "r", encoding="utf-8") as f:
+            # Leemos las últimas 50 líneas
+            lines = f.readlines()
+            return {"content": lines[-50:]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error leyendo el log forense")
+
+# ── Blacklist de Sesiones (Placeholder para Persona 5) ─────────────────
+@app.get("/api/seguridad/sessions-blacklist", tags=["Auditoría"])
+async def get_blacklist():
+    # TODO: Conectar con tabla sesiones_invalidas
+    return []
 
 from fastapi.staticfiles import StaticFiles
-import os
 
 if settings.APP_ENV != "production":
     os.makedirs("static", exist_ok=True)
@@ -71,8 +89,6 @@ if settings.APP_ENV != "production":
 async def root():
     return {"status": "ok", "sistema": "MedIA ECE", "version": "1.0.0"}
 
-
 @app.get("/health", tags=["Health"])
 async def health_check():
     return {"status": "healthy"}
-
