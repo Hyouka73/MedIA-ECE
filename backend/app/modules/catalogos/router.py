@@ -109,43 +109,43 @@ async def get_localidades(
 ):
     """GET /catalogos/localidades?municipio={clave} — Lista localidades por municipio (CDN TTL: 24h)"""
     try:
-        # Validar que el municipio existe
-        municipio_query = select(Municipio).where(Municipio.id_municipio == municipio)
-        municipio_result = await db.execute(municipio_query)
-        if not municipio_result.scalar_one_or_none():
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Municipio '{municipio}' no encontrado"
-            )
+        from sqlalchemy import func, select
         
-        # Obtener localidades
-        query = select(Localidad).where(
-            Localidad.id_municipio == municipio
-        ).order_by(Localidad.nombre)
+        # Construir query base
+        query = select(Localidad).where(Localidad.id_municipio == municipio)
+        count_query = select(func.count()).select_from(Localidad).where(Localidad.id_municipio == municipio)
         
+        # Ordenar
+        query = query.order_by(Localidad.nombre)
+        
+        # Ejecutar consulta principal
         result = await db.execute(query)
         localidades = result.scalars().all()
         
+        # Ejecutar conteo
+        count_result = await db.execute(count_query)
+        total = count_result.scalar_one()
+        
+        # Construir respuesta
         items = [
-            LocalidadOut(
-                id_localidad=l.id_localidad,
-                id_municipio=l.id_municipio,
-                nombre=l.nombre,
-                ambito=l.ambito
-            )
+            {
+                "id_localidad": l.id_localidad,
+                "id_municipio": l.id_municipio,
+                "nombre": l.nombre,
+                "ambito": getattr(l, 'ambito', None)  # Si existe el campo ambito
+            }
             for l in localidades
         ]
         
         return {
             "data": items,
+            "total": total,
             "message": f"Localidades del municipio {municipio} obtenidas exitosamente",
             "cache": {
                 "ttl": 86400,
                 "cdn": True
             }
         }
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Error al obtener localidades: {str(e)}")
         raise HTTPException(

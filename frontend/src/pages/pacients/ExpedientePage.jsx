@@ -5,6 +5,8 @@ import { pacientesAPI } from '../../api/pacientes';
 import { clinicoAPI } from '../../api/clinico';
 import { AlertCircle, ChevronLeft, Plus, Clock, FileText, Pill, TrendingUp } from 'lucide-react';
 import PacientesListPage from './PacientesListPage';
+import { BarreraLinguisticaAlert } from '../../components/ui/BarreraLinguisticaAlert';
+
 
 /**
  * ExpedientePage — Página de Expediente Clínico del Paciente
@@ -16,7 +18,7 @@ export default function ExpedientePage() {
   const { user } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
-  
+
   const [paciente, setPaciente] = useState(null);
   const [encuentros, setEncuentros] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,65 +41,65 @@ export default function ExpedientePage() {
 
   // Cargar datos del paciente y expediente
   useEffect(() => {
-  console.log('📍 ExpedientePage montado');
-  console.log('📌 ID de params:', id);
-  console.log('🔑 Usuario tiene acceso:', tieneAcceso);
-  if (!tieneAcceso || !id) return;
+    console.log('📍 ExpedientePage montado');
+    console.log('📌 ID de params:', id);
+    console.log('🔑 Usuario tiene acceso:', tieneAcceso);
+    if (!tieneAcceso || !id) return;
 
-  const loadExpediente = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // ✅ CORRECCIÓN: El ID ya viene de useParams()
-      const pacienteId = id;
-      
-      console.log('🔍 Cargando expediente para ID:', pacienteId);
-      
-      // Cargar datos del paciente usando el endpoint correcto
-      const pacRes = await pacientesAPI.getPaciente(pacienteId);
-      
-      // Verificar estructura de respuesta
-      if (pacRes.data?.data) {
-        setPaciente(pacRes.data.data);
-      } else if (pacRes.data) {
-        setPaciente(pacRes.data);
-      } else {
-        throw new Error('No se recibieron datos del paciente');
-      }
-
-      // Cargar encuentros (consultas)
+    const loadExpediente = async () => {
       try {
-        const encRes = await clinicoAPI.getEncuentros({ id_paciente: pacienteId, page: 1, limit: 20 });
-        if (encRes.data?.data?.items) {
-          setEncuentros(encRes.data.data.items);
-        } else if (encRes.data?.items) {
-          setEncuentros(encRes.data.items);
-        } else {
-          setEncuentros([]);
-        }
-      } catch (err) {
-        console.warn("Encuentros no disponibles, usando datos demo", err);
-        setEncuentros(generarEncuentrosDemo());
-      }
-      
-    } catch (err) {
-      console.error("Error cargando expediente:", err);
-      setError(err.message);
-      
-      // Fallback a datos demo SOLO en desarrollo
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('⚠️ Usando datos demo para desarrollo');
-        setPaciente(generarPacienteDemo(id));
-        setEncuentros(generarEncuentrosDemo());
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+        setLoading(true);
+        setError(null);
 
-  loadExpediente();
-}, [id, tieneAcceso]);
+        // ✅ CORRECCIÓN: El ID ya viene de useParams()
+        const pacienteId = id;
+
+        console.log('🔍 Cargando expediente para ID:', pacienteId);
+
+        // Cargar datos del paciente usando el endpoint correcto
+        const pacRes = await pacientesAPI.getPaciente(pacienteId);
+
+        // Verificar estructura de respuesta
+        if (pacRes.data?.data) {
+          setPaciente(pacRes.data.data);
+        } else if (pacRes.data) {
+          setPaciente(pacRes.data);
+        } else {
+          throw new Error('No se recibieron datos del paciente');
+        }
+
+        // Cargar encuentros (consultas)
+        try {
+          const encRes = await clinicoAPI.getEncuentros({ id_paciente: pacienteId, page: 1, limit: 20 });
+          if (encRes.data?.data?.items) {
+            setEncuentros(encRes.data.data.items);
+          } else if (encRes.data?.items) {
+            setEncuentros(encRes.data.items);
+          } else {
+            setEncuentros([]);
+          }
+        } catch (err) {
+          console.warn("Encuentros no disponibles, usando datos demo", err);
+          setEncuentros(generarEncuentrosDemo());
+        }
+
+      } catch (err) {
+        console.error("Error cargando expediente:", err);
+        setError(err.message);
+
+        // Fallback a datos demo SOLO en desarrollo
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ Usando datos demo para desarrollo');
+          setPaciente(generarPacienteDemo(id));
+          setEncuentros(generarEncuentrosDemo());
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadExpediente();
+  }, [id, tieneAcceso]);
 
   // Datos de demostración
   const generarPacienteDemo = (id) => ({
@@ -370,6 +372,11 @@ export default function ExpedientePage() {
           </div>
         </div>
 
+        {/*Alerta de Barrera Lingüística */}
+        {paciente?.persona?.alerta_barrera_linguistica && (
+          <BarreraLinguisticaAlert paciente={paciente} size="large" />
+        )}
+
         {/* Alergias críticas */}
         {paciente.alergias && paciente.alergias.length > 0 && (
           <div style={{ marginBottom: 18 }}>
@@ -497,18 +504,28 @@ export default function ExpedientePage() {
                 ["Última Consulta", paciente.ultima_consulta || "N/A"],
                 ["Total Consultas", paciente.num_consultas || "0"],
                 ["Alergias", paciente.alergias?.length ? `${paciente.alergias.length} registrada(s)` : "Ninguna"],
+                // ✅ AGREGAR ESTA LÍNEA
+                ["🌐 Lengua Materna", paciente.persona?.id_lengua_materna ? (
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'flex-end' }}>
+                    {paciente.persona?.alerta_barrera_linguistica && (
+                      <span style={{
+                        background: '#E8921F',
+                        color: 'white',
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                        fontSize: 10,
+                        fontWeight: 600
+                      }}>
+                        ALERTA
+                      </span>
+                    )}
+                    <span>ID: {paciente.persona.id_lengua_materna}</span>|
+                  </span>
+                ) : "No especificada"],
               ].map(([label, value]) => (
-                <div key={label}>
-                  <div style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    padding: "9px 0",
-                    fontSize: 13,
-                    borderBottom: "1px solid #DAD4CC",
-                  }}>
-                    <span style={{ color: "#2C2620" }}>{label}</span>
-                    <span style={{ fontWeight: 500, color: "#1A1510" }}>{value}</span>
-                  </div>
+                <div key={label} style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                  <span style={{ fontSize: 12, color: "#5A5048" }}>{label}</span>
+                  <span style={{ fontSize: 12, color: "#1A1510", fontWeight: 500 }}>{value}</span>
                 </div>
               ))}
             </div>
