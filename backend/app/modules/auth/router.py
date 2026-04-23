@@ -329,14 +329,51 @@ async def refresh_token(request: Request, db: AsyncSession = Depends(get_db)):
 # ── POST /auth/logout ─────────────────────────────────────────
 @router.post("/logout")
 async def logout(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
-    """Cierra sesión: revoca el refresh token de la whitelist y limpia la cookie."""
+    """
+    Cierra sesión: revoca el refresh token de la BD, limpia la cookie, 
+    y quema el access token en memoria (Blacklist Forense).
+    """
+    # ── 1. Revocar el Refresh Token de la Base de Datos (Whitelist) ──
     cookie = request.cookies.get(REFRESH_COOKIE_NAME)
     if cookie:
-        payload = verify_token(cookie)
-        jti = payload.get("jti") if payload else None
-        if jti:
-            await db.execute(delete(SesionActiva).where(SesionActiva.jti == jti))
+        payload_rt = verify_token(cookie)
+        jti_rt = payload_rt.get("jti") if payload_rt else None
+        if jti_rt:
+            await db.execute(delete(SesionActiva).where(SesionActiva.jti == jti_rt))
             await db.commit()
 
-    response.delete_cookie(key=REFRESH_COOKIE_NAME, path="/api/auth", secure=True, samesite="none")
-    return {"detail": "Sesión cerrada"}
+    # ── 2. Limpiar Cookie del navegador ──
+    is_dev = settings.APP_ENV == "development"
+    response.delete_cookie(
+        key=REFRESH_COOKIE_NAME, 
+        path="/", 
+        secure=not is_dev, 
+        samesite="lax" if is_dev else "none"
+    )
+
+    # ── 3. QUEMAR ACCESS TOKEN EN MEMORIA RAM (Blacklist) ──
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        access_token = auth_header[7:]
+        payload_at = verify_token(access_token)
+        
+        if payload_at:
+            jti_at = payload_at.get("jti")
+            email = payload_at.get("email", "Usuario Desconocido")
+            exp = payload_at.get("exp")
+
+            if jti_at and hasattr(request.app.state, "blacklist_tokens"):
+                if jti_at not in request.app.state.blacklist_tokens:
+                    # Añadir al candado de seguridad (O(1) lookup)
+                    request.app.state.blacklist_tokens.add(jti_at)
+                    
+                    # Guardar detalle para mostrar en React (AuditoriaPage)
+                    request.app.state.blacklist_detalles.append({
+                        "jti": jti_at,
+                        "usuario": email,
+                        "motivo": "Cierre de sesión manual",
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                        "expires_at": datetime.fromtimestamp(exp, tz=timezone.utc).isoformat() if exp else None
+                    })
+
+    return {"detail": "Sesión cerrada y tokens revocados exitosamente"}
