@@ -265,40 +265,30 @@ async def update_persona(
 
 
 # ── POST /{id}/avatar — Subir avatar ───────────────────────────────────
-@router.post("/{id_persona}/avatar", response_model=dict)
+@router.post("/avatar")
 async def upload_avatar(
-    id_persona: UUID,
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """POST /personas/{id}/avatar — Sube y redimensiona (500x500) foto de perfil"""
+    """
+    Sube y redimensiona (500x500) una foto de perfil y la asocia a la persona logueada.
+    """
     if not file.content_type.startswith("image/"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Formato no válido. Debe ser una imagen."
-        )
+        raise HTTPException(status_code=400, detail="Formato no válido. Debe ser una imagen.")
 
     try:
-        # Verificar que la persona existe
-        query = select(Persona).where(Persona.id_persona == id_persona)
-        persona = (await db.execute(query)).scalar_one_or_none()
-        
-        if not persona:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Persona no encontrada"
-            )
-        
-        # Procesar imagen
         content = await file.read()
         image = Image.open(io.BytesIO(content))
         
+        # Asegurar conversión a RGB para máxima compatibilidad con JPEG
         if image.mode != "RGB":
             image = image.convert("RGB")
-        
+            
+        # Redimensionar (Mantiene la relación de aspecto y ajusta al límite)
         image.thumbnail((500, 500))
         
+        # Guardar a un buffer en memoria
         img_byte_arr = io.BytesIO()
         image.save(img_byte_arr, format='JPEG', quality=85)
         
@@ -311,15 +301,12 @@ async def upload_avatar(
         )
         
         if not url_blob:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Error al subir imagen"
-            )
-        
-        # Log forense
+            raise HTTPException(status_code=500, detail="Error al subir imagen a la nube.")
+            
         import hashlib
         from app.core.forensic_logger import log_forensic_event
         
+        # Calcular hash del archivo para trazabilidad forense
         img_byte_arr.seek(0)
         file_hash = hashlib.sha256(img_byte_arr.read()).hexdigest()
         
@@ -328,23 +315,36 @@ async def upload_avatar(
             accion="SUBIDA_ARCHIVO_AVATAR",
             resultado="EXITOSO",
             hash_archivo=file_hash,
-            detalles={"url": url_blob, "id_persona": str(id_persona)}
+            detalles={"url": url_blob}
         )
+            
+        # Actualizar DB
+        # Primero necesitamos la persona del usuario logueado
+        from uuid import UUID as UUID_OBJ
+        user_uuid = UUID_OBJ(current_user["sub"])
         
-        # Actualizar URL en DB
-        persona.url_foto = url_blob
+        query = select(User).where(User.id_usuario == user_uuid)
+        user = (await db.execute(query)).scalar_one_or_none()
+        
+        if not user or not user.id_persona:
+            raise HTTPException(status_code=404, detail="Usuario o Registro de Persona no encontrado.")
+            
+        await db.execute(
+            update(Persona)
+            .where(Persona.id_persona == user.id_persona)
+            .values(url_foto=url_blob)
+        )
         await db.commit()
         
-        return {
-            "message": "Avatar actualizado correctamente",
-            "url_foto": url_blob
-        }
-    except HTTPException:
-        raise
+        return {"message": "Avatar actualizado correctamente", "url_foto": url_blob}
+        
+    except HTTPException as e:
+        # Re-lanzar errores controlados (404, 400, etc)
+        raise e
     except Exception as e:
-        logger.error(f"Error al procesar avatar: {str(e)}")
+        logger.error(f"Error crítico procesando avatar: {str(e)}")
+        # No exponemos la traza completa de SQL al cliente por seguridad, pero dejamos una pista.
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error interno al guardar la imagen"
+            status_code=500, 
+            detail="Error interno al guardar la imagen. El equipo técnico ha sido notificado."
         )
-

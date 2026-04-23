@@ -3,7 +3,7 @@ import { Home, Users, FileText, ClipboardList, Send, FileBox, ShieldAlert, Setti
 import { Link, useLocation } from 'react-router-dom'
 import { Avatar } from '../ui/Avatar'
 import { useAuth } from '../../context/AuthContext'
-import apiClient from '../../api/client' // Importante para el token
+import apiClient from '../../api/client'
 
 const NAV_ITEMS = [
     { id: 'dashboard', icon: Home, label: 'Dashboard', group: 'CLÍNICA', href: '/dashboard', roles: ['*'] },
@@ -23,28 +23,34 @@ export default function Sidebar() {
     const { user } = useAuth()
     const [hasCritical, setHasCritical] = useState(false)
 
+    // Polling de seguridad según requerimiento Persona 5 (cada 60s)
     useEffect(() => {
         const checkCritical = async () => {
+            // Solo intentamos el polling si hay un usuario con rol de auditoría o admin
+            const rolesAutorizados = ['SUPERADMIN', 'OMNIADMIN', 'AUDITOR_SEGURIDAD'];
+            if (!user || !rolesAutorizados.includes(user.rol)) return;
+
             try {
-                // Usamos apiClient para incluir el token automáticamente
-                const res = await apiClient.get('/incidentes/critical-check')
-                setHasCritical(res.data.count > 0)
+                // Sincronizado con el endpoint de stats que devuelve el conteo de incidentes abiertos
+                const res = await apiClient.get('/auditoria/stats')
+                // Si hay incidentes críticos en estado ABIERTO o EN_PROCESO
+                setHasCritical(res.data.criticos > 0)
             } catch (e) {
-                // Silenciamos el error en consola si es 401 para no saturar
                 if (e.response?.status !== 401) {
                     console.error("Error en polling de seguridad:", e)
                 }
             }
         }
-        const timer = setInterval(checkCritical, 60000)
+
         checkCritical()
+        const timer = setInterval(checkCritical, 60000)
         return () => clearInterval(timer)
-    }, [])
+    }, [user])
 
     const filterItems = (group) => {
         return NAV_ITEMS.filter(item => {
             if (item.group !== group) return false
-            if (user?.rol === 'OMNIADMIN') return true
+            if (user?.rol === 'OMNIADMIN' || user?.rol === 'SUPERADMIN') return true
             if (item.roles.includes('*')) return true
             return item.roles.includes(user?.rol)
         })
@@ -85,11 +91,19 @@ export default function Sidebar() {
                         <ul className="space-y-1 px-2">
                             {itemsSistema.map(item => {
                                 const isActive = pathname.startsWith(item.href)
+                                // Efecto de parpadeo específico para el icono de Auditoría si hay incidente crítico
+                                const isCriticalAlert = (item.id === 'auditoria' || item.id === 'seguridad') && hasCritical;
+                                
                                 return (
                                     <li key={item.id}>
                                         <Link to={item.href} className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${isActive ? 'bg-sidebar-hover text-white border-l-4 border-primary' : 'text-gray-300 hover:bg-sidebar-hover hover:text-white'}`}>
-                                            <item.icon size={18} />
-                                            <span className="text-sm font-medium">{item.label}</span>
+                                            <item.icon 
+                                                size={18} 
+                                                className={isCriticalAlert ? "text-[#DC2626] animate-pulse" : ""} 
+                                            />
+                                            <span className={`text-sm font-medium ${isCriticalAlert ? "text-[#DC2626] font-bold" : ""}`}>
+                                                {item.label}
+                                            </span>
                                         </Link>
                                     </li>
                                 )
@@ -99,12 +113,13 @@ export default function Sidebar() {
                 )}
             </nav>
 
+            {/* Banner de Incidente Crítico (Requisito Persona 5) */}
             {hasCritical && (
-                <div className="px-4 mb-2">
-                    <div className="bg-[#DC2626] text-white text-[10px] font-black p-2 rounded flex items-center gap-2 animate-pulse uppercase">
+                <div className="px-4 mb-4">
+                    <Link to="/audit/logs" className="bg-[#DC2626] text-white text-[10px] font-black p-2 rounded flex items-center gap-2 animate-pulse uppercase cursor-pointer hover:bg-red-700 transition-colors">
                         <AlertCircle size={14} />
-                        Incidente Crítico
-                    </div>
+                        Incidente Crítico Pendiente
+                    </Link>
                 </div>
             )}
 

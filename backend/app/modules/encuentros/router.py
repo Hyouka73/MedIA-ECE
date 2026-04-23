@@ -1,5 +1,10 @@
-<<<<<<< HEAD
 """Encuentros Clínicos — SOAP, signos vitales, diagnósticos, prescripciones"""
+
+"""
+Encuentros Clínicos — Router
+Endpoints REST para gestión de encuentros clínicos
+"""
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
@@ -7,22 +12,17 @@ from app.core.deps import get_current_user, require_role
 from app.database.session import get_db
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Optional, List #Le agregue el List 
 import logging
 
-logger = logging.getLogger(__name__)
-=======
-"""Encuentros Clínicos — SOAP, signos vitales, diagnósticos CIE-10, prescripciones"""
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text, insert
-from app.core.deps import get_current_user, require_role, get_db
-from uuid import UUID, uuid4
-from datetime import datetime, timezone
-from typing import Optional
-from pydantic import BaseModel
-import logging
->>>>>>> feature/p5-modules-frontend
+from app.services.encuentros import encuentro_service
+
+from app.schemas.encuentros import (
+    EncuentroCreateIn, EncuentroOut, EncuentroDetalleOut,
+    EncuentroCerrarIn, EncuentroPacienteOut
+) 
+
+# logger = logging.getLogger(__name__)
 
 # --- IMPORTACIONES DE MODELOS CENTRALIZADOS (CORREGIDAS) ---
 from app.models.auth import CatMedicamento, Alergia, AuditoriaAcceso, CatCIE10
@@ -30,135 +30,86 @@ from app.models.auth import CatMedicamento, Alergia, AuditoriaAcceso, CatCIE10
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-<<<<<<< HEAD
-
-=======
-# --- SCHEMA PARA PRESCRIPCIONES ---
-class PrescripcionCreate(BaseModel):
-    id_medicamento: str 
-    id_paciente: UUID
-    dosis: str
-    via_administracion: str
-    frecuencia: str
-    duracion_dias: Optional[int] = None
-    indicaciones: Optional[str] = None
-    confirmar_alergia: bool = False
-
-
->>>>>>> feature/p5-modules-frontend
 # ── GET /encuentros ────────────────────────────────────────────────────
 @router.get("", response_model=dict)
 async def list_encuentros(
     current_user: dict = Depends(get_current_user),
-    id_paciente: Optional[UUID] = Query(None),
+    id_paciente: Optional[UUID] = Query(None),  
     page: int = Query(1, ge=1),
     limit: int = Query(10, ge=1, le=100),
     db: AsyncSession = Depends(get_db)
 ):
     """
-<<<<<<< HEAD
-    GET /encuentros — Lista encuentros clínicos del usuario o de un paciente específico
-=======
-    GET /encuentros — Lista encuentros con diagnóstico CIE-10 incluido
->>>>>>> feature/p5-modules-frontend
+    GET /encuentros — Lista encuentros clínicos
     """
     try:
         offset = (page - 1) * limit
         
-<<<<<<< HEAD
-        # Si se especifica id_paciente, verificar acceso
-=======
->>>>>>> feature/p5-modules-frontend
+        # Verificación de acceso (solo si se filtra por paciente)
         if id_paciente:
             try:
                 from app.services.acceso import check_regla_1
                 tiene_acceso = await check_regla_1(id_paciente, UUID(current_user["sub"]), db)
                 if not tiene_acceso:
-<<<<<<< HEAD
-                    # ⚠️ TEMPORAL: En desarrollo, permitir acceso para testing
-                    logger.warning(f"Acceso denegado pero permitido en modo desarrollo para usuario {current_user['sub']}")
-                    # raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Acceso denegado")
-            except ImportError:
-                logger.warning("Servicio de acceso no disponible - modo desarrollo")
-                # Continuar sin verificación en desarrollo
-        
-        # Construir query base
-        query = """
-            SELECT 
-                id_encuentro, id_paciente, id_medico, id_establecimiento, 
-                id_especialidad, fecha_inicio, fecha_cierre, motivo_consulta
-            FROM encuentros_clinicos
-=======
-                    logger.warning(f"Acceso denegado pero permitido en desarrollo para {current_user['sub']}")
+                    logger.warning(f"Acceso denegado en verificación para {current_user['sub']}")
             except ImportError:
                 logger.warning("Servicio de acceso no disponible")
         
-        # Query con JOIN a cat_cie10 para mostrar el nombre del diagnóstico
+        # ✅ Query corregida: SIN id_diagnostico ni JOIN a cat_cie10
         query = """
             SELECT 
-                e.id_encuentro, e.id_paciente, e.id_medico, e.id_establecimiento, 
-                e.id_especialidad, e.fecha_inicio, e.fecha_cierre, e.motivo_consulta,
-                e.id_diagnostico, c.descripcion as diagnostico_nombre
+                e.id_encuentro, 
+                e.id_paciente, 
+                e.id_medico, 
+                e.id_establecimiento, 
+                e.id_especialidad, 
+                e.fecha_inicio, 
+                e.fecha_cierre, 
+                e.motivo_consulta
             FROM encuentros_clinicos e
-            LEFT JOIN cat_cie10 c ON e.id_diagnostico = c.id_cie10
->>>>>>> feature/p5-modules-frontend
             WHERE 1=1
         """
-        count_query = "SELECT COUNT(*) FROM encuentros_clinicos WHERE 1=1"
+        
+        count_query = """
+            SELECT COUNT(*) 
+            FROM encuentros_clinicos e
+            WHERE 1=1
+        """
+        
         params = {}
         
-<<<<<<< HEAD
-        # Filtros
-        if id_paciente:
-            query += " AND id_paciente = :id_paciente"
-            count_query += " AND id_paciente = :id_paciente"
-            params["id_paciente"] = str(id_paciente)
-        else:
-            # Solo mostrar encuentros del médico actual
-            query += " AND id_medico = :id_medico"
-            count_query += " AND id_medico = :id_medico"
-            params["id_medico"] = current_user["sub"]
-        
-        # Contar total
-=======
         if id_paciente:
             query += " AND e.id_paciente = :id_paciente"
-            count_query += " AND id_paciente = :id_paciente"
+            count_query += " AND e.id_paciente = :id_paciente"
             params["id_paciente"] = str(id_paciente)
         else:
             query += " AND e.id_medico = :id_medico"
-            count_query += " AND id_medico = :id_medico"
+            count_query += " AND e.id_medico = :id_medico"
             params["id_medico"] = current_user["sub"]
         
->>>>>>> feature/p5-modules-frontend
+        # Ejecutar conteo
         result_count = await db.execute(text(count_query), params)
         total = result_count.scalar() or 0
         total_pages = (total + limit - 1) // limit if total else 1
         
-<<<<<<< HEAD
-        # Paginación
-        query_paged = query + f" ORDER BY fecha_inicio DESC LIMIT {limit} OFFSET {offset}"
-=======
+        # Paginación y ordenamiento
         query_paged = query + f" ORDER BY e.fecha_inicio DESC LIMIT {limit} OFFSET {offset}"
->>>>>>> feature/p5-modules-frontend
         result = await db.execute(text(query_paged), params)
         encuentros = result.fetchall()
         
+        # Construir items
         items = [
             {
                 "id_encuentro": str(row[0]),
-                "id_paciente": str(row[1]),
-                "id_medico": str(row[2]),
+                "id_paciente": str(row[1]) if row[1] else None,
+                "id_medico": str(row[2]) if row[2] else None,
                 "id_establecimiento": str(row[3]) if row[3] else None,
                 "id_especialidad": row[4],
                 "fecha_inicio": row[5].isoformat() if row[5] else None,
                 "fecha_cierre": row[6].isoformat() if row[6] else None,
-<<<<<<< HEAD
-                "motivo_consulta": row[7]
-=======
                 "motivo_consulta": row[7],
-                "diagnostico": {"codigo": row[8], "nombre": row[9]} if row[8] else None
->>>>>>> feature/p5-modules-frontend
+                # ✅ Por ahora, diagnóstico se deja como None
+                "diagnostico": None
             }
             for row in encuentros
         ]
@@ -173,40 +124,13 @@ async def list_encuentros(
             },
             "message": "Lista de encuentros obtenida exitosamente"
         }
-<<<<<<< HEAD
         
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error al obtener encuentros: {str(e)}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error interno al obtener encuentros"
-        )
-
-
-# ── POST /encuentros ────────────────────────────────────────────────────
-@router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def create_encuentro(
-    data: dict,
-    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN", "OMNIADMIN")),
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    POST /encuentros — Crea un encuentro clínico
-    Body:
-    {
-        "id_paciente": uuid,
-        "id_establecimiento": uuid,
-        "id_especialidad": int,
-        "motivo_consulta": "str"
-    }
-=======
-    except Exception as e:
-        logger.error(f"Error al obtener encuentros: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error interno")
-
-
+        raise HTTPException(status_code=500, detail="Error interno al obtener encuentros")
+    
 # ── POST /encuentros (CON DIAGNÓSTICO CIE-10) ──────────────────────────
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_encuentro(
@@ -216,67 +140,11 @@ async def create_encuentro(
 ):
     """
     POST /encuentros — Crea un encuentro validando el catálogo CIE-10
->>>>>>> feature/p5-modules-frontend
     """
     try:
         id_paciente = data.get("id_paciente")
         id_establecimiento = data.get("id_establecimiento")
         id_especialidad = data.get("id_especialidad")
-<<<<<<< HEAD
-        motivo_consulta = data.get("motivo_consulta", "").strip()
-        
-        # Validar campos requeridos
-        if not id_paciente or not id_establecimiento or not id_especialidad or not motivo_consulta:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail="Campos requeridos: id_paciente, id_establecimiento, id_especialidad, motivo_consulta"
-            )
-        
-        # Verificar que el paciente existe
-        query_paciente = text("SELECT id_paciente FROM pacientes WHERE id_paciente = :id AND eliminado_en IS NULL")
-        result = await db.execute(query_paciente, {"id": str(id_paciente)})
-        if not result.scalar():
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Paciente no encontrado")
-        
-        # Crear encuentro
-        id_encuentro = str(uuid4())
-        query_insert = text("""
-            INSERT INTO encuentros_clinicos 
-            (id_encuentro, id_paciente, id_medico, id_establecimiento, id_especialidad, fecha_inicio, motivo_consulta)
-            VALUES (:id_encuentro, :id_paciente, :id_medico, :id_establecimiento, :id_especialidad, :fecha_inicio, :motivo_consulta)
-        """)
-        
-        await db.execute(query_insert, {
-            "id_encuentro": id_encuentro,
-            "id_paciente": str(id_paciente),
-            "id_medico": current_user["sub"],
-            "id_establecimiento": str(id_establecimiento),
-            "id_especialidad": id_especialidad,
-            "fecha_inicio": datetime.now(timezone.utc),
-            "motivo_consulta": motivo_consulta
-        })
-        
-        await db.commit()
-        
-        return {
-            "data": {
-                "id_encuentro": id_encuentro,
-                "motivo_consulta": motivo_consulta,
-                "fecha_inicio": datetime.now(timezone.utc).isoformat()
-            },
-            "message": "Encuentro clínico creado exitosamente"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error al crear encuentro: {str(e)}")
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error interno al crear encuentro"
-        )
-=======
         id_diagnostico = data.get("id_diagnostico") # El código (ej: E11.9)
         motivo_consulta = data.get("motivo_consulta", "").strip()
         
@@ -316,7 +184,6 @@ async def create_encuentro(
         await db.rollback()
         logger.error(f"Error al crear encuentro: {str(e)}")
         raise HTTPException(status_code=500, detail="Error interno al crear encuentro")
->>>>>>> feature/p5-modules-frontend
 
 
 # ── PATCH /encuentros/{id}/cerrar ──────────────────────────────────────
@@ -327,59 +194,6 @@ async def cerrar_encuentro(
     db: AsyncSession = Depends(get_db)
 ):
     """
-<<<<<<< HEAD
-    PATCH /encuentros/{id}/cerrar — Cierra un encuentro (irreversible)
-    Solo el médico que lo creó puede cerrarlo
-    """
-    try:
-        # Obtener encuentro
-        query_encounter = text("""
-            SELECT id_encuentro, id_medico, fecha_cierre FROM encuentros_clinicos 
-            WHERE id_encuentro = :id
-        """)
-        result = await db.execute(query_encounter, {"id": str(id_encuentro)})
-        encuentro = result.fetchone()
-        
-        if not encuentro:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Encuentro no encontrado")
-        
-        # Verificar que sea el médico del encuentro
-        if encuentro[1] != current_user["sub"]:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Solo el médico que creó el encuentro puede cerrarlo")
-        
-        # Verificar que no esté ya cerrado
-        if encuentro[2] is not None:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El encuentro ya está cerrado")
-        
-        # Cerrar encuentro
-        query_update = text("""
-            UPDATE encuentros_clinicos 
-            SET fecha_cierre = :fecha_cierre 
-            WHERE id_encuentro = :id
-        """)
-        
-        await db.execute(query_update, {
-            "id": str(id_encuentro),
-            "fecha_cierre": datetime.now(timezone.utc)
-        })
-        
-        await db.commit()
-        
-        return {
-            "data": {"id_encuentro": str(id_encuentro)},
-            "message": "Encuentro clínico cerrado exitosamente"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error al cerrar encuentro: {str(e)}")
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error interno al cerrar encuentro"
-        )
-=======
     PATCH /encuentros/{id}/cerrar — Cierre irreversible por el autor
     """
     try:
@@ -398,7 +212,6 @@ async def cerrar_encuentro(
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail="Error al cerrar")
->>>>>>> feature/p5-modules-frontend
 
 
 # ── POST /encuentros/{id}/signos-vitales ───────────────────────────────
@@ -409,89 +222,18 @@ async def registrar_signos_vitales(
     current_user: dict = Depends(require_role("ENFERMERO", "MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
     db: AsyncSession = Depends(get_db)
 ):
-<<<<<<< HEAD
-    """
-    POST /encuentros/{id}/signos-vitales — Registra signos vitales
-    Body:
-    {
-        "peso_kg": float,
-        "talla_cm": float,
-        "temperatura_c": float,
-        "frecuencia_cardiaca": int,
-        "frecuencia_respiratoria": int,
-        "presion_sistolica": int,
-        "presion_diastolica": int,
-        "saturacion_oxigeno": int
-    }
-    """
-    try:
-        # Verificar que el encuentro existe y está abierto
-        query_encuentro = text("""
-            SELECT fecha_cierre FROM encuentros_clinicos 
-            WHERE id_encuentro = :id
-        """)
-        result = await db.execute(query_encuentro, {"id": str(id_encuentro)})
-        encuentro = result.fetchone()
-        
-        if not encuentro:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Encuentro no encontrado")
-        
-        if encuentro[0] is not None:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El encuentro está cerrado")
-        
-        # Registrar signos vitales
-=======
     try:
         query_enc_check = text("SELECT fecha_cierre FROM encuentros_clinicos WHERE id_encuentro = :id")
         res_check = await db.execute(query_enc_check, {"id": str(id_encuentro)})
         enc = res_check.fetchone()
         if not enc or enc[0] is not None: raise HTTPException(status_code=400, detail="Encuentro cerrado o inexistente")
 
->>>>>>> feature/p5-modules-frontend
         id_signos = str(uuid4())
         query_insert = text("""
             INSERT INTO signos_vitales 
             (id_signos, id_encuentro, id_enfermero, peso_kg, talla_cm, temperatura_c, 
              frecuencia_cardiaca, frecuencia_respiratoria, presion_sistolica, presion_diastolica, 
              saturacion_oxigeno, fecha_toma)
-<<<<<<< HEAD
-            VALUES (:id_signos, :id_encuentro, :id_enfermero, :peso_kg, :talla_cm, :temperatura_c, 
-                    :frecuencia_cardiaca, :frecuencia_respiratoria, :presion_sistolica, :presion_diastolica, 
-                    :saturacion_oxigeno, :fecha_toma)
-        """)
-        
-        await db.execute(query_insert, {
-            "id_signos": id_signos,
-            "id_encuentro": str(id_encuentro),
-            "id_enfermero": current_user["sub"],
-            "peso_kg": data.get("peso_kg"),
-            "talla_cm": data.get("talla_cm"),
-            "temperatura_c": data.get("temperatura_c"),
-            "frecuencia_cardiaca": data.get("frecuencia_cardiaca"),
-            "frecuencia_respiratoria": data.get("frecuencia_respiratoria"),
-            "presion_sistolica": data.get("presion_sistolica"),
-            "presion_diastolica": data.get("presion_diastolica"),
-            "saturacion_oxigeno": data.get("saturacion_oxigeno"),
-            "fecha_toma": datetime.now(timezone.utc)
-        })
-        
-        await db.commit()
-        
-        return {
-            "data": {"id_signos": id_signos},
-            "message": "Signos vitales registrados exitosamente"
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error al registrar signos vitales: {str(e)}")
-        await db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error interno al registrar signos vitales"
-        )
-=======
             VALUES (:id_sig, :id_enc, :id_enf, :peso, :talla, :temp, :fc, :fr, :ps, :pd, :so2, :fecha)
         """)
         
@@ -565,4 +307,107 @@ async def crear_prescripcion(
             )
 
     return {"status": "success", "message": "Prescripción validada correctamente"}
->>>>>>> feature/p5-modules-frontend
+
+
+#---------------------------------------------------------------------------------------
+# ------------------------- Por si sale mal, lo pongo aqui -----------------------------
+#---------------------------------------------------------------------------------------
+
+@router.post("/", response_model=EncuentroOut, status_code=201)
+async def crear_encuentro(
+    data: EncuentroCreateIn,
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db)
+):
+    """POST /encuentros — Abre un encuentro clínico para un paciente"""
+    id_medico = UUID(current_user["id"])
+    id_establecimiento = UUID(current_user.get("establecimiento", "CSSSA023999"))  # TODO: obtener del usuario
+
+    encuentro = await encuentro_service.crear_encuentro(
+        db=db,
+        data=data,
+        id_medico=id_medico,
+        id_establecimiento=id_establecimiento
+    )
+
+    return EncuentroOut(
+        id_encuentro=encuentro.id_encuentro,
+        id_paciente=encuentro.id_paciente,
+        id_medico=encuentro.id_medico,
+        id_establecimiento=encuentro.id_establecimiento,
+        id_especialidad=encuentro.id_especialidad,
+        fecha_inicio=encuentro.fecha_inicio,
+        fecha_cierre=encuentro.fecha_cierre,
+        motivo_consulta=encuentro.motivo_consulta,
+        tipo_consulta=encuentro.tipo_consulta
+    )
+@router.get("/", response_model=List[EncuentroOut])
+async def listar_encuentros_activos(
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "ENFERMERIA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100)
+):
+    """GET /encuentros — Lista encuentros activos del establecimiento"""
+    id_establecimiento = UUID(current_user.get("establecimiento", "CSSSA023999"))  # TODO: obtener del usuario
+
+    encuentros = await encuentro_service.listar_encuentros_activos(
+        db=db,
+        id_establecimiento=id_establecimiento,
+        skip=skip,
+        limit=limit
+    )
+
+    return [
+        EncuentroOut(
+            id_encuentro=e.id_encuentro,
+            id_paciente=e.id_paciente,
+            id_medico=e.id_medico,
+            id_establecimiento=e.id_establecimiento,
+            id_especialidad=e.id_especialidad,
+            fecha_inicio=e.fecha_inicio,
+            fecha_cierre=e.fecha_cierre,
+            motivo_consulta=e.motivo_consulta,
+            tipo_consulta=e.tipo_consulta,
+            paciente_numero_expediente=e.paciente.numero_expediente if e.paciente else None,
+            paciente_nombre=f"{e.paciente.persona.nombre} {e.paciente.persona.primer_apellido}" if e.paciente and e.paciente.persona else None,
+            medico_nombre=f"{e.medico.persona.nombre} {e.medico.persona.primer_apellido}" if e.medico and e.medico.persona else None,
+            establecimiento_nombre=e.establecimiento.nombre if e.establecimiento else None
+        )
+        for e in encuentros
+    ]
+
+
+@router.get("/{id}", response_model=EncuentroDetalleOut)
+async def obtener_encuentro(
+    id: UUID,
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "ENFERMERIA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db)
+):
+    """GET /encuentros/{id} — Detalle completo del encuentro"""
+    id_usuario = UUID(current_user["id"])
+
+    encuentro = await encuentro_service.obtener_encuentro(
+        db=db,
+        id_encuentro=id,
+        id_usuario=id_usuario
+    )
+
+    return EncuentroDetalleOut(
+        id_encuentro=encuentro.id_encuentro,
+        id_paciente=encuentro.id_paciente,
+        id_medico=encuentro.id_medico,
+        id_establecimiento=encuentro.id_establecimiento,
+        id_especialidad=encuentro.id_especialidad,
+        fecha_inicio=encuentro.fecha_inicio,
+        fecha_cierre=encuentro.fecha_cierre,
+        motivo_consulta=encuentro.motivo_consulta,
+        tipo_consulta=encuentro.tipo_consulta,
+        paciente_numero_expediente=encuentro.paciente.numero_expediente if encuentro.paciente else None,
+        paciente_nombre=f"{encuentro.paciente.persona.nombre} {encuentro.paciente.persona.primer_apellido}" if encuentro.paciente and encuentro.paciente.persona else None,
+        medico_nombre=f"{encuentro.medico.persona.nombre} {encuentro.medico.persona.primer_apellido}" if encuentro.medico and encuentro.medico.persona else None,
+        establecimiento_nombre=encuentro.establecimiento.nombre if encuentro.establecimiento else None,
+        notas=[],  # TODO: implementar
+        signos_vitales=None,  # TODO: implementar
+        diagnosticos=[]  # TODO: implementar
+    )

@@ -280,6 +280,7 @@ export default function PacienteFichaPage() {
           grupo_sanguineo: form.grupo_sanguineo || null
         };
         
+        const getNombreLengua = lenguas.find(l => l.id_lengua.toString() === form.id_lengua_materna)?.nombre || "Desconocida";
         console.log('📤 Enviando paciente:', pacientePayload);
         
         const pacienteResponse = await pacientesAPI.createPaciente(pacientePayload);

@@ -1,10 +1,7 @@
 from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, DateTime, text, Text, JSON, BigInteger
 from sqlalchemy.dialects.postgresql import UUID, INET
 from sqlalchemy.orm import relationship
-<<<<<<< HEAD
-=======
 from sqlalchemy.sql import func
->>>>>>> feature/p5-modules-frontend
 from datetime import datetime
 from app.models.base import Base
 
@@ -34,7 +31,7 @@ class User(Base):
     fecha_creacion = Column(DateTime(timezone=True), server_default=func.now())
     ultimo_login = Column(DateTime(timezone=True))
 
-    rol = relationship("Role") # Cambiado de 'role' a 'rol' para coincidir con routers
+    rol = relationship("Role")
     persona = relationship("Persona", back_populates="usuario")
 
 
@@ -47,17 +44,13 @@ class Persona(Base):
     curp = Column(String(18), unique=True, nullable=True)
     fecha_nacimiento = Column(DateTime, nullable=False)
     sexo = Column(String(1), nullable=False)
-    id_localidad = Column(String(9), nullable=True), ForeignKey("cat_localidades.id_localidad")
+    id_localidad = Column(String(9), ForeignKey("cat_localidades.id_localidad"), nullable=True)
     calle_numero = Column(String, nullable=True)
     referencia_geografica = Column(String, nullable=True)
-    id_lengua_materna = Column(Integer, nullable=True), ForeignKey("cat_lenguas_indigenas.id_lengua")
+    id_lengua_materna = Column(Integer, ForeignKey("cat_lenguas_indigenas.id_lengua"), nullable=True)
     telefono = Column(String(20), nullable=True)
     url_foto = Column(String, nullable=True)
-<<<<<<< HEAD
-    fecha_registro = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
-=======
     fecha_registro = Column(DateTime(timezone=True), nullable=False, default=func.now())
->>>>>>> feature/p5-modules-frontend
 
     usuario = relationship("User", back_populates="persona", uselist=False)
 
@@ -90,26 +83,15 @@ class Paciente(Base):
     id_persona = Column(UUID(as_uuid=True), ForeignKey("personas.id_persona"), nullable=False, unique=True)
     numero_expediente = Column(String(50), unique=True, nullable=False)
     grupo_sanguineo = Column(String(5), nullable=True)
-<<<<<<< HEAD
-    fecha_registro = Column(DateTime(timezone=True), nullable=False, default=datetime.utcnow)
-=======
-    fecha_registro = Column(DateTime(timezone=True), nullable=False, default=func.now())
->>>>>>> feature/p5-modules-frontend
+    fecha_registro = Column(DateTime(timezone=True), nullable=False, server_default=func.now())
     eliminado_en = Column(DateTime(timezone=True), nullable=True)
     eliminado_por = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), nullable=True)
     motivo_baja = Column(String, nullable=True)
 
-<<<<<<< HEAD
-    persona = relationship("Persona", foreign_keys=[id_persona])
-
-
-# ── Catálogos INEGI ──────────────────────────────────────────────────────
-=======
     persona = relationship("Persona")
 
 
 # ── CATÁLOGOS INEGI ──────────────────────────────────────────────────────
->>>>>>> feature/p5-modules-frontend
 
 class Estado(Base):
     __tablename__ = "cat_estados"
@@ -137,70 +119,47 @@ class Lengua(Base):
     id_lengua = Column(Integer, primary_key=True)
     nombre = Column(String(100), nullable=False)
     familia = Column(String(100), nullable=True)
-<<<<<<< HEAD
-=======
 
 
-# ── SEGURIDAD Y CLÍNICA (MODELOS CRÍTICOS) ───────────────────────────────
+# ── AUDITORÍA Y SEGURIDAD (Persona 5 - Implementación Ciclo de Vida) ────
 
 class AuditoriaAcceso(Base):
     __tablename__ = "auditoria_accesos"
-    id_auditoria = Column(BigInteger, primary_key=True, autoincrement=True)
+    
+    id_auditoria = Column(BigInteger, primary_key=True, index=True)
     timestamp_evento = Column(DateTime(timezone=True), server_default=func.now())
-    id_usuario = Column(UUID(as_uuid=True))
-    direccion_ip = Column(INET)
-    id_establecimiento_origen = Column(UUID(as_uuid=True))
-    id_establecimiento_dato = Column(UUID(as_uuid=True))
-    modulo_funcion = Column(String)
-    tipo_evento = Column(String)
-    resultado = Column(String)
-    nivel_severidad = Column(String)
-    detalles = Column(JSON)
+    id_usuario = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), nullable=True)
+    ip_origen = Column(INET, nullable=True)
+    user_agent = Column(String, nullable=True)
+    modulo_accion = Column(String(100), nullable=False)
+    accion = Column(String(50), nullable=False)
+    nivel_severidad = Column(String(20), default="INFO") # INFO, ADVERTENCIA, CRITICA
+    detalles = Column(JSON, nullable=True)
+    
+    # Campo para gestionar el ciclo de vida de incidentes
+    estado = Column(String(20), server_default="ABIERTO") # ABIERTO, EN_PROCESO, RESUELTO, CERRADO
 
+    usuario = relationship("User")
+
+# ── CATÁLOGOS CLÍNICOS (Persona 5) ──────────────────────────────────────
 
 class CatMedicamento(Base):
     __tablename__ = "cat_medicamentos"
-    codigo_medicamento_ssa = Column(String, primary_key=True)
-    nombre_generico = Column(String, nullable=False)
-    forma_farmaceutica = Column(String)
-    presentacion = Column(String)
-    indicaciones = Column(String)
-    concentracion = Column(String) # Agregado para el router de catálogos
-
+    codigo_medicamento_ssa = Column(String(20), primary_key=True)
+    nombre_generico = Column(String(255), nullable=False)
+    presentacion = Column(String(100))
+    forma_farmaceutica = Column(String(100))
+    concentracion = Column(String(100))
+    indicaciones = Column(Text)
 
 class CatCIE10(Base):
     __tablename__ = "cat_cie10"
     id_cie10 = Column(String(10), primary_key=True)
     descripcion = Column(Text, nullable=False)
-    capitulo = Column(String(255))
-    grupo = Column(String(255))
-
 
 class Alergia(Base):
     __tablename__ = "alergias"
-    id_alergia = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    id_paciente = Column(UUID(as_uuid=True), ForeignKey("pacientes.id_paciente"))
-    alergia = Column(Text, nullable=False) 
-    severidad = Column(String)
-    registrado_por = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"))
+    id_alergia = Column(BigInteger, primary_key=True, index=True)
+    id_paciente = Column(UUID(as_uuid=True), ForeignKey("pacientes.id_paciente"), nullable=False)
+    descripcion = Column(String(255), nullable=False)
     fecha_registro = Column(DateTime(timezone=True), server_default=func.now())
-    eliminado_en = Column(DateTime(timezone=True))
-    eliminado_por = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"))
-
-
-class Encuentro(Base):
-    __tablename__ = "encuentros_clinicos" # Coincide con el router
-    id_encuentro = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    id_paciente = Column(UUID(as_uuid=True), ForeignKey("pacientes.id_paciente"))
-    id_medico = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"))
-    id_establecimiento = Column(UUID(as_uuid=True), ForeignKey("establecimientos.id_establecimiento"))
-    id_especialidad = Column(Integer)
-    id_diagnostico = Column(String(10), ForeignKey("cat_cie10.id_cie10"))
-    motivo_consulta = Column(Text, nullable=False)
-    fecha_inicio = Column(DateTime(timezone=True), server_default=func.now())
-    fecha_cierre = Column(DateTime(timezone=True))
-
-    paciente = relationship("Paciente")
-    medico = relationship("User")
-    diagnostico = relationship("CatCIE10")
->>>>>>> feature/p5-modules-frontend
