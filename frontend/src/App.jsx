@@ -24,7 +24,6 @@ import PacienteFichaPage from './pages/Pacients/PacienteFichaPage';
 
 // Auditoría y Seguridad (Persona 5 - Corregido)
 import AuditoriaPage from './pages/audit/AuditoriaPage'
-import IncidentesPage from './pages/audit/IncidentesPage'
 
 
 const Unauthorized = () => (
@@ -63,7 +62,6 @@ function App() {
 
                 {/* ── Auditoría y Seguridad (Módulos Persona 5) ── */}
                 <Route path="audit/logs"       element={<AuditoriaPage />} />
-                <Route path="audit/incidentes" element={<IncidentesPage />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Route>
             </Route>
