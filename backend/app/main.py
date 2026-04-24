@@ -2,7 +2,7 @@
 MedIA ECE — FastAPI Backend
 Punto de entrada principal de la aplicación
 """
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
@@ -36,6 +36,10 @@ app = FastAPI(
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# ── INICIALIZACIÓN DE MEMORIA FORENSE (BLACKLIST IN-MEMORY) ────────────
+app.state.blacklist_tokens = set()  # Para búsqueda O(1) súper rápida en el middleware
+app.state.blacklist_detalles = []   # Para listar los detalles en el Frontend de React
 
 # Orden correcto: Sanitize → CORS → Auth → Audit
 app.add_middleware(AuditMiddleware)
@@ -73,11 +77,11 @@ async def get_forensic_logs():
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error leyendo el log forense")
 
-# ── Blacklist de Sesiones (Placeholder para Persona 5) ─────────────────
+# ── Blacklist de Sesiones (Implementación In-Memory Real) ──────────────
 @app.get("/api/seguridad/sessions-blacklist", tags=["Auditoría"])
-async def get_blacklist():
-    # TODO: Conectar con tabla sesiones_invalidas
-    return []
+async def get_blacklist(request: Request):
+    # Retorna directamente la lista de detalles de la memoria RAM del servidor
+    return request.app.state.blacklist_detalles
 
 from fastapi.staticfiles import StaticFiles
 

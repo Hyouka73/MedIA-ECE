@@ -29,13 +29,12 @@ export const AuthProvider = ({ children }) => {
     // Solo se activa si VITE_APP_BYPASS_AUTH='true'
     const isDevBypass = import.meta.env.VITE_APP_BYPASS_AUTH === 'true';
 
-    // Sincronizar el token con el cliente API para interceptores
+    // Sincronizar el token con el cliente API para interceptores (Mantenemos el asíncrono como respaldo)
     useEffect(() => {
         setTokenGetter(() => token);
     }, [token]);
 
     // ── Refresh silencioso del JWT ──
-    // Calcula cuándo expira el token y programa un refresh 60 segundos antes
     const scheduleTokenRefresh = useCallback((accessToken) => {
         if (refreshTimerRef.current) {
             clearTimeout(refreshTimerRef.current);
@@ -54,8 +53,10 @@ export const AuthProvider = ({ children }) => {
             try {
                 const response = await apiClient.post('/auth/refresh');
                 const newToken = response.data.access_token;
+                
+                setTokenGetter(() => newToken); // 🔥 FIX: Sincronización inmediata
                 setToken(newToken);
-                scheduleTokenRefresh(newToken); // Re-programar con el nuevo token
+                scheduleTokenRefresh(newToken); 
             } catch (error) {
                 console.warn('Refresh silencioso falló — sesión expirada');
                 setToken(null);
@@ -66,9 +67,10 @@ export const AuthProvider = ({ children }) => {
     }, []);
 
     useEffect(() => {
-        // Si estamos en desarrollo y activamos el bypass
         if (isDevBypass) {
-            setToken('fake-jwt-token-for-dev');
+            const devToken = 'fake-jwt-token-for-dev';
+            setTokenGetter(() => devToken); // 🔥 FIX: Sincronización inmediata
+            setToken(devToken);
             setUser({
                 id: '1',
                 nombre: 'Dr. Desarrollo Base',
@@ -80,21 +82,20 @@ export const AuthProvider = ({ children }) => {
             return;
         }
 
-        // Flujo Real: intentar restore silencioso con cookie HttpOnly de refresh
-        // Si el usuario recargó la página, el access_token en memoria desapareció
-        // pero la cookie de refresh sigue en el browser → podemos restaurar la sesión
         const restoreSession = async () => {
             try {
                 const response = await apiClient.post('/auth/refresh', {}, {
-                    withCredentials: true  // Necesario para enviar la cookie cross-origin
+                    withCredentials: true 
                 });
                 const { access_token, user: userData } = response.data;
+                
+                setTokenGetter(() => access_token); // 🔥 FIX: Evita el race condition al recargar página
                 setToken(access_token);
                 setUser(userData);
                 setIsAuthenticated(true);
                 scheduleTokenRefresh(access_token);
             } catch {
-                // No hay sesión activa o la cookie expiró → ir a login normalmente
+                // No hay sesión activa o la cookie expiró
             } finally {
                 setLoading(false);
             }
@@ -103,7 +104,6 @@ export const AuthProvider = ({ children }) => {
         restoreSession();
     }, [isDevBypass, scheduleTokenRefresh]);
 
-    // Cleanup del timer
     useEffect(() => {
         return () => {
             if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
@@ -114,19 +114,23 @@ export const AuthProvider = ({ children }) => {
         try {
             const response = await apiClient.post('/auth/login', { email, password });
 
-            // Si requiere 2FA
+            // Si requiere 2FA, no guardamos NADA globalmente aún
             if (response.data.requires_2fa) {
                 return {
                     requires_2fa: true,
                     tempToken: response.data.temp_token,
-                    reason: response.data.reason // 'account_unlocked' | '2fa_required'
+                    reason: response.data.reason 
                 };
             }
 
-            setToken(response.data.access_token);
+            // Si entra directo (sin 2FA), inyectamos al instante
+            const finalToken = response.data.access_token;
+            setTokenGetter(() => finalToken); // 🔥 FIX: Sincronización inmediata
+
+            setToken(finalToken);
             setUser(response.data.user);
             setIsAuthenticated(true);
-            scheduleTokenRefresh(response.data.access_token);
+            scheduleTokenRefresh(finalToken);
             return { success: true };
         } catch (error) {
             console.error('Error en login:', error);
@@ -135,18 +139,22 @@ export const AuthProvider = ({ children }) => {
     };
 
     const verify2FA = async (tempToken, code) => {
-        // Re-throw para que el componente pueda leer error.response.data.detail
-        // (mensajes de lockout del backend, intentos restantes, etc.)
         const response = await apiClient.post('/auth/2fa/verify', { temp_token: tempToken, code });
-        setToken(response.data.access_token);
+        
+        const finalToken = response.data.access_token;
+        
+        // 🔥 EL PARCHE MÁGICO: Actualiza el interceptor de inmediato, síncronamente 🔥
+        // Esto garantiza que el navigate('/dashboard') ya lleve la llave puesta.
+        setTokenGetter(() => finalToken); 
+        
+        setToken(finalToken);
         setUser(response.data.user);
         setIsAuthenticated(true);
-        scheduleTokenRefresh(response.data.access_token);
+        scheduleTokenRefresh(finalToken);
         return true;
     }
 
     const logout = async () => {
-        // Intentar invalidar en backend (Req Forense 1)
         try {
             if (token && token !== 'fake-jwt-token-for-dev') {
                 await apiClient.post('/auth/logout');
@@ -154,6 +162,7 @@ export const AuthProvider = ({ children }) => {
         } catch { /* no-op */ }
 
         if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+        setTokenGetter(() => null); // 🔥 Limpiamos el interceptor de golpe
         setToken(null);
         setUser(null);
         setIsAuthenticated(false);
@@ -170,5 +179,5 @@ export const AuthProvider = ({ children }) => {
     );
 };
 
+export default AuthContext;
 export const useAuth = () => useContext(AuthContext);
-

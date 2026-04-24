@@ -25,7 +25,7 @@ import PacienteFichaPage from './pages/Pacients/PacienteFichaPage';
 // Auditoría y Seguridad (Persona 5 - Corregido)
 import AuditoriaPage from './pages/audit/AuditoriaPage'
 import IncidentesPage from './pages/audit/IncidentesPage'
-import SeguridadPage from './pages/audit/SeguridadPage'
+
 
 const Unauthorized = () => (
   <div className="p-6 flex items-center justify-center text-[#DC2626] font-bold">
@@ -64,8 +64,6 @@ function App() {
                 {/* ── Auditoría y Seguridad (Módulos Persona 5) ── */}
                 <Route path="audit/logs"       element={<AuditoriaPage />} />
                 <Route path="audit/incidentes" element={<IncidentesPage />} />
-                <Route path="audit/seguridad"  element={<SeguridadPage />} />
-
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Route>
             </Route>

@@ -1,7 +1,7 @@
 """
 Middleware de Autenticación JWT
 Valida el token en el header Authorization y bloquea acceso si está inválido
-o si el jti está en la lista negra (sesiones_invalidas)
+o si el jti está en la lista negra (sesiones_invalidas) en memoria.
 """
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
@@ -51,6 +51,15 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 status_code=403
             )
 
-        # TODO Persona 3: verificar que el jti no está en sesiones_invalidas (BD)
+        # ── VERIFICACIÓN BLACKLIST IN-MEMORY (Protección contra robo de tokens) ──
+        jti = payload.get("jti")
+        # Aseguramos que la variable blacklist_tokens exista en el estado
+        if jti and hasattr(request.app.state, "blacklist_tokens"):
+            if jti in request.app.state.blacklist_tokens:
+                return JSONResponse(
+                    {"detail": "Token revocado por seguridad. Inicie sesión nuevamente."},
+                    status_code=401
+                )
+
         request.state.user = payload
         return await call_next(request)
