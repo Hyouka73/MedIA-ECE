@@ -117,4 +117,3 @@ class AuditMiddleware(BaseHTTPMiddleware):
             detalles={"status": response.status_code, "ms": duration_ms}
         )
         return response
-
