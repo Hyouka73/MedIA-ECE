@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Home, Users, FileText, ClipboardList, Send, FileBox, ShieldAlert, Settings, Shield, AlertCircle } from 'lucide-react'
+import { Home, Users, FileText, ClipboardList, Send, FileBox, ShieldAlert, Settings, AlertCircle } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
 import { Avatar } from '../ui/Avatar'
 import { useAuth } from '../../context/AuthContext'
@@ -8,10 +8,12 @@ import apiClient from '../../api/client'
 const NAV_ITEMS = [
     { id: 'dashboard', icon: Home, label: 'Dashboard', group: 'CLÍNICA', href: '/dashboard', roles: ['*'] },
     { id: 'pacientes', icon: Users, label: 'Pacientes', group: 'CLÍNICA', href: '/pacientes', roles: ['SUPERADMIN', 'OMNIADMIN', 'RECEPCIONISTA', 'MEDICO_GENERAL', 'ESPECIALISTA', 'ENFERMERIA', 'ESTADISTICA'] },
-    { id: 'expediente', icon: FileText, label: 'Expediente', group: 'CLÍNICA', href: '/expediente', roles: ['SUPERADMIN', 'OMNIADMIN', 'MEDICO_GENERAL', 'ESPECIALISTA'] },
-    { id: 'consulta', icon: ClipboardList, label: 'Consulta', group: 'CLÍNICA', href: '/consulta', roles: ['SUPERADMIN', 'OMNIADMIN', 'MEDICO_GENERAL', 'ESPECIALISTA', 'ENFERMERIA'] },
-    { id: 'referencias', icon: Send, label: 'Referencias', group: 'CLÍNICA', href: '/referencias', roles: ['SUPERADMIN', 'OMNIADMIN', 'MEDICO_GENERAL', 'ESPECIALISTA'] },
-    { id: 'documentos', icon: FileBox, label: 'Documentos', group: 'CLÍNICA', href: '/documentos', roles: ['SUPERADMIN', 'OMNIADMIN', 'MEDICO_GENERAL', 'ESPECIALISTA'] },
+    
+    // Rutas que requieren flujo de paciente marcadas con requiresPatientFlow
+    { id: 'expediente', icon: FileText, label: 'Expediente', group: 'CLÍNICA', href: '/expediente', roles: ['SUPERADMIN', 'OMNIADMIN', 'MEDICO_GENERAL', 'ESPECIALISTA'], requiresPatientFlow: true },
+    { id: 'consulta', icon: ClipboardList, label: 'Consulta', group: 'CLÍNICA', href: '/consulta', roles: ['SUPERADMIN', 'OMNIADMIN', 'MEDICO_GENERAL', 'ESPECIALISTA', 'ENFERMERIA'], requiresPatientFlow: true },
+    { id: 'referencias', icon: Send, label: 'Referencias', group: 'CLÍNICA', href: '/referencias', roles: ['SUPERADMIN', 'OMNIADMIN', 'MEDICO_GENERAL', 'ESPECIALISTA'], requiresPatientFlow: true },
+    { id: 'documentos', icon: FileBox, label: 'Documentos', group: 'CLÍNICA', href: '/documentos', roles: ['SUPERADMIN', 'OMNIADMIN', 'MEDICO_GENERAL', 'ESPECIALISTA'], requiresPatientFlow: true },
     
     { id: 'auditoria', icon: ShieldAlert, label: 'Auditoría', group: 'SISTEMA', href: '/audit/logs', roles: ['SUPERADMIN', 'OMNIADMIN', 'AUDITOR_SEGURIDAD'] },
     { id: 'admin', icon: Settings, label: 'Administración', group: 'SISTEMA', href: '/admin', roles: ['SUPERADMIN', 'OMNIADMIN', 'ADMINISTRADOR'] },
@@ -71,9 +73,29 @@ export default function Sidebar() {
                         <ul className="space-y-1 px-2 mb-6">
                             {itemsClinica.map(item => {
                                 const isActive = pathname.startsWith(item.href)
+                                const isDisabled = item.requiresPatientFlow && !isActive
+
+                                if (isDisabled) {
+                                    return (
+                                        <li key={item.id}>
+                                            <div className="flex items-center gap-3 px-3 py-2 rounded-md text-gray-500 opacity-50 cursor-not-allowed select-none">
+                                                <item.icon size={18} />
+                                                <span className="text-sm font-medium">{item.label}</span>
+                                            </div>
+                                        </li>
+                                    )
+                                }
+
                                 return (
                                     <li key={item.id}>
-                                        <Link to={item.href} className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${isActive ? 'bg-sidebar-hover text-white border-l-4 border-primary' : 'text-gray-300 hover:bg-sidebar-hover hover:text-white'}`}>
+                                        <Link 
+                                            to={item.href} 
+                                            className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                                                isActive 
+                                                    ? 'bg-sidebar-hover text-white border-l-4 border-primary' 
+                                                    : 'text-gray-300 hover:bg-sidebar-hover hover:text-white'
+                                            }`}
+                                        >
                                             <item.icon size={18} />
                                             <span className="text-sm font-medium">{item.label}</span>
                                         </Link>
@@ -95,7 +117,14 @@ export default function Sidebar() {
                                 
                                 return (
                                     <li key={item.id}>
-                                        <Link to={item.href} className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${isActive ? 'bg-sidebar-hover text-white border-l-4 border-primary' : 'text-gray-300 hover:bg-sidebar-hover hover:text-white'}`}>
+                                        <Link 
+                                            to={item.href} 
+                                            className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                                                isActive 
+                                                    ? 'bg-sidebar-hover text-white border-l-4 border-primary' 
+                                                    : 'text-gray-300 hover:bg-sidebar-hover hover:text-white'
+                                            }`}
+                                        >
                                             <item.icon 
                                                 size={18} 
                                                 className={isCriticalAlert ? "text-[#DC2626] animate-pulse" : ""} 
