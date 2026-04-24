@@ -154,8 +154,9 @@ class CatMedicamento(Base):
 
 class CatCIE10(Base):
     __tablename__ = "cat_cie10"
-    id_cie10 = Column(String(10), primary_key=True)
+    codigo_cie = Column(String(10), primary_key=True)
     descripcion = Column(Text, nullable=False)
+    codigo_padre = Column(String(10), ForeignKey("cat_cie10.codigo_cie"))
 
 class Alergia(Base):
     __tablename__ = "alergias"

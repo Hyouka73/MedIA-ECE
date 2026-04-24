@@ -3,13 +3,9 @@ Encuentros Clínicos — Router
 Endpoints REST para gestión de encuentros clínicos
 """
 from uuid import UUID
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from typing import List
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from sqlalchemy import select, text
-from uuid import UUID, uuid4
-from datetime import datetime, timezone
 
 from app.database.session import get_db
 from app.core.deps import get_current_user, require_role
@@ -395,13 +391,37 @@ async def obtener_encuentro(
     current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "ENFERMERIA", "SUPERADMIN")),
     db: AsyncSession = Depends(get_db)
 ):
-    """GET /encuentros/{id} — Detalle completo del encuentro"""
+    """GET /encuentros/{id} — Detalle completo del encuentro
+    
+    Incluye:
+    - Datos básicos del encuentro
+    - Datos del paciente, médico, establecimiento
+    - Lista de signos vitales registrados (paso 1 del stepper)
+    - Lista de notas SOAP (paso 2)
+    - Diagnósticos (paso 3)
+    """
     id_usuario = UUID(current_user["id"])
 
     encuentro = await encuentro_service.obtener_encuentro(
         db=db,
         id_encuentro=id,
         id_usuario=id_usuario
+    )
+
+    # Cargar signos vitales del encuentro
+    signos_list, _, _ = await SignosVitalesService.obtener_signos_encuentro(
+        db=db,
+        id_encuentro=id,
+        skip=0,
+        limit=999  # Sin límite para el detalle
+    )
+
+    # Cargar notas SOAP del encuentro
+    notas_list = await NotaSOAPService.listar_notas_encuentro(
+        db=db,
+        id_encuentro=id,
+        skip=0,
+        limit=999  # Sin límite para el detalle
     )
 
     return EncuentroDetalleOut(
@@ -418,7 +438,320 @@ async def obtener_encuentro(
         paciente_nombre=f"{encuentro.paciente.persona.nombre} {encuentro.paciente.persona.primer_apellido}" if encuentro.paciente and encuentro.paciente.persona else None,
         medico_nombre=f"{encuentro.medico.persona.nombre} {encuentro.medico.persona.primer_apellido}" if encuentro.medico and encuentro.medico.persona else None,
         establecimiento_nombre=encuentro.establecimiento.nombre if encuentro.establecimiento else None,
-        notas=[],  # TODO: implementar
-        signos_vitales=None,  # TODO: implementar
-        diagnosticos=[]  # TODO: implementar
+        notas=[
+            NotaSOAPOut(
+                id_nota=n.id_nota,
+                id_encuentro=n.id_encuentro,
+                tipo_nota=n.tipo_nota,
+                esta_firmada=n.esta_firmada,
+                fecha_creacion=n.fecha_creacion,
+                fecha_firma=n.fecha_firma,
+                firmado_por=n.firmado_por,
+                cedula_profesional=n.cedula_profesional,
+                pdf_url=n.pdf_url,
+                pdf_hash=n.pdf_hash,
+                subjetivo=n.soap_detalle.subjetivo if n.soap_detalle else None,
+                objetivo=n.soap_detalle.objetivo if n.soap_detalle else None,
+                analisis=n.soap_detalle.analisis if n.soap_detalle else None,
+                plan=n.soap_detalle.plan if n.soap_detalle else None
+            )
+            for n in notas_list
+        ],
+        signos_vitales=[
+            SignosVitalesOut(
+                id_signos=s.id_signos,
+                id_encuentro=s.id_encuentro,
+                id_enfermero=s.id_enfermero,
+                presion_sistolica=s.presion_sistolica,
+                presion_diastolica=s.presion_diastolica,
+                temperatura_c=s.temperatura_c,
+                saturacion_oxigeno=s.saturacion_oxigeno,
+                frecuencia_cardiaca=s.frecuencia_cardiaca,
+                frecuencia_respiratoria=s.frecuencia_respiratoria,
+                peso_kg=s.peso_kg,
+                talla_cm=s.talla_cm,
+                fecha_toma=s.fecha_toma
+            )
+            for s in signos_list
+        ],
+        diagnosticos=[]  # TODO: implementar carga de diagnósticos
+    )
+
+
+# ───────────────────────────────────────────────────────
+# 📋 NOTAS SOAP — NOM-151 Firma Digital
+# ───────────────────────────────────────────────────────
+
+@router.post("/{id}/notas", response_model=NotaSOAPOut, status_code=201)
+async def crear_nota_soap(
+    id: UUID,
+    data: NotaSOAPCreateIn,
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db)
+):
+    """POST /encuentros/{id}/notas — Crea nota SOAP en borrador
+    
+    ✅ Crea nota en estado esta_firmada=FALSE
+    ✅ Permite edición hasta que se firme
+    ✅ Requiere encuentro activo
+    
+    📎 Referencia: Doc3 §Módulo 6 — Notas SOAP
+    """
+    id_medico = UUID(current_user["id"])
+    
+    nota = await NotaSOAPService.crear_nota_soap(
+        db=db,
+        id_encuentro=id,
+        id_medico=id_medico,
+        data=data
+    )
+    
+    return NotaSOAPOut(
+        id_nota=nota.id_nota,
+        id_encuentro=nota.id_encuentro,
+        tipo_nota=nota.tipo_nota,
+        esta_firmada=nota.esta_firmada,
+        fecha_creacion=nota.fecha_creacion,
+        fecha_firma=nota.fecha_firma,
+        firmado_por=nota.firmado_por,
+        cedula_profesional=nota.cedula_profesional,
+        pdf_url=nota.pdf_url,
+        pdf_hash=nota.pdf_hash,
+        subjetivo=nota.soap_detalle.subjetivo if nota.soap_detalle else None,
+        objetivo=nota.soap_detalle.objetivo if nota.soap_detalle else None,
+        analisis=nota.soap_detalle.analisis if nota.soap_detalle else None,
+        plan=nota.soap_detalle.plan if nota.soap_detalle else None
+    )
+
+
+@router.get("/{id}/notas", response_model=List[NotaSOAPOut])
+async def listar_notas_encuentro(
+    id: UUID,
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "ENFERMERIA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100)
+):
+    """GET /encuentros/{id}/notas — Lista notas del encuentro
+    
+    ✅ Incluye detalle SOAP y enmiendas
+    ✅ Ordenadas por fecha creación DESC
+    """
+    notas = await NotaSOAPService.listar_notas_encuentro(
+        db=db,
+        id_encuentro=id,
+        skip=skip,
+        limit=limit
+    )
+    
+    return [
+        NotaSOAPOut(
+            id_nota=n.id_nota,
+            id_encuentro=n.id_encuentro,
+            tipo_nota=n.tipo_nota,
+            esta_firmada=n.esta_firmada,
+            fecha_creacion=n.fecha_creacion,
+            fecha_firma=n.fecha_firma,
+            firmado_por=n.firmado_por,
+            cedula_profesional=n.cedula_profesional,
+            pdf_url=n.pdf_url,
+            pdf_hash=n.pdf_hash,
+            subjetivo=n.soap_detalle.subjetivo if n.soap_detalle else None,
+            objetivo=n.soap_detalle.objetivo if n.soap_detalle else None,
+            analisis=n.soap_detalle.analisis if n.soap_detalle else None,
+            plan=n.soap_detalle.plan if n.soap_detalle else None
+        )
+        for n in notas
+    ]
+
+
+@router.get("/notas/{nota_id}", response_model=NotaSOAPOut)
+async def obtener_nota_soap(
+    nota_id: UUID,
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "ENFERMERIA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db)
+):
+    """GET /encuentros/notas/{nota_id} — Detalle completo de nota SOAP
+    
+    ✅ Incluye enmiendas si existen
+    """
+    id_usuario = UUID(current_user["id"])
+    
+    nota = await NotaSOAPService.obtener_nota_soap(
+        db=db,
+        id_nota=nota_id,
+        id_usuario=id_usuario
+    )
+    
+    return NotaSOAPOut(
+        id_nota=nota.id_nota,
+        id_encuentro=nota.id_encuentro,
+        tipo_nota=nota.tipo_nota,
+        esta_firmada=nota.esta_firmada,
+        fecha_creacion=nota.fecha_creacion,
+        fecha_firma=nota.fecha_firma,
+        firmado_por=nota.firmado_por,
+        cedula_profesional=nota.cedula_profesional,
+        pdf_url=nota.pdf_url,
+        pdf_hash=nota.pdf_hash,
+        subjetivo=nota.soap_detalle.subjetivo if nota.soap_detalle else None,
+        objetivo=nota.soap_detalle.objetivo if nota.soap_detalle else None,
+        analisis=nota.soap_detalle.analisis if nota.soap_detalle else None,
+        plan=nota.soap_detalle.plan if nota.soap_detalle else None
+    )
+
+
+@router.patch("/notas/{nota_id}", response_model=NotaSOAPOut)
+async def actualizar_nota_soap(
+    nota_id: UUID,
+    data: NotaSOAPUpdateIn,
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db)
+):
+    """PATCH /encuentros/notas/{nota_id} — Actualiza nota SOAP
+    
+    ⚠️ Solo si esta_firmada=FALSE
+    ⚠️ Si está firmada, usar enmiendas
+    
+    📎 Referencia: Doc3 §Módulo 6 — Edición de notas
+    """
+    id_medico = UUID(current_user["id"])
+    
+    nota = await NotaSOAPService.actualizar_nota_soap(
+        db=db,
+        id_nota=nota_id,
+        id_medico=id_medico,
+        data=data
+    )
+    
+    return NotaSOAPOut(
+        id_nota=nota.id_nota,
+        id_encuentro=nota.id_encuentro,
+        tipo_nota=nota.tipo_nota,
+        esta_firmada=nota.esta_firmada,
+        fecha_creacion=nota.fecha_creacion,
+        fecha_firma=nota.fecha_firma,
+        firmado_por=nota.firmado_por,
+        cedula_profesional=nota.cedula_profesional,
+        pdf_url=nota.pdf_url,
+        pdf_hash=nota.pdf_hash,
+        subjetivo=nota.soap_detalle.subjetivo if nota.soap_detalle else None,
+        objetivo=nota.soap_detalle.objetivo if nota.soap_detalle else None,
+        analisis=nota.soap_detalle.analisis if nota.soap_detalle else None,
+        plan=nota.soap_detalle.plan if nota.soap_detalle else None
+    )
+
+
+@router.patch("/notas/{nota_id}/firmar", response_model=NotaSOAPOut)
+async def firmar_nota_soap(
+    nota_id: UUID,
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db)
+):
+    """PATCH /encuentros/notas/{nota_id}/firmar — Firma digital nota SOAP
+    
+    ✅ Proceso NOM-151:
+    - Genera hash SHA-256 del contenido
+    - Establece esta_firmada=TRUE
+    - Registra firmado_por, fecha_firma, cedula_profesional
+    - Trigger tr_notes_protection la hace inmutable
+    
+    ⚠️ Requiere cédula profesional registrada
+    
+    📎 Referencia: Doc6 §Diagrama 3, Pasos 9–12
+    """
+    id_medico = UUID(current_user["id"])
+    
+    nota = await NotaSOAPService.firmar_nota_soap(
+        db=db,
+        id_nota=nota_id,
+        id_medico=id_medico
+    )
+    
+    return NotaSOAPOut(
+        id_nota=nota.id_nota,
+        id_encuentro=nota.id_encuentro,
+        tipo_nota=nota.tipo_nota,
+        esta_firmada=nota.esta_firmada,
+        fecha_creacion=nota.fecha_creacion,
+        fecha_firma=nota.fecha_firma,
+        firmado_por=nota.firmado_por,
+        cedula_profesional=nota.cedula_profesional,
+        pdf_url=nota.pdf_url,
+        pdf_hash=nota.pdf_hash,
+        subjetivo=nota.soap_detalle.subjetivo if nota.soap_detalle else None,
+        objetivo=nota.soap_detalle.objetivo if nota.soap_detalle else None,
+        analisis=nota.soap_detalle.analisis if nota.soap_detalle else None,
+        plan=nota.soap_detalle.plan if nota.soap_detalle else None
+    )
+
+
+@router.post("/notas/{nota_id}/enmienda", response_model=NotaEnmiendaOut, status_code=201)
+async def crear_enmienda_nota(
+    nota_id: UUID,
+    data: NotaEnmiendaCreateIn,
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db)
+):
+    """POST /encuentros/notas/{nota_id}/enmienda — Crea enmienda post-firma
+    
+    ✅ Para correcciones en notas ya firmadas
+    ✅ Error original permanece visible
+    ✅ Addendum con fecha y médico que corrige
+    
+    📎 Referencia: Doc3 §Módulo 6, Reglas de enmiendas
+    """
+    id_medico = UUID(current_user["id"])
+    
+    enmienda = await NotaSOAPService.crear_enmienda(
+        db=db,
+        id_nota=nota_id,
+        id_medico=id_medico,
+        data=data
+    )
+    
+    return NotaEnmiendaOut(
+        id_enmienda=enmienda.id_enmienda,
+        id_nota=enmienda.id_nota,
+        texto_correccion=enmienda.texto_correccion,
+        id_medico=enmienda.id_medico,
+        fecha_enmienda=enmienda.fecha_enmienda,
+        medico_nombre=enmienda.medico_nombre
+    )
+
+
+# ───────────────────────────────────────────────────────
+# 🔍 CATÁLOGOS MÉDICOS
+# ───────────────────────────────────────────────────────
+
+@router.get("/catalogos/cie10", response_model=CIE10ListOut)
+async def buscar_cie10(
+    q: str = Query(..., min_length=1, max_length=100, description="Término de búsqueda"),
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(20, ge=1, le=50)
+):
+    """GET /encuentros/catalogos/cie10?q={termino} — Busca diagnósticos CIE-10
+    
+    ✅ Búsqueda con ILIKE en código y descripción
+    ✅ Máximo 20 resultados ordenados por relevancia
+    ✅ Cache TTL: 24h recomendado
+    
+    📎 Referencia: Doc5 — Catálogos CIE-10
+    """
+    diagnosticos, total = await CatalogoService.buscar_cie10(
+        db=db,
+        termino=q,
+        limit=limit
+    )
+    
+    return CIE10ListOut(
+        diagnosticos=[
+            {
+                "codigo_cie": d.codigo_cie,
+                "descripcion": d.descripcion
+            }
+            for d in diagnosticos
+        ],
+        total=total
     )
