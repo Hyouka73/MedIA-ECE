@@ -380,4 +380,4 @@ class CatalogoService:
         )
         total = count_result.scalar()
 
-        return diagnosticos, total
+        return diagnosticos, total 
