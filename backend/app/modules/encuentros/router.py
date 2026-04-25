@@ -14,12 +14,10 @@ from datetime import datetime, timezone
 from app.database.session import get_db
 from app.core.deps import get_current_user, require_role
 from app.services.encuentros import encuentro_service
-from app.services.signos_vitales import SignosVitalesService
 from app.services.notas_soap import NotaSOAPService, CatalogoService
 from app.schemas.encuentros import (
     EncuentroCreateIn, EncuentroOut, EncuentroDetalleOut,
     EncuentroCerrarIn, EncuentroPacienteOut,
-    SignosVitalesCreateIn, SignosVitalesOut, SignosVitalesListOut,
     NotaSOAPCreateIn, NotaSOAPUpdateIn, NotaSOAPOut,
     NotaEnmiendaCreateIn, NotaEnmiendaOut, CIE10ListOut
 ) 
@@ -240,61 +238,61 @@ async def cerrar_encuentro(
         raise HTTPException(status_code=500, detail="Error al cerrar")
 
 
-# ── POST /encuentros/{id}/signos-vitales ───────────────────────────────
-@router.post("/{id_encuentro}/signos-vitales", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def registrar_signos_vitales(
-    id_encuentro: UUID,
-    data: dict,
-    current_user: dict = Depends(require_role("ENFERMERO", "MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
-    db: AsyncSession = Depends(get_db)
-):
-    """POST /encuentros/{id}/signos-vitales — Registra signos vitales"""
-    try:
-        res_check = await db.execute(
-            text("SELECT fecha_cierre FROM encuentros_clinicos WHERE id_encuentro = :id"),
-            {"id": str(id_encuentro)}
-        )
-        enc = res_check.fetchone()
-        if not enc or enc[0] is not None:
-            raise HTTPException(status_code=400, detail="Encuentro cerrado o inexistente")
+# # ── POST /encuentros/{id}/signos-vitales ───────────────────────────────
+# @router.post("/{id_encuentro}/signos-vitales", response_model=dict, status_code=status.HTTP_201_CREATED)
+# async def registrar_signos_vitales(
+#     id_encuentro: UUID,
+#     data: dict,
+#     current_user: dict = Depends(require_role("ENFERMERO", "MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
+#     db: AsyncSession = Depends(get_db)
+# ):
+#     """POST /encuentros/{id}/signos-vitales — Registra signos vitales"""
+#     try:
+#         res_check = await db.execute(
+#             text("SELECT fecha_cierre FROM encuentros_clinicos WHERE id_encuentro = :id"),
+#             {"id": str(id_encuentro)}
+#         )
+#         enc = res_check.fetchone()
+#         if not enc or enc[0] is not None:
+#             raise HTTPException(status_code=400, detail="Encuentro cerrado o inexistente")
 
-        id_signos = str(uuid4())
-        await db.execute(
-            text("""
-                INSERT INTO signos_vitales
-                (id_signos, id_encuentro, id_enfermero, peso_kg, talla_cm, temperatura_c,
-                 frecuencia_cardiaca, frecuencia_respiratoria, presion_sistolica, presion_diastolica,
-                 saturacion_oxigeno, fecha_toma)
-                VALUES (:id_sig, :id_enc, :id_enf, :peso, :talla, :temp, :fc, :fr, :ps, :pd, :so2, :fecha)
-            """),
-            {
-                "id_sig": id_signos,
-                "id_enc": str(id_encuentro),
-                "id_enf": current_user["sub"],
-                "peso": data.get("peso_kg"),
-                "talla": data.get("talla_cm"),
-                "temp": data.get("temperatura_c"),
-                "fc": data.get("frecuencia_cardiaca"),
-                "fr": data.get("frecuencia_respiratoria"),
-                "ps": data.get("presion_sistolica"),
-                "pd": data.get("presion_diastolica"),
-                "so2": data.get("saturacion_oxigeno"),
-                "fecha": datetime.now(timezone.utc)
-            }
-        )
-        await db.commit()
+#         id_signos = str(uuid4())
+#         await db.execute(
+#             text("""
+#                 INSERT INTO signos_vitales
+#                 (id_signos, id_encuentro, id_enfermero, peso_kg, talla_cm, temperatura_c,
+#                  frecuencia_cardiaca, frecuencia_respiratoria, presion_sistolica, presion_diastolica,
+#                  saturacion_oxigeno, fecha_toma)
+#                 VALUES (:id_sig, :id_enc, :id_enf, :peso, :talla, :temp, :fc, :fr, :ps, :pd, :so2, :fecha)
+#             """),
+#             {
+#                 "id_sig": id_signos,
+#                 "id_enc": str(id_encuentro),
+#                 "id_enf": current_user["sub"],
+#                 "peso": data.get("peso_kg"),
+#                 "talla": data.get("talla_cm"),
+#                 "temp": data.get("temperatura_c"),
+#                 "fc": data.get("frecuencia_cardiaca"),
+#                 "fr": data.get("frecuencia_respiratoria"),
+#                 "ps": data.get("presion_sistolica"),
+#                 "pd": data.get("presion_diastolica"),
+#                 "so2": data.get("saturacion_oxigeno"),
+#                 "fecha": datetime.now(timezone.utc)
+#             }
+#         )
+#         await db.commit()
 
-        return {
-            "data": {"id_signos": id_signos},
-            "message": "Signos vitales registrados exitosamente"
-        }
+#         return {
+#             "data": {"id_signos": id_signos},
+#             "message": "Signos vitales registrados exitosamente"
+#         }
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        await db.rollback()
-        logger.error(f"Error al registrar signos vitales: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error al registrar signos")
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         await db.rollback()
+#         logger.error(f"Error al registrar signos vitales: {str(e)}")
+#         raise HTTPException(status_code=500, detail="Error al registrar signos")
 
 
 # ── POST /encuentros/{id}/prescripciones ───────────────────────────────
