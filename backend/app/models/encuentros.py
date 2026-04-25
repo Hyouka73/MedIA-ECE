@@ -70,20 +70,44 @@ class NotaSOAP(Base):
     plan = Column(Text)
 
 
-class SignosVitales(Base):
-    __tablename__ = "signos_vitales"
-    id_signos = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+class NotaEnmienda(Base):
+    __tablename__ = "notas_enmienda"
+    id_enmienda = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    id_nota = Column(UUID(as_uuid=True), ForeignKey("notas_medicas.id_nota"))
+    texto_correccion = Column(Text, nullable=False)
+    id_medico = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"))
+    fecha_enmienda = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+
+    nota = relationship("NotaMedica")
+    medico = relationship("User")
+
+
+class DiagnosticoEncuentro(Base):
+    __tablename__ = "diagnosticos_encuentro"
+    id_diagnostico = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     id_encuentro = Column(UUID(as_uuid=True), ForeignKey("encuentros_clinicos.id_encuentro"))
-    id_enfermero = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"))
-    peso_kg = Column(DECIMAL(5, 2))
-    talla_cm = Column(DECIMAL(5, 2))
-    temperatura_c = Column(DECIMAL(4, 2))
-    frecuencia_cardiaca = Column(Integer)
-    frecuencia_respiratoria = Column(Integer)
-    presion_sistolica = Column(Integer)
-    presion_diastolica = Column(Integer)
-    saturacion_oxigeno = Column(DECIMAL(4, 1))
-    fecha_toma = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    codigo_cie = Column(String(10), ForeignKey("cat_cie10.codigo_cie"))
+    tipo = Column(String(20))  # PRESUNTIVO, DEFINITIVO
+    observaciones = Column(Text)
 
     encuentro = relationship("EncuentroClinico")
-    enfermero = relationship("User")
+    cie10 = relationship("CatCIE10")
+
+
+# class SignosVitales(Base):
+#     __tablename__ = "signos_vitales"
+#     id_signos = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+#     id_encuentro = Column(UUID(as_uuid=True), ForeignKey("encuentros_clinicos.id_encuentro"))
+#     id_enfermero = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"))
+#     peso_kg = Column(DECIMAL(5, 2))
+#     talla_cm = Column(DECIMAL(5, 2))
+#     temperatura_c = Column(DECIMAL(4, 2))
+#     frecuencia_cardiaca = Column(Integer)
+#     frecuencia_respiratoria = Column(Integer)
+#     presion_sistolica = Column(Integer)
+#     presion_diastolica = Column(Integer)
+#     saturacion_oxigeno = Column(DECIMAL(4, 1))
+#     fecha_toma = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+
+#     encuentro = relationship("EncuentroClinico")
+#     enfermero = relationship("User")
