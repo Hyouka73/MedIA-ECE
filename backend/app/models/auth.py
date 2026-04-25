@@ -163,8 +163,137 @@ class CatCIE10(Base):
 
 class Alergia(Base):
     __tablename__ = "alergias"
-    id_alergia = Column(BigInteger, primary_key=True, index=True)
+    id_alergia = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     id_paciente = Column(UUID(as_uuid=True), ForeignKey("pacientes.id_paciente"), nullable=False)
-    alergia = Column(String(255), nullable=False) 
-    severidad = Column(String(20), default="INFO")
+    alergia = Column(String(255), nullable=False)
+    severidad = Column(String(20), nullable=False, server_default="LEVE")  # LEVE | MODERADA | CRITICA
+    registrado_por = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), nullable=True)
     fecha_registro = Column(DateTime(timezone=True), server_default=func.now())
+    eliminado_en = Column(DateTime(timezone=True), nullable=True)
+    eliminado_por = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), nullable=True)
+    motivo_baja = Column(String, nullable=True)
+
+    paciente = relationship("Paciente")
+    usuario_registra = relationship("User", foreign_keys=[registrado_por])
+    usuario_elimina = relationship("User", foreign_keys=[eliminado_por])
+
+
+# ── ANTECEDENTES HEREDITARIOS ──────────────────────────────────────────
+
+class AntecedentesHeredofamiliares(Base):
+    __tablename__ = "antecedentes_heredofamiliares"
+    id_ahf = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    id_paciente = Column(UUID(as_uuid=True), ForeignKey("pacientes.id_paciente"), nullable=False)
+    diabetes = Column(Boolean, default=False)
+    hipertension = Column(Boolean, default=False)
+    cardiopatia = Column(Boolean, default=False)
+    neoplasia = Column(Boolean, default=False)
+    detalles = Column(Text, nullable=True)
+    eliminado_en = Column(DateTime(timezone=True), nullable=True)
+    eliminado_por = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), nullable=True)
+
+    paciente = relationship("Paciente")
+    usuario_elimina = relationship("User", foreign_keys=[eliminado_por])
+
+
+# ── ANTECEDENTES PATOLÓGICOS (ENFERMEDADES PREVIAS) ────────────────────
+
+class AntecedentesPatologicos(Base):
+    __tablename__ = "antecedentes_patologicos"
+    id_ap = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    id_paciente = Column(UUID(as_uuid=True), ForeignKey("pacientes.id_paciente"), nullable=False)
+    enfermedad = Column(String(200), nullable=False)
+    fecha_diagnostico = Column(DateTime, nullable=True)
+    tratamiento_actual = Column(Text, nullable=True)
+    eliminado_en = Column(DateTime(timezone=True), nullable=True)
+    eliminado_por = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), nullable=True)
+
+    paciente = relationship("Paciente")
+    usuario_elimina = relationship("User", foreign_keys=[eliminado_por])
+
+
+# ── ANTECEDENTES NO PATOLÓGICOS (DETERMINANTES SOCIALES) ────────────────
+
+class AntecedentesNoPatologicos(Base):
+    __tablename__ = "antecedentes_no_patologicos"
+    id_anp = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    id_paciente = Column(UUID(as_uuid=True), ForeignKey("pacientes.id_paciente"), nullable=False)
+    tabaquismo = Column(Boolean, default=False)
+    alcoholismo = Column(Boolean, default=False)
+    drogas = Column(Boolean, default=False)
+    detalles = Column(Text, nullable=True)
+    eliminado_en = Column(DateTime(timezone=True), nullable=True)
+    eliminado_por = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), nullable=True)
+
+    paciente = relationship("Paciente")
+    usuario_elimina = relationship("User", foreign_keys=[eliminado_por])
+
+
+# ── ANTECEDENTES GINECOOBSTÉTRICOS (SOLO MUJERES) ────────────────────
+
+class AntecedentesGinecoobstetricos(Base):
+    __tablename__ = "antecedentes_ginecoobstetricos"
+    id_ago = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    id_paciente = Column(UUID(as_uuid=True), ForeignKey("pacientes.id_paciente"), nullable=False)
+    menarca = Column(Integer, nullable=True)
+    gestas = Column(Integer, default=0)
+    paras = Column(Integer, default=0)
+    cesareas = Column(Integer, default=0)
+    abortos = Column(Integer, default=0)
+    fecha_ultima_menstruacion = Column(DateTime, nullable=True)
+    eliminado_en = Column(DateTime(timezone=True), nullable=True)
+    eliminado_por = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), nullable=True)
+
+    paciente = relationship("Paciente")
+    usuario_elimina = relationship("User", foreign_keys=[eliminado_por])
+
+
+# ── INMUNIZACIONES (VACUNAS) ──────────────────────────────────────────
+
+class Inmunizacion(Base):
+    __tablename__ = "inmunizaciones"
+    id_inmunizacion = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    id_paciente = Column(UUID(as_uuid=True), ForeignKey("pacientes.id_paciente"), nullable=False)
+    vacuna = Column(String(100), nullable=False)
+    fecha_aplicacion = Column(DateTime, nullable=True)
+    dosis = Column(String(50), nullable=True)
+    eliminado_en = Column(DateTime(timezone=True), nullable=True)
+    eliminado_por = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), nullable=True)
+
+    paciente = relationship("Paciente")
+    usuario_elimina = relationship("User", foreign_keys=[eliminado_por])
+
+
+# ── TUTORES Y REPRESENTANTES LEGALES ──────────────────────────────────
+
+class PacienteTutor(Base):
+    __tablename__ = "pacientes_tutores_representantes"
+    id_tutor = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    id_paciente = Column(UUID(as_uuid=True), ForeignKey("pacientes.id_paciente"), nullable=False)
+    id_persona = Column(UUID(as_uuid=True), ForeignKey("personas.id_persona"), nullable=False)
+    parentesco = Column(String(50), nullable=False)
+    documento_legal_url = Column(String, nullable=True)  # URL en Azure Blob
+    documento_legal_hash = Column(String(255), nullable=True)  # SHA-256 hash
+    eliminado_en = Column(DateTime(timezone=True), nullable=True)
+    eliminado_por = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), nullable=True)
+    motivo_baja = Column(String, nullable=True)
+
+    paciente = relationship("Paciente")
+    persona = relationship("Persona")
+    usuario_elimina = relationship("User", foreign_keys=[eliminado_por])
+
+
+# ── REFERENCIAS MÉDICAS (INTERCONSULTAS) ──────────────────────────────
+
+class Referencia(Base):
+    __tablename__ = "referencias_medicas"
+    id_referencia = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    id_encuentro_origen = Column(UUID(as_uuid=True), ForeignKey("encuentros_clinicos.id_encuentro"), nullable=False)
+    id_establecimiento_destino = Column(UUID(as_uuid=True), ForeignKey("establecimientos.id_establecimiento"), nullable=False)
+    id_especialidad_destino = Column(Integer, ForeignKey("cat_especialidades_medicas.id_especialidad"), nullable=False)
+    estado = Column(String(20), nullable=False, server_default="EMITIDA")  # EMITIDA | ACEPTADA | RECHAZADA | ATENDIDA | CONTRARREFERIDA
+    motivo_referencia = Column(Text, nullable=False)
+    fecha_emision = Column(DateTime(timezone=True), server_default=func.now())
+    fecha_respuesta = Column(DateTime(timezone=True), nullable=True)
+
+    encuentro = relationship("EncuentroClinico")
