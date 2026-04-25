@@ -8,23 +8,25 @@ import { ToastProvider } from './components/ui/Alert'
 
 // Dashboard
 import DashboardPage from './pages/dashboard/DashboardPage'
-import ProfilePage   from './pages/dashboard/ProfilePage'
+import ProfilePage from './pages/dashboard/ProfilePage'
 
-// Admin (Persona 5)
-import AdminDashboardPage         from './pages/admin/AdminDashboardPage'
-import AdminUsuariosPage          from './pages/admin/AdminUsuariosPage'
+// Admin
+import AdminDashboardPage from './pages/admin/AdminDashboardPage'
+import AdminUsuariosPage from './pages/admin/AdminUsuariosPage'
 import AdminEstablecimientosPage from './pages/admin/AdminEstablecimientosPage'
-import AdminEspecialidadesPage   from './pages/admin/AdminEspecialidadesPage'
-import AdminRolesPage            from './pages/admin/AdminRolesPage'
+import AdminEspecialidadesPage from './pages/admin/AdminEspecialidadesPage'
+import AdminRolesPage from './pages/admin/AdminRolesPage'
 
 // Pacientes
-import PacientesListPage from './pages/Pacients/PacientesListPage';
-import ExpedientePage from './pages/Pacients/ExpedientePage';
-import PacienteFichaPage from './pages/Pacients/PacienteFichaPage';
+import PacientesListPage from './pages/pacients/PacientesListPage'
+import ExpedientePage from './pages/pacients/ExpedientePage'
+import PacienteFichaPage from './pages/pacients/PacienteFichaPage'
 
-// Auditoría y Seguridad (Persona 5 - Corregido)
+// Consulta
+import NuevaConsultaPage from './pages/pacients/consulta/NuevaConsultaPage'
+
+// Auditoría
 import AuditoriaPage from './pages/audit/AuditoriaPage'
-
 
 const Unauthorized = () => (
   <div className="p-6 flex items-center justify-center text-[#DC2626] font-bold">
@@ -39,29 +41,30 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/403"   element={<Unauthorized />} />
+            <Route path="/403" element={<Unauthorized />} />
 
             <Route path="/" element={<ProtectedRoute />}>
               <Route element={<MainLayout />}>
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardPage />} />
-                <Route path="perfil"    element={<ProfilePage />} />
-                
-                {/* ── Clínica ── */}
+                <Route path="perfil" element={<ProfilePage />} />
+
+                {/* Clínica */}
                 <Route path="pacientes" element={<PacientesListPage />} />
                 <Route path="pacientes/nuevo" element={<PacienteFichaPage />} />
                 <Route path="pacientes/:id/editar" element={<PacienteFichaPage />} />
                 <Route path="expediente/:id" element={<ExpedientePage />} />
+                <Route path="consulta/nueva" element={<NuevaConsultaPage />} />
 
-                {/* ── Admin (Módulos Persona 5) ── */}
-                <Route path="admin"                 element={<AdminDashboardPage />} />
-                <Route path="admin/usuarios"         element={<AdminUsuariosPage />} />
+                {/* Admin */}
+                <Route path="admin" element={<AdminDashboardPage />} />
+                <Route path="admin/usuarios" element={<AdminUsuariosPage />} />
                 <Route path="admin/establecimientos" element={<AdminEstablecimientosPage />} />
-                <Route path="admin/especialidades"   element={<AdminEspecialidadesPage />} />
-                <Route path="admin/roles"            element={<AdminRolesPage />} />
+                <Route path="admin/especialidades" element={<AdminEspecialidadesPage />} />
+                <Route path="admin/roles" element={<AdminRolesPage />} />
 
-                {/* ── Auditoría y Seguridad (Módulos Persona 5) ── */}
-                <Route path="audit/logs"       element={<AuditoriaPage />} />
+                {/* Auditoría */}
+                <Route path="audit/logs" element={<AuditoriaPage />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Route>
             </Route>
