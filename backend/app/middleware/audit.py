@@ -42,10 +42,19 @@ class AuditMiddleware(BaseHTTPMiddleware):
             return "ACCESO_DENEGADO", "ALTO"
         if status == 401:
             return "NO_AUTENTICADO", "MEDIO"
-        # Operación normal
-        if method in ("POST", "PUT", "PATCH", "DELETE"):
-            return "ESCRITURA", "BAJO"
-        return "LECTURA", "BAJO"
+        # Operaciones de encuentros clínicos (Regla 4)
+        if "/encuentros" in path:
+            if method == "POST" and status == 201:
+                return "APERTURA_ENCUENTRO", "MEDIO"
+            if method == "PATCH" and "/cerrar" in path and status == 200:
+                return "CIERRE_ENCUENTRO", "MEDIO"
+            if method == "GET":
+                return "LECTURA_ENCUENTROS", "BAJO"
+        # Sanitización bloqueó algo
+        if status == 400 and method == "GET":
+            return "INTENTO_SQLI", "CRITICO"
+        
+        return "ACCESO_GENERAL", "BAJO"
 
     async def dispatch(self, request: Request, call_next):
         if request.url.path in self.EXCLUDED_PATHS or request.url.path.startswith("/static"):

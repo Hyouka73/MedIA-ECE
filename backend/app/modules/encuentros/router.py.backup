@@ -1,0 +1,757 @@
+"""
+Encuentros Clínicos — Router
+Endpoints REST para gestión de encuentros clínicos
+"""
+from uuid import UUID
+from typing import List
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.database.session import get_db
+from app.core.deps import get_current_user, require_role
+from app.services.encuentros import encuentro_service
+from app.services.signos_vitales import SignosVitalesService
+from app.services.notas_soap import NotaSOAPService, CatalogoService
+from app.schemas.encuentros import (
+    EncuentroCreateIn, EncuentroOut, EncuentroDetalleOut,
+    EncuentroCerrarIn, EncuentroPacienteOut,
+    SignosVitalesCreateIn, SignosVitalesOut, SignosVitalesListOut,
+    NotaSOAPCreateIn, NotaSOAPUpdateIn, NotaSOAPOut,
+    NotaEnmiendaCreateIn, NotaEnmiendaOut, CIE10ListOut
+) 
+import logging
+from pydantic import BaseModel 
+
+from app.services.encuentros import encuentro_service
+
+from app.schemas.encuentros import (
+    EncuentroCreateIn, EncuentroOut, EncuentroDetalleOut,
+    EncuentroCerrarIn, EncuentroPacienteOut
+) 
+
+# logger = logging.getLogger(__name__)
+
+# --- IMPORTACIONES DE MODELOS CENTRALIZADOS (CORREGIDAS) ---
+from app.models.auth import CatMedicamento, Alergia, AuditoriaAcceso, CatCIE10
+
+logger = logging.getLogger(__name__)
+router = APIRouter()
+
+# ── GET /encuentros ────────────────────────────────────────────────────
+@router.get("", response_model=dict)
+async def list_encuentros(
+    current_user: dict = Depends(get_current_user),
+    id_paciente: Optional[UUID] = Query(None),  
+    page: int = Query(1, ge=1),
+    limit: int = Query(10, ge=1, le=100),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    GET /encuentros — Lista encuentros clínicos
+    """
+    try:
+        offset = (page - 1) * limit
+        
+        # Verificación de acceso (solo si se filtra por paciente)
+        if id_paciente:
+            try:
+                from app.services.acceso import check_regla_1
+                tiene_acceso = await check_regla_1(id_paciente, UUID(current_user["sub"]), db)
+                if not tiene_acceso:
+                    logger.warning(f"Acceso denegado en verificación para {current_user['sub']}")
+            except ImportError:
+                logger.warning("Servicio de acceso no disponible")
+        
+        # ✅ Query corregida: SIN id_diagnostico ni JOIN a cat_cie10
+        query = """
+            SELECT 
+                e.id_encuentro, 
+                e.id_paciente, 
+                e.id_medico, 
+                e.id_establecimiento, 
+                e.id_especialidad, 
+                e.fecha_inicio, 
+                e.fecha_cierre, 
+                e.motivo_consulta
+            FROM encuentros_clinicos e
+            WHERE 1=1
+        """
+        
+        count_query = """
+            SELECT COUNT(*) 
+            FROM encuentros_clinicos e
+            WHERE 1=1
+        """
+        
+        params = {}
+        
+        if id_paciente:
+            query += " AND e.id_paciente = :id_paciente"
+            count_query += " AND e.id_paciente = :id_paciente"
+            params["id_paciente"] = str(id_paciente)
+        else:
+            query += " AND e.id_medico = :id_medico"
+            count_query += " AND e.id_medico = :id_medico"
+            params["id_medico"] = current_user["sub"]
+        
+        # Ejecutar conteo
+        result_count = await db.execute(text(count_query), params)
+        total = result_count.scalar() or 0
+        total_pages = (total + limit - 1) // limit if total else 1
+        
+        # Paginación y ordenamiento
+        query_paged = query + f" ORDER BY e.fecha_inicio DESC LIMIT {limit} OFFSET {offset}"
+        result = await db.execute(text(query_paged), params)
+        encuentros = result.fetchall()
+        
+        # Construir items
+        items = [
+            {
+                "id_encuentro": str(row[0]),
+                "id_paciente": str(row[1]) if row[1] else None,
+                "id_medico": str(row[2]) if row[2] else None,
+                "id_establecimiento": str(row[3]) if row[3] else None,
+                "id_especialidad": row[4],
+                "fecha_inicio": row[5].isoformat() if row[5] else None,
+                "fecha_cierre": row[6].isoformat() if row[6] else None,
+                "motivo_consulta": row[7],
+                # ✅ Por ahora, diagnóstico se deja como None
+                "diagnostico": None
+            }
+            for row in encuentros
+        ]
+        
+        return {
+            "data": {
+                "items": items,
+                "pages": total_pages,
+                "total": total,
+                "page": page,
+                "limit": limit
+            },
+            "message": "Lista de encuentros obtenida exitosamente"
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error al obtener encuentros: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error interno al obtener encuentros")
+    
+# ── POST /encuentros (CON DIAGNÓSTICO CIE-10) ──────────────────────────
+@router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def create_encuentro(
+    data: dict,
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    POST /encuentros — Crea un encuentro validando el catálogo CIE-10
+    """
+    try:
+        id_paciente = data.get("id_paciente")
+        id_establecimiento = data.get("id_establecimiento")
+        id_especialidad = data.get("id_especialidad")
+        id_diagnostico = data.get("id_diagnostico") # El código (ej: E11.9)
+        motivo_consulta = data.get("motivo_consulta", "").strip()
+        
+        if not id_paciente or not id_diagnostico or not motivo_consulta:
+            raise HTTPException(status_code=422, detail="Paciente, Diagnóstico y Motivo son requeridos")
+        
+        # Validar existencia del diagnóstico en catálogo centralizado
+        stmt_cie = select(CatCIE10).where(CatCIE10.id_cie10 == id_diagnostico)
+        res_cie = await db.execute(stmt_cie)
+        if not res_cie.scalar_one_or_none():
+            raise HTTPException(status_code=400, detail=f"Código CIE-10 '{id_diagnostico}' no válido")
+
+        id_encuentro = str(uuid4())
+        query_insert = text("""
+            INSERT INTO encuentros_clinicos 
+            (id_encuentro, id_paciente, id_medico, id_establecimiento, id_especialidad, id_diagnostico, fecha_inicio, motivo_consulta)
+            VALUES (:id, :pac, :med, :est, :esp, :diag, :fecha, :mot)
+        """)
+        
+        await db.execute(query_insert, {
+            "id": id_encuentro,
+            "pac": str(id_paciente),
+            "med": current_user["sub"],
+            "est": str(id_establecimiento),
+            "esp": id_especialidad,
+            "diag": id_diagnostico,
+            "fecha": datetime.now(timezone.utc),
+            "mot": motivo_consulta
+        })
+        
+        await db.commit()
+        return {
+            "data": {"id_encuentro": id_encuentro, "fecha_inicio": datetime.now(timezone.utc).isoformat()},
+            "message": "Encuentro clínico creado exitosamente"
+        }
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Error al crear encuentro: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error interno al crear encuentro")
+
+
+# ── PATCH /encuentros/{id}/cerrar ──────────────────────────────────────
+@router.patch("/{id_encuentro}/cerrar", response_model=dict)
+async def cerrar_encuentro(
+    id_encuentro: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    PATCH /encuentros/{id}/cerrar — Cierre irreversible por el autor
+    """
+    try:
+        query_encounter = text("SELECT id_medico, fecha_cierre FROM encuentros_clinicos WHERE id_encuentro = :id")
+        result = await db.execute(query_encounter, {"id": str(id_encuentro)})
+        encuentro = result.fetchone()
+        
+        if not encuentro: raise HTTPException(status_code=404, detail="No encontrado")
+        if encuentro[0] != current_user["sub"]: raise HTTPException(status_code=403, detail="No autorizado")
+        if encuentro[1] is not None: raise HTTPException(status_code=400, detail="Ya está cerrado")
+        
+        await db.execute(text("UPDATE encuentros_clinicos SET fecha_cierre = :fecha WHERE id_encuentro = :id"), 
+                        {"id": str(id_encuentro), "fecha": datetime.now(timezone.utc)})
+        await db.commit()
+        return {"message": "Encuentro clínico cerrado exitosamente"}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="Error al cerrar")
+
+
+# ── POST /encuentros/{id}/signos-vitales ───────────────────────────────
+@router.post("/{id_encuentro}/signos-vitales", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def registrar_signos_vitales(
+    id_encuentro: UUID,
+    data: dict,
+    current_user: dict = Depends(require_role("ENFERMERO", "MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db)
+):
+    try:
+        query_enc_check = text("SELECT fecha_cierre FROM encuentros_clinicos WHERE id_encuentro = :id")
+        res_check = await db.execute(query_enc_check, {"id": str(id_encuentro)})
+        enc = res_check.fetchone()
+        if not enc or enc[0] is not None: raise HTTPException(status_code=400, detail="Encuentro cerrado o inexistente")
+
+        id_signos = str(uuid4())
+        query_insert = text("""
+            INSERT INTO signos_vitales 
+            (id_signos, id_encuentro, id_enfermero, peso_kg, talla_cm, temperatura_c, 
+             frecuencia_cardiaca, frecuencia_respiratoria, presion_sistolica, presion_diastolica, 
+             saturacion_oxigeno, fecha_toma)
+            VALUES (:id_sig, :id_enc, :id_enf, :peso, :talla, :temp, :fc, :fr, :ps, :pd, :so2, :fecha)
+        """)
+        
+        await db.execute(query_insert, {
+            "id_sig": id_signos, "id_enc": str(id_encuentro), "id_enf": current_user["sub"],
+            "peso": data.get("peso_kg"), "talla": data.get("talla_cm"), "temp": data.get("temperatura_c"),
+            "fc": data.get("frecuencia_cardiaca"), "fr": data.get("frecuencia_respiratoria"),
+            "ps": data.get("presion_sistolica"), "pd": data.get("presion_diastolica"),
+            "so2": data.get("saturacion_oxigeno"), "fecha": datetime.now(timezone.utc)
+        })
+        await db.commit()
+        return {"message": "Signos registrados exitosamente"}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="Error al registrar signos")
+
+
+# ── POST /encuentros/{id}/prescripciones ───────────────────────────────
+# @router.post("/{id_encuentro}/prescripciones", status_code=status.HTTP_201_CREATED)
+# async def crear_prescripcion(
+#     id_encuentro: UUID, 
+#     data: PrescripcionCreate, 
+#     db: AsyncSession = Depends(get_db),
+#     current_user: dict = Depends(get_current_user)
+# ):
+#     """
+#     POST /encuentros/{id}/prescripciones con validación de alergias y auditoría
+#     """
+#     # 1. Buscar medicamento
+#     stmt_med = select(CatMedicamento).where(CatMedicamento.codigo_medicamento_ssa == data.id_medicamento)
+#     res_med = await db.execute(stmt_med)
+#     medicamento = res_med.scalar_one_or_none()
+    
+#     if not medicamento:
+#         raise HTTPException(status_code=404, detail="Medicamento no encontrado en catálogo")
+
+#     # 2. VALIDACIÓN DE ALERGIAS REAL (Usando Alergia del modelo centralizado)
+#     stmt_ale = select(Alergia).where(
+#         Alergia.id_paciente == data.id_paciente,
+#         Alergia.alergia.ilike(f"%{medicamento.nombre_generico}%")
+#     )
+#     res_ale = await db.execute(stmt_ale)
+#     alergias = res_ale.scalars().all()
+
+#     for ale in alergias:
+#         if ale.severidad == "CRITICA" and not data.confirmar_alergia:
+#             try:
+#                 # AUDITORÍA FORENSE USANDO MODELO CENTRALIZADO
+#                 stmt_audit = insert(AuditoriaAcceso).values(
+#                     id_usuario=current_user["sub"], 
+#                     direccion_ip="127.0.0.1",
+#                     modulo_funcion="CLINICO_PRESCIPCION",
+#                     tipo_evento="INTENTO_RIESGO_ALERGIA",
+#                     resultado="DENEGADO",
+#                     nivel_severidad="CRITICA",
+#                     detalles={
+#                         "alerta": "Alergia bloqueada",
+#                         "medicamento": medicamento.nombre_generico,
+#                         "paciente_id": str(data.id_paciente)
+#                     }
+#                 )
+#                 await db.execute(stmt_audit)
+#                 await db.commit()
+#             except Exception as e:
+#                 logger.error(f"Error auditoria: {str(e)}")
+#                 await db.rollback()
+
+#             raise HTTPException(
+#                 status_code=409,
+#                 detail={"codigo": "ALERTA_ALERGIA", "mensaje": f"BLOQUEO: Alérgico a {ale.alergia}"}
+#             )
+
+#     return {"status": "success", "message": "Prescripción validada correctamente"}
+
+
+#---------------------------------------------------------------------------------------
+# ------------------------- Por si sale mal, lo pongo aqui -----------------------------
+#---------------------------------------------------------------------------------------
+
+@router.post("/", response_model=EncuentroOut, status_code=201)
+async def crear_encuentro(
+    data: EncuentroCreateIn,
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db)
+):
+    """POST /encuentros — Abre un encuentro clínico para un paciente"""
+    id_medico = UUID(current_user["id"])
+    id_establecimiento = UUID(current_user.get("establecimiento", "CSSSA023999"))  # TODO: obtener del usuario
+
+    encuentro = await encuentro_service.crear_encuentro(
+        db=db,
+        data=data,
+        id_medico=id_medico,
+        id_establecimiento=id_establecimiento
+    )
+
+    return EncuentroOut(
+        id_encuentro=encuentro.id_encuentro,
+        id_paciente=encuentro.id_paciente,
+        id_medico=encuentro.id_medico,
+        id_establecimiento=encuentro.id_establecimiento,
+        id_especialidad=encuentro.id_especialidad,
+        fecha_inicio=encuentro.fecha_inicio,
+        fecha_cierre=encuentro.fecha_cierre,
+        motivo_consulta=encuentro.motivo_consulta,
+        tipo_consulta=encuentro.tipo_consulta
+    )
+@router.get("/", response_model=List[EncuentroOut])
+async def listar_encuentros_activos(
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "ENFERMERIA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100)
+):
+    """GET /encuentros — Lista encuentros activos del establecimiento"""
+    id_establecimiento = UUID(current_user.get("establecimiento", "CSSSA023999"))  # TODO: obtener del usuario
+
+    encuentros = await encuentro_service.listar_encuentros_activos(
+        db=db,
+        id_establecimiento=id_establecimiento,
+        skip=skip,
+        limit=limit
+    )
+
+    return [
+        EncuentroOut(
+            id_encuentro=e.id_encuentro,
+            id_paciente=e.id_paciente,
+            id_medico=e.id_medico,
+            id_establecimiento=e.id_establecimiento,
+            id_especialidad=e.id_especialidad,
+            fecha_inicio=e.fecha_inicio,
+            fecha_cierre=e.fecha_cierre,
+            motivo_consulta=e.motivo_consulta,
+            tipo_consulta=e.tipo_consulta,
+            paciente_numero_expediente=e.paciente.numero_expediente if e.paciente else None,
+            paciente_nombre=f"{e.paciente.persona.nombre} {e.paciente.persona.primer_apellido}" if e.paciente and e.paciente.persona else None,
+            medico_nombre=f"{e.medico.persona.nombre} {e.medico.persona.primer_apellido}" if e.medico and e.medico.persona else None,
+            establecimiento_nombre=e.establecimiento.nombre if e.establecimiento else None
+        )
+        for e in encuentros
+    ]
+
+
+@router.get("/{id}", response_model=EncuentroDetalleOut)
+async def obtener_encuentro(
+    id: UUID,
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "ENFERMERIA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db)
+):
+    """GET /encuentros/{id} — Detalle completo del encuentro
+    
+    Incluye:
+    - Datos básicos del encuentro
+    - Datos del paciente, médico, establecimiento
+    - Lista de signos vitales registrados (paso 1 del stepper)
+    - Lista de notas SOAP (paso 2)
+    - Diagnósticos (paso 3)
+    """
+    id_usuario = UUID(current_user["id"])
+
+    encuentro = await encuentro_service.obtener_encuentro(
+        db=db,
+        id_encuentro=id,
+        id_usuario=id_usuario
+    )
+
+    # Cargar signos vitales del encuentro
+    signos_list, _, _ = await SignosVitalesService.obtener_signos_encuentro(
+        db=db,
+        id_encuentro=id,
+        skip=0,
+        limit=999  # Sin límite para el detalle
+    )
+
+    # Cargar notas SOAP del encuentro
+    notas_list = await NotaSOAPService.listar_notas_encuentro(
+        db=db,
+        id_encuentro=id,
+        skip=0,
+        limit=999  # Sin límite para el detalle
+    )
+
+    return EncuentroDetalleOut(
+        id_encuentro=encuentro.id_encuentro,
+        id_paciente=encuentro.id_paciente,
+        id_medico=encuentro.id_medico,
+        id_establecimiento=encuentro.id_establecimiento,
+        id_especialidad=encuentro.id_especialidad,
+        fecha_inicio=encuentro.fecha_inicio,
+        fecha_cierre=encuentro.fecha_cierre,
+        motivo_consulta=encuentro.motivo_consulta,
+        tipo_consulta=encuentro.tipo_consulta,
+        paciente_numero_expediente=encuentro.paciente.numero_expediente if encuentro.paciente else None,
+        paciente_nombre=f"{encuentro.paciente.persona.nombre} {encuentro.paciente.persona.primer_apellido}" if encuentro.paciente and encuentro.paciente.persona else None,
+        medico_nombre=f"{encuentro.medico.persona.nombre} {encuentro.medico.persona.primer_apellido}" if encuentro.medico and encuentro.medico.persona else None,
+        establecimiento_nombre=encuentro.establecimiento.nombre if encuentro.establecimiento else None,
+        notas=[
+            NotaSOAPOut(
+                id_nota=n.id_nota,
+                id_encuentro=n.id_encuentro,
+                tipo_nota=n.tipo_nota,
+                esta_firmada=n.esta_firmada,
+                fecha_creacion=n.fecha_creacion,
+                fecha_firma=n.fecha_firma,
+                firmado_por=n.firmado_por,
+                cedula_profesional=n.cedula_profesional,
+                pdf_url=n.pdf_url,
+                pdf_hash=n.pdf_hash,
+                subjetivo=n.soap_detalle.subjetivo if n.soap_detalle else None,
+                objetivo=n.soap_detalle.objetivo if n.soap_detalle else None,
+                analisis=n.soap_detalle.analisis if n.soap_detalle else None,
+                plan=n.soap_detalle.plan if n.soap_detalle else None
+            )
+            for n in notas_list
+        ],
+        signos_vitales=[
+            SignosVitalesOut(
+                id_signos=s.id_signos,
+                id_encuentro=s.id_encuentro,
+                id_enfermero=s.id_enfermero,
+                presion_sistolica=s.presion_sistolica,
+                presion_diastolica=s.presion_diastolica,
+                temperatura_c=s.temperatura_c,
+                saturacion_oxigeno=s.saturacion_oxigeno,
+                frecuencia_cardiaca=s.frecuencia_cardiaca,
+                frecuencia_respiratoria=s.frecuencia_respiratoria,
+                peso_kg=s.peso_kg,
+                talla_cm=s.talla_cm,
+                fecha_toma=s.fecha_toma
+            )
+            for s in signos_list
+        ],
+        diagnosticos=[]  # TODO: implementar carga de diagnósticos
+    )
+
+
+# ───────────────────────────────────────────────────────
+# 📋 NOTAS SOAP — NOM-151 Firma Digital
+# ───────────────────────────────────────────────────────
+
+@router.post("/{id}/notas", response_model=NotaSOAPOut, status_code=201)
+async def crear_nota_soap(
+    id: UUID,
+    data: NotaSOAPCreateIn,
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db)
+):
+    """POST /encuentros/{id}/notas — Crea nota SOAP en borrador
+    
+    ✅ Crea nota en estado esta_firmada=FALSE
+    ✅ Permite edición hasta que se firme
+    ✅ Requiere encuentro activo
+    
+    📎 Referencia: Doc3 §Módulo 6 — Notas SOAP
+    """
+    id_medico = UUID(current_user["id"])
+    
+    nota = await NotaSOAPService.crear_nota_soap(
+        db=db,
+        id_encuentro=id,
+        id_medico=id_medico,
+        data=data
+    )
+    
+    return NotaSOAPOut(
+        id_nota=nota.id_nota,
+        id_encuentro=nota.id_encuentro,
+        tipo_nota=nota.tipo_nota,
+        esta_firmada=nota.esta_firmada,
+        fecha_creacion=nota.fecha_creacion,
+        fecha_firma=nota.fecha_firma,
+        firmado_por=nota.firmado_por,
+        cedula_profesional=nota.cedula_profesional,
+        pdf_url=nota.pdf_url,
+        pdf_hash=nota.pdf_hash,
+        subjetivo=nota.soap_detalle.subjetivo if nota.soap_detalle else None,
+        objetivo=nota.soap_detalle.objetivo if nota.soap_detalle else None,
+        analisis=nota.soap_detalle.analisis if nota.soap_detalle else None,
+        plan=nota.soap_detalle.plan if nota.soap_detalle else None
+    )
+
+
+@router.get("/{id}/notas", response_model=List[NotaSOAPOut])
+async def listar_notas_encuentro(
+    id: UUID,
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "ENFERMERIA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100)
+):
+    """GET /encuentros/{id}/notas — Lista notas del encuentro
+    
+    ✅ Incluye detalle SOAP y enmiendas
+    ✅ Ordenadas por fecha creación DESC
+    """
+    notas = await NotaSOAPService.listar_notas_encuentro(
+        db=db,
+        id_encuentro=id,
+        skip=skip,
+        limit=limit
+    )
+    
+    return [
+        NotaSOAPOut(
+            id_nota=n.id_nota,
+            id_encuentro=n.id_encuentro,
+            tipo_nota=n.tipo_nota,
+            esta_firmada=n.esta_firmada,
+            fecha_creacion=n.fecha_creacion,
+            fecha_firma=n.fecha_firma,
+            firmado_por=n.firmado_por,
+            cedula_profesional=n.cedula_profesional,
+            pdf_url=n.pdf_url,
+            pdf_hash=n.pdf_hash,
+            subjetivo=n.soap_detalle.subjetivo if n.soap_detalle else None,
+            objetivo=n.soap_detalle.objetivo if n.soap_detalle else None,
+            analisis=n.soap_detalle.analisis if n.soap_detalle else None,
+            plan=n.soap_detalle.plan if n.soap_detalle else None
+        )
+        for n in notas
+    ]
+
+
+@router.get("/notas/{nota_id}", response_model=NotaSOAPOut)
+async def obtener_nota_soap(
+    nota_id: UUID,
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "ENFERMERIA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db)
+):
+    """GET /encuentros/notas/{nota_id} — Detalle completo de nota SOAP
+    
+    ✅ Incluye enmiendas si existen
+    """
+    id_usuario = UUID(current_user["id"])
+    
+    nota = await NotaSOAPService.obtener_nota_soap(
+        db=db,
+        id_nota=nota_id,
+        id_usuario=id_usuario
+    )
+    
+    return NotaSOAPOut(
+        id_nota=nota.id_nota,
+        id_encuentro=nota.id_encuentro,
+        tipo_nota=nota.tipo_nota,
+        esta_firmada=nota.esta_firmada,
+        fecha_creacion=nota.fecha_creacion,
+        fecha_firma=nota.fecha_firma,
+        firmado_por=nota.firmado_por,
+        cedula_profesional=nota.cedula_profesional,
+        pdf_url=nota.pdf_url,
+        pdf_hash=nota.pdf_hash,
+        subjetivo=nota.soap_detalle.subjetivo if nota.soap_detalle else None,
+        objetivo=nota.soap_detalle.objetivo if nota.soap_detalle else None,
+        analisis=nota.soap_detalle.analisis if nota.soap_detalle else None,
+        plan=nota.soap_detalle.plan if nota.soap_detalle else None
+    )
+
+
+@router.patch("/notas/{nota_id}", response_model=NotaSOAPOut)
+async def actualizar_nota_soap(
+    nota_id: UUID,
+    data: NotaSOAPUpdateIn,
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db)
+):
+    """PATCH /encuentros/notas/{nota_id} — Actualiza nota SOAP
+    
+    ⚠️ Solo si esta_firmada=FALSE
+    ⚠️ Si está firmada, usar enmiendas
+    
+    📎 Referencia: Doc3 §Módulo 6 — Edición de notas
+    """
+    id_medico = UUID(current_user["id"])
+    
+    nota = await NotaSOAPService.actualizar_nota_soap(
+        db=db,
+        id_nota=nota_id,
+        id_medico=id_medico,
+        data=data
+    )
+    
+    return NotaSOAPOut(
+        id_nota=nota.id_nota,
+        id_encuentro=nota.id_encuentro,
+        tipo_nota=nota.tipo_nota,
+        esta_firmada=nota.esta_firmada,
+        fecha_creacion=nota.fecha_creacion,
+        fecha_firma=nota.fecha_firma,
+        firmado_por=nota.firmado_por,
+        cedula_profesional=nota.cedula_profesional,
+        pdf_url=nota.pdf_url,
+        pdf_hash=nota.pdf_hash,
+        subjetivo=nota.soap_detalle.subjetivo if nota.soap_detalle else None,
+        objetivo=nota.soap_detalle.objetivo if nota.soap_detalle else None,
+        analisis=nota.soap_detalle.analisis if nota.soap_detalle else None,
+        plan=nota.soap_detalle.plan if nota.soap_detalle else None
+    )
+
+
+@router.patch("/notas/{nota_id}/firmar", response_model=NotaSOAPOut)
+async def firmar_nota_soap(
+    nota_id: UUID,
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db)
+):
+    """PATCH /encuentros/notas/{nota_id}/firmar — Firma digital nota SOAP
+    
+    ✅ Proceso NOM-151:
+    - Genera hash SHA-256 del contenido
+    - Establece esta_firmada=TRUE
+    - Registra firmado_por, fecha_firma, cedula_profesional
+    - Trigger tr_notes_protection la hace inmutable
+    
+    ⚠️ Requiere cédula profesional registrada
+    
+    📎 Referencia: Doc6 §Diagrama 3, Pasos 9–12
+    """
+    id_medico = UUID(current_user["id"])
+    
+    nota = await NotaSOAPService.firmar_nota_soap(
+        db=db,
+        id_nota=nota_id,
+        id_medico=id_medico
+    )
+    
+    return NotaSOAPOut(
+        id_nota=nota.id_nota,
+        id_encuentro=nota.id_encuentro,
+        tipo_nota=nota.tipo_nota,
+        esta_firmada=nota.esta_firmada,
+        fecha_creacion=nota.fecha_creacion,
+        fecha_firma=nota.fecha_firma,
+        firmado_por=nota.firmado_por,
+        cedula_profesional=nota.cedula_profesional,
+        pdf_url=nota.pdf_url,
+        pdf_hash=nota.pdf_hash,
+        subjetivo=nota.soap_detalle.subjetivo if nota.soap_detalle else None,
+        objetivo=nota.soap_detalle.objetivo if nota.soap_detalle else None,
+        analisis=nota.soap_detalle.analisis if nota.soap_detalle else None,
+        plan=nota.soap_detalle.plan if nota.soap_detalle else None
+    )
+
+
+@router.post("/notas/{nota_id}/enmienda", response_model=NotaEnmiendaOut, status_code=201)
+async def crear_enmienda_nota(
+    nota_id: UUID,
+    data: NotaEnmiendaCreateIn,
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db)
+):
+    """POST /encuentros/notas/{nota_id}/enmienda — Crea enmienda post-firma
+    
+    ✅ Para correcciones en notas ya firmadas
+    ✅ Error original permanece visible
+    ✅ Addendum con fecha y médico que corrige
+    
+    📎 Referencia: Doc3 §Módulo 6, Reglas de enmiendas
+    """
+    id_medico = UUID(current_user["id"])
+    
+    enmienda = await NotaSOAPService.crear_enmienda(
+        db=db,
+        id_nota=nota_id,
+        id_medico=id_medico,
+        data=data
+    )
+    
+    return NotaEnmiendaOut(
+        id_enmienda=enmienda.id_enmienda,
+        id_nota=enmienda.id_nota,
+        texto_correccion=enmienda.texto_correccion,
+        id_medico=enmienda.id_medico,
+        fecha_enmienda=enmienda.fecha_enmienda,
+        medico_nombre=enmienda.medico_nombre
+    )
+
+
+# ───────────────────────────────────────────────────────
+# 🔍 CATÁLOGOS MÉDICOS
+# ───────────────────────────────────────────────────────
+
+@router.get("/catalogos/cie10", response_model=CIE10ListOut)
+async def buscar_cie10(
+    q: str = Query(..., min_length=1, max_length=100, description="Término de búsqueda"),
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    limit: int = Query(20, ge=1, le=50)
+):
+    """GET /encuentros/catalogos/cie10?q={termino} — Busca diagnósticos CIE-10
+    
+    ✅ Búsqueda con ILIKE en código y descripción
+    ✅ Máximo 20 resultados ordenados por relevancia
+    ✅ Cache TTL: 24h recomendado
+    
+    📎 Referencia: Doc5 — Catálogos CIE-10
+    """
+    diagnosticos, total = await CatalogoService.buscar_cie10(
+        db=db,
+        termino=q,
+        limit=limit
+    )
+    
+    return CIE10ListOut(
+        diagnosticos=[
+            {
+                "codigo_cie": d.codigo_cie,
+                "descripcion": d.descripcion
+            }
+            for d in diagnosticos
+        ],
+        total=total
+    )

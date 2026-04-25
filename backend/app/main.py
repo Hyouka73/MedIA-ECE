@@ -21,6 +21,7 @@ from app.modules.catalogos.router import router as catalogos_router
 from app.modules.encuentros.router import router as encuentros_router
 from app.modules.admin.router import router as admin_router
 from app.modules.auditoria.router import router as auditoria_router
+from app.modules.signosvitales.router import router as signos_router
 
 import os
 
@@ -60,8 +61,10 @@ app.include_router(pacientes_router,  prefix="/api/pacientes",  tags=["Pacientes
 app.include_router(expediente_router, prefix="/api/expediente", tags=["Expediente"])
 app.include_router(catalogos_router,  prefix="/api/catalogos",  tags=["Catálogos"])
 app.include_router(encuentros_router, prefix="/api/encuentros", tags=["Encuentros"])
+app.include_router(signos_router,     prefix="/api/signos-vitales", tags=["Signos Vitales"]) #signos vitales xd
 app.include_router(admin_router,       prefix="/api/admin",       tags=["Administración"])
 app.include_router(auditoria_router,   prefix="/api/auditoria",   tags=["Auditoría"])
+
 
 # ── Persona 5: Endpoint de Seguridad Avanzada (Logs Forenses) ───────────
 @app.get("/api/seguridad/logs-forenses", tags=["Auditoría"])

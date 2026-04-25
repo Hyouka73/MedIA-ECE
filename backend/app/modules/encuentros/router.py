@@ -2,16 +2,27 @@
 Encuentros Clínicos — Router
 Endpoints REST para gestión de encuentros clínicos
 """
-
+from uuid import UUID
+from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, text, insert
-from app.core.deps import get_current_user, require_role, get_db
+
+from sqlalchemy import select, text
 from uuid import UUID, uuid4
 from datetime import datetime, timezone
-from typing import Optional, List
+
+from app.database.session import get_db
+from app.core.deps import get_current_user, require_role
+from app.services.encuentros import encuentro_service
+from app.services.notas_soap import NotaSOAPService, CatalogoService
+from app.schemas.encuentros import (
+    EncuentroCreateIn, EncuentroOut, EncuentroDetalleOut,
+    EncuentroCerrarIn, EncuentroPacienteOut,
+    NotaSOAPCreateIn, NotaSOAPUpdateIn, NotaSOAPOut,
+    NotaEnmiendaCreateIn, NotaEnmiendaOut, CIE10ListOut
+) 
 import logging
-from pydantic import BaseModel
+from pydantic import BaseModel 
 
 from app.services.encuentros import encuentro_service
 
@@ -227,116 +238,119 @@ async def cerrar_encuentro(
         raise HTTPException(status_code=500, detail="Error al cerrar")
 
 
-# ── POST /encuentros/{id}/signos-vitales ───────────────────────────────
-@router.post("/{id_encuentro}/signos-vitales", response_model=dict, status_code=status.HTTP_201_CREATED)
-async def registrar_signos_vitales(
-    id_encuentro: UUID,
-    data: dict,
-    current_user: dict = Depends(require_role("ENFERMERO", "MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
-    db: AsyncSession = Depends(get_db)
-):
-    """POST /encuentros/{id}/signos-vitales — Registra signos vitales"""
-    try:
-        res_check = await db.execute(
-            text("SELECT fecha_cierre FROM encuentros_clinicos WHERE id_encuentro = :id"),
-            {"id": str(id_encuentro)}
-        )
-        enc = res_check.fetchone()
-        if not enc or enc[0] is not None:
-            raise HTTPException(status_code=400, detail="Encuentro cerrado o inexistente")
+# # ── POST /encuentros/{id}/signos-vitales ───────────────────────────────
+# @router.post("/{id_encuentro}/signos-vitales", response_model=dict, status_code=status.HTTP_201_CREATED)
+# async def registrar_signos_vitales(
+#     id_encuentro: UUID,
+#     data: dict,
+#     current_user: dict = Depends(require_role("ENFERMERO", "MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
+#     db: AsyncSession = Depends(get_db)
+# ):
+#     """POST /encuentros/{id}/signos-vitales — Registra signos vitales"""
+#     try:
+#         res_check = await db.execute(
+#             text("SELECT fecha_cierre FROM encuentros_clinicos WHERE id_encuentro = :id"),
+#             {"id": str(id_encuentro)}
+#         )
+#         enc = res_check.fetchone()
+#         if not enc or enc[0] is not None:
+#             raise HTTPException(status_code=400, detail="Encuentro cerrado o inexistente")
 
-        id_signos = str(uuid4())
-        await db.execute(
-            text("""
-                INSERT INTO signos_vitales
-                (id_signos, id_encuentro, id_enfermero, peso_kg, talla_cm, temperatura_c,
-                 frecuencia_cardiaca, frecuencia_respiratoria, presion_sistolica, presion_diastolica,
-                 saturacion_oxigeno, fecha_toma)
-                VALUES (:id_sig, :id_enc, :id_enf, :peso, :talla, :temp, :fc, :fr, :ps, :pd, :so2, :fecha)
-            """),
-            {
-                "id_sig": id_signos,
-                "id_enc": str(id_encuentro),
-                "id_enf": current_user["sub"],
-                "peso": data.get("peso_kg"),
-                "talla": data.get("talla_cm"),
-                "temp": data.get("temperatura_c"),
-                "fc": data.get("frecuencia_cardiaca"),
-                "fr": data.get("frecuencia_respiratoria"),
-                "ps": data.get("presion_sistolica"),
-                "pd": data.get("presion_diastolica"),
-                "so2": data.get("saturacion_oxigeno"),
-                "fecha": datetime.now(timezone.utc)
-            }
-        )
-        await db.commit()
+#         id_signos = str(uuid4())
+#         await db.execute(
+#             text("""
+#                 INSERT INTO signos_vitales
+#                 (id_signos, id_encuentro, id_enfermero, peso_kg, talla_cm, temperatura_c,
+#                  frecuencia_cardiaca, frecuencia_respiratoria, presion_sistolica, presion_diastolica,
+#                  saturacion_oxigeno, fecha_toma)
+#                 VALUES (:id_sig, :id_enc, :id_enf, :peso, :talla, :temp, :fc, :fr, :ps, :pd, :so2, :fecha)
+#             """),
+#             {
+#                 "id_sig": id_signos,
+#                 "id_enc": str(id_encuentro),
+#                 "id_enf": current_user["sub"],
+#                 "peso": data.get("peso_kg"),
+#                 "talla": data.get("talla_cm"),
+#                 "temp": data.get("temperatura_c"),
+#                 "fc": data.get("frecuencia_cardiaca"),
+#                 "fr": data.get("frecuencia_respiratoria"),
+#                 "ps": data.get("presion_sistolica"),
+#                 "pd": data.get("presion_diastolica"),
+#                 "so2": data.get("saturacion_oxigeno"),
+#                 "fecha": datetime.now(timezone.utc)
+#             }
+#         )
+#         await db.commit()
 
-        return {
-            "data": {"id_signos": id_signos},
-            "message": "Signos vitales registrados exitosamente"
-        }
+#         return {
+#             "data": {"id_signos": id_signos},
+#             "message": "Signos vitales registrados exitosamente"
+#         }
 
-    except HTTPException:
-        raise
-    except Exception as e:
-        await db.rollback()
-        logger.error(f"Error al registrar signos vitales: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error al registrar signos")
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         await db.rollback()
+#         logger.error(f"Error al registrar signos vitales: {str(e)}")
+#         raise HTTPException(status_code=500, detail="Error al registrar signos")
 
 
 # ── POST /encuentros/{id}/prescripciones ───────────────────────────────
-@router.post("/{id_encuentro}/prescripciones", status_code=status.HTTP_201_CREATED)
-async def crear_prescripcion(
-    id_encuentro: UUID,
-    data: PrescripcionCreate,
-    db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(get_current_user)
-):
-    """POST /encuentros/{id}/prescripciones — Con validación de alergias y auditoría forense"""
-    stmt_med = select(CatMedicamento).where(CatMedicamento.codigo_medicamento_ssa == data.id_medicamento)
-    res_med = await db.execute(stmt_med)
-    medicamento = res_med.scalar_one_or_none()
+# @router.post("/{id_encuentro}/prescripciones", status_code=status.HTTP_201_CREATED)
+# async def crear_prescripcion(
+#     id_encuentro: UUID, 
+#     data: PrescripcionCreate, 
+#     db: AsyncSession = Depends(get_db),
+#     current_user: dict = Depends(get_current_user)
+# ):
+#     """
+#     POST /encuentros/{id}/prescripciones con validación de alergias y auditoría
+#     """
+#     # 1. Buscar medicamento
+#     stmt_med = select(CatMedicamento).where(CatMedicamento.codigo_medicamento_ssa == data.id_medicamento)
+#     res_med = await db.execute(stmt_med)
+#     medicamento = res_med.scalar_one_or_none()
+    
+#     if not medicamento:
+#         raise HTTPException(status_code=404, detail="Medicamento no encontrado en catálogo")
 
-    if not medicamento:
-        raise HTTPException(status_code=404, detail="Medicamento no encontrado en catálogo")
+#     # 2. VALIDACIÓN DE ALERGIAS REAL (Usando Alergia del modelo centralizado)
+#     stmt_ale = select(Alergia).where(
+#         Alergia.id_paciente == data.id_paciente,
+#         Alergia.alergia.ilike(f"%{medicamento.nombre_generico}%")
+#     )
+#     res_ale = await db.execute(stmt_ale)
+#     alergias = res_ale.scalars().all()
 
-    res_ale = await db.execute(
-        select(Alergia).where(
-            Alergia.id_paciente == data.id_paciente,
-            Alergia.alergia.ilike(f"%{medicamento.nombre_generico}%")
-        )
-    )
-    alergias = res_ale.scalars().all()
+#     for ale in alergias:
+#         if ale.severidad == "CRITICA" and not data.confirmar_alergia:
+#             try:
+#                 # AUDITORÍA FORENSE USANDO MODELO CENTRALIZADO
+#                 stmt_audit = insert(AuditoriaAcceso).values(
+#                     id_usuario=current_user["sub"], 
+#                     direccion_ip="127.0.0.1",
+#                     modulo_funcion="CLINICO_PRESCIPCION",
+#                     tipo_evento="INTENTO_RIESGO_ALERGIA",
+#                     resultado="DENEGADO",
+#                     nivel_severidad="CRITICA",
+#                     detalles={
+#                         "alerta": "Alergia bloqueada",
+#                         "medicamento": medicamento.nombre_generico,
+#                         "paciente_id": str(data.id_paciente)
+#                     }
+#                 )
+#                 await db.execute(stmt_audit)
+#                 await db.commit()
+#             except Exception as e:
+#                 logger.error(f"Error auditoria: {str(e)}")
+#                 await db.rollback()
 
-    for ale in alergias:
-        if ale.severidad == "CRITICA" and not data.confirmar_alergia:
-            try:
-                await db.execute(
-                    insert(AuditoriaAcceso).values(
-                        id_usuario=current_user["sub"],
-                        ip_origen="127.0.0.1",
-                        modulo_accion="CLINICO_PRESCIPCION",
-                        accion="INTENTO_RIESGO_ALERGIA",
-                        estado="DENEGADO",
-                        nivel_severidad="CRITICA",
-                        detalles={
-                            "alerta": "Alergia bloqueada",
-                            "medicamento": medicamento.nombre_generico,
-                            "paciente_id": str(data.id_paciente)
-                        }
-                    )
-                )
-                await db.commit()
-            except Exception as e:
-                logger.error(f"Error en auditoría: {str(e)}")
-                await db.rollback()
+#             raise HTTPException(
+#                 status_code=409,
+#                 detail={"codigo": "ALERTA_ALERGIA", "mensaje": f"BLOQUEO: Alérgico a {ale.alergia}"}
+#             )
 
-            raise HTTPException(
-                status_code=409,
-                detail={"codigo": "ALERTA_ALERGIA", "mensaje": f"BLOQUEO: Alérgico a {ale.alergia}"}
-            )
-
-    return {"status": "success", "message": "Prescripción validada correctamente"}
+#     return {"status": "success", "message": "Prescripción validada correctamente"}
 
 
 # ─── ENDPOINTS DE RESPALDO (usando encuentro_service) ───────────────────
