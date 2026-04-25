@@ -197,7 +197,8 @@ async def create_paciente(
                 nombre=persona_data.nombre,
                 primer_apellido=persona_data.primer_apellido,
                 segundo_apellido=persona_data.segundo_apellido,
-                curp=Optional[persona_data.curp] if persona_data.curp else None,
+                #curp=Optional[persona_data.curp] if persona_data.curp else None,
+                curp = persona_data.curp if persona_data.curp else None, #Vamo a probar así
                 fecha_nacimiento=persona_data.fecha_nacimiento,
                 sexo=persona_data.sexo,
                 id_localidad=persona_data.id_localidad,
