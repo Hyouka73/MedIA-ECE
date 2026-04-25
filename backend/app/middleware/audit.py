@@ -48,9 +48,13 @@ class AuditMiddleware(BaseHTTPMiddleware):
                 return "APERTURA_ENCUENTRO", "MEDIO"
             if method == "PATCH" and "/cerrar" in path and status == 200:
                 return "CIERRE_ENCUENTRO", "MEDIO"
+            if method == "GET":
+                return "LECTURA_ENCUENTROS", "BAJO"
         # Sanitización bloqueó algo
         if status == 400 and method == "GET":
             return "INTENTO_SQLI", "CRITICO"
+        
+        return "ACCESO_GENERAL", "BAJO"
 
     async def dispatch(self, request: Request, call_next):
         if request.url.path in self.EXCLUDED_PATHS or request.url.path.startswith("/static"):
