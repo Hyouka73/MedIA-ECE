@@ -5,7 +5,7 @@ Req Forense: 1 (logging), 4 (timestamps UTC), 5 (auth fuerte), 8 (sin hardcoding
 """
 import uuid
 from datetime import datetime, timedelta, timezone
-
+from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -24,6 +24,7 @@ from app.core.security import (
 from app.core.config import settings
 from app.models.auth import User, Role, Persona, SesionActiva
 from app.services.email import email_service
+from sqlalchemy import text
 
 router = APIRouter()
 limiter = Limiter(key_func=get_remote_address)
@@ -47,14 +48,53 @@ async def _get_role_code(db: AsyncSession, id_rol: int) -> str:
     return role.codigo if role else "INVITADO"
 
 
-def _build_user_response(user: User, rol_codigo: str) -> dict:
+async def _get_user_context(db: AsyncSession, user_id: UUID) -> dict:
+    """Obtiene el contexto completo del usuario: establecimiento y especialidad."""
+    # Obtener establecimiento principal del usuario
+    result_est = await db.execute(
+        text("""
+            SELECT e.clues, e.nombre, ue.id_establecimiento
+            FROM usuarios_establecimientos ue
+            JOIN establecimientos e ON e.id_establecimiento = ue.id_establecimiento
+            WHERE ue.id_usuario = :user_id AND ue.es_principal = true
+            LIMIT 1
+        """),
+        {"user_id": str(user_id)}
+    )
+    est_row = result_est.fetchone()
+    
+    # Obtener especialidad del usuario (si tiene permisos específicos)
+    result_esp = await db.execute(
+        text("""
+            SELECT pe.id_especialidad, ce.nombre
+            FROM permisos_especialidad pe
+            JOIN cat_especialidades_medicas ce ON ce.id_especialidad = pe.id_especialidad
+            WHERE pe.id_usuario = :user_id
+            LIMIT 1
+        """),
+        {"user_id": str(user_id)}
+    )
+    esp_row = result_esp.fetchone()
+    
+    return {
+        "establecimiento_clues": est_row[0] if est_row else "CSSSA023999",
+        "establecimiento_nombre": est_row[1] if est_row else "Centro de Salud Tuxtla Urbano I",
+        "id_establecimiento": str(est_row[2]) if est_row else None,
+        "id_especialidad": esp_row[0] if esp_row else None,
+        "especialidad_nombre": esp_row[1] if esp_row else None
+    }
+
+
+def _build_user_response(user: User, rol_codigo: str, context: dict) -> dict:
     return {
         "id": str(user.id_usuario),
         "nombre": f"{user.persona.nombre} {user.persona.primer_apellido}" if user.persona else "Usuario",
         "rol": rol_codigo,
         "email": user.email,
         "url_foto": user.persona.url_foto if user.persona else None,
-        "establecimiento": "CSSSA023999"  # TODO: Sacar de usuarios_establecimientos
+        "establecimiento": context["establecimiento_clues"],
+        "id_establecimiento": context["id_establecimiento"],
+        "id_especialidad": context["id_especialidad"]
     }
 
 
@@ -181,8 +221,21 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
 
     # ── 6. Login directo (sin 2FA) — emitir tokens ──
     jti = str(uuid.uuid4())
-    token = create_access_token({"sub": str(user.id_usuario), "rol": rol_codigo, "email": user.email})
-    refresh = create_refresh_token({"sub": str(user.id_usuario), "rol": rol_codigo, "email": user.email, "jti": jti})
+    
+    # Obtener contexto del usuario (establecimiento, especialidad)
+    user_context = await _get_user_context(db, user.id_usuario)
+    
+    # Incluir contexto en el token JWT
+    token_data = {
+        "sub": str(user.id_usuario), 
+        "rol": rol_codigo, 
+        "email": user.email,
+        "establecimiento": user_context["establecimiento_clues"],
+        "id_establecimiento": user_context["id_establecimiento"],
+        "id_especialidad": user_context["id_especialidad"]
+    }
+    token = create_access_token(token_data)
+    refresh = create_refresh_token(token_data | {"jti": jti})
 
     await _registrar_sesion(db, user.id_usuario, jti, request)
     await _limpiar_sesiones_expiradas(db)
@@ -191,7 +244,7 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
         "access_token": token,
         "token_type": "bearer",
         "requires_2fa": False,
-        "user": _build_user_response(user, rol_codigo)
+        "user": _build_user_response(user, rol_codigo, user_context)
     })
     _set_refresh_cookie(response, refresh)
     return response
@@ -250,8 +303,21 @@ async def verify_2fa(request: Request, data: VerifyTOTPRequest, db: AsyncSession
 
     rol_codigo = await _get_role_code(db, user.id_rol)
     jti = str(uuid.uuid4())
-    final_token = create_access_token({"sub": str(user.id_usuario), "rol": rol_codigo, "email": email})
-    refresh = create_refresh_token({"sub": str(user.id_usuario), "rol": rol_codigo, "email": email, "jti": jti})
+    
+    # Obtener contexto del usuario
+    user_context = await _get_user_context(db, user.id_usuario)
+    
+    # Incluir contexto en el token JWT
+    token_data = {
+        "sub": str(user.id_usuario), 
+        "rol": rol_codigo, 
+        "email": email,
+        "establecimiento": user_context["establecimiento_clues"],
+        "id_establecimiento": user_context["id_establecimiento"],
+        "id_especialidad": user_context["id_especialidad"]
+    }
+    final_token = create_access_token(token_data)
+    refresh = create_refresh_token(token_data | {"jti": jti})
 
     await _registrar_sesion(db, user.id_usuario, jti, request)
     await _limpiar_sesiones_expiradas(db)
@@ -259,7 +325,7 @@ async def verify_2fa(request: Request, data: VerifyTOTPRequest, db: AsyncSession
     response = JSONResponse(content={
         "access_token": final_token,
         "token_type": "bearer",
-        "user": _build_user_response(user, rol_codigo)
+        "user": _build_user_response(user, rol_codigo, user_context)
     })
     _set_refresh_cookie(response, refresh)
     return response
@@ -312,15 +378,27 @@ async def refresh_token(request: Request, db: AsyncSession = Depends(get_db)):
     await db.execute(delete(SesionActiva).where(SesionActiva.jti == jti))
     await db.commit()
 
-    new_access = create_access_token({"sub": str(user.id_usuario), "rol": rol_codigo, "email": user.email})
-    new_refresh = create_refresh_token({"sub": str(user.id_usuario), "rol": rol_codigo, "email": user.email, "jti": new_jti})
+    # Obtener contexto del usuario
+    user_context = await _get_user_context(db, user.id_usuario)
+    
+    # Incluir contexto en el token JWT
+    token_data = {
+        "sub": str(user.id_usuario), 
+        "rol": rol_codigo, 
+        "email": user.email,
+        "establecimiento": user_context["establecimiento_clues"],
+        "id_establecimiento": user_context["id_establecimiento"],
+        "id_especialidad": user_context["id_especialidad"]
+    }
+    new_access = create_access_token(token_data)
+    new_refresh = create_refresh_token(token_data | {"jti": new_jti})
 
     await _registrar_sesion(db, user.id_usuario, new_jti, request)
 
     response = JSONResponse(content={
         "access_token": new_access,
         "token_type": "bearer",
-        "user": _build_user_response(user, rol_codigo)
+        "user": _build_user_response(user, rol_codigo, user_context)
     })
     _set_refresh_cookie(response, new_refresh)
     return response

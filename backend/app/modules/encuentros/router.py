@@ -17,10 +17,13 @@ from app.services.encuentros import encuentro_service
 from app.services.notas_soap import NotaSOAPService, CatalogoService
 from app.schemas.encuentros import (
     EncuentroCreateIn, EncuentroOut, EncuentroDetalleOut,
-    EncuentroCerrarIn, EncuentroPacienteOut,
+    EncuentroCerrarIn, EncuentroPacienteOut
+) 
+
+from app.schemas.notas_soap import (
     NotaSOAPCreateIn, NotaSOAPUpdateIn, NotaSOAPOut,
     NotaEnmiendaCreateIn, NotaEnmiendaOut, CIE10ListOut
-) 
+)
 import logging
 from pydantic import BaseModel 
 
@@ -141,35 +144,50 @@ async def list_encuentros(
         raise HTTPException(status_code=500, detail="Error interno al obtener encuentros")
 
 
-# ── POST /encuentros ────────────────────────────────────────────────────
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_encuentro(
     data: dict,
     current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
     db: AsyncSession = Depends(get_db)
 ):
-    """POST /encuentros — Crea un encuentro validando el catálogo CIE-10"""
+    """POST /encuentros — Crea un encuentro clínico
+    
+    Campos opcionales (se obtienen del contexto del usuario si no se proporcionan):
+    - id_establecimiento: Se obtiene del establecimiento asignado al usuario
+    - id_especialidad: Se obtiene de la especialidad del usuario
+    
+    Campos requeridos:
+    - id_paciente: UUID del paciente
+    - motivo_consulta: Motivo de la consulta
+    
+    Los diagnósticos (CIE-10) se agregan después en la tabla diagnosticos_encuentro
+    """
     try:
+        # 1. Extraer datos del request o del contexto del usuario
         id_paciente = data.get("id_paciente")
-        id_establecimiento = data.get("id_establecimiento")
-        id_especialidad = data.get("id_especialidad")
-        id_diagnostico = data.get("id_diagnostico")
+        id_establecimiento = data.get("id_establecimiento") or current_user.get("id_establecimiento")
+        id_especialidad = data.get("id_especialidad") or current_user.get("id_especialidad")
         motivo_consulta = data.get("motivo_consulta", "").strip()
 
-        if not id_paciente or not id_diagnostico or not motivo_consulta:
-            raise HTTPException(status_code=422, detail="Paciente, Diagnóstico y Motivo son requeridos")
+        # 2. Validar campos requeridos
+        if not id_paciente:
+            raise HTTPException(status_code=422, detail="id_paciente es requerido")
+        if not motivo_consulta:
+            raise HTTPException(status_code=422, detail="motivo_consulta es requerido")
+        if not id_establecimiento:
+            # id_establecimiento = "CSSSA023999"
+            raise HTTPException(status_code=422, detail="No se pudo determinar el establecimiento del usuario")
+        if not id_especialidad:
+            id_especialidad = 1
+            # raise HTTPException(status_code=422, detail="No se pudo determinar la especialidad del usuario")
 
-        stmt_cie = select(CatCIE10).where(CatCIE10.id_cie10 == id_diagnostico)
-        res_cie = await db.execute(stmt_cie)
-        if not res_cie.scalar_one_or_none():
-            raise HTTPException(status_code=400, detail=f"Código CIE-10 '{id_diagnostico}' no válido")
-
+        # 3. Insertar encuentro (SIN diagnóstico - se agrega después en diagnosticos_encuentro)
         id_encuentro = str(uuid4())
         await db.execute(
             text("""
-                INSERT INTO encuentros_clinicos
-                (id_encuentro, id_paciente, id_medico, id_establecimiento, id_especialidad, id_diagnostico, fecha_inicio, motivo_consulta)
-                VALUES (:id, :pac, :med, :est, :esp, :diag, :fecha, :mot)
+                INSERT INTO encuentros_clinicos 
+                (id_encuentro, id_paciente, id_medico, id_establecimiento, id_especialidad, fecha_inicio, motivo_consulta)
+                VALUES (:id, :pac, :med, :est, :esp, :fecha, :mot)
             """),
             {
                 "id": id_encuentro,
@@ -177,7 +195,6 @@ async def create_encuentro(
                 "med": current_user["sub"],
                 "est": str(id_establecimiento),
                 "esp": id_especialidad,
-                "diag": id_diagnostico,
                 "fecha": datetime.now(timezone.utc),
                 "mot": motivo_consulta
             }
@@ -189,7 +206,7 @@ async def create_encuentro(
                 "id_encuentro": id_encuentro,
                 "fecha_inicio": datetime.now(timezone.utc).isoformat()
             },
-            "message": "Encuentro clínico creado exitosamente"
+            "message": "Encuentro clínico creado exitosamente. Los diagnósticos pueden agregarse después."
         }
 
     except HTTPException:
@@ -197,7 +214,7 @@ async def create_encuentro(
     except Exception as e:
         await db.rollback()
         logger.error(f"Error al crear encuentro: {str(e)}")
-        raise HTTPException(status_code=500, detail="Error interno al crear encuentro")
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
 
 # ── PATCH /encuentros/{id}/cerrar ──────────────────────────────────────

@@ -22,6 +22,7 @@ from app.modules.encuentros.router import router as encuentros_router
 from app.modules.admin.router import router as admin_router
 from app.modules.auditoria.router import router as auditoria_router
 from app.modules.signosvitales.router import router as signos_router
+from app.modules.notas_soap.router import router as notas_router
 
 import os
 
@@ -62,6 +63,7 @@ app.include_router(expediente_router, prefix="/api/expediente", tags=["Expedient
 app.include_router(catalogos_router,  prefix="/api/catalogos",  tags=["Catálogos"])
 app.include_router(encuentros_router, prefix="/api/encuentros", tags=["Encuentros"])
 app.include_router(signos_router,     prefix="/api/signos-vitales", tags=["Signos Vitales"]) #signos vitales xd
+app.include_router(notas_router,      prefix="/api/notas_soap", tags=["Notas SOAP"])
 app.include_router(admin_router,       prefix="/api/admin",       tags=["Administración"])
 app.include_router(auditoria_router,   prefix="/api/auditoria",   tags=["Auditoría"])
 
