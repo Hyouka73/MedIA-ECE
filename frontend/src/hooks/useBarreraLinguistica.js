@@ -5,7 +5,12 @@ import { useMemo } from 'react';
  * @param {Object} paciente - Objeto paciente con persona.alerta_barrera_linguistica
  */
 export const useBarreraLinguistica = (paciente) => {
+  const spanishId = '1';
   const tieneBarrera = useMemo(() => {
+    const lenguaMaterna = paciente?.persona?.id_lengua_materna;
+    if (lenguaMaterna != null) {
+      return String(lenguaMaterna) !== spanishId;
+    }
     return paciente?.persona?.alerta_barrera_linguistica || false;
   }, [paciente]);
 

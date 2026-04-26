@@ -373,7 +373,7 @@ export default function ExpedientePage() {
         </div>
 
         {/*Alerta de Barrera Lingüística */}
-        {paciente?.persona?.alerta_barrera_linguistica && (
+        {((paciente?.persona?.id_lengua_materna != null && String(paciente.persona.id_lengua_materna) !== '1') || paciente?.persona?.alerta_barrera_linguistica) && (
           <BarreraLinguisticaAlert paciente={paciente} size="large" />
         )}
 

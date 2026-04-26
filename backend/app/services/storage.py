@@ -2,10 +2,8 @@ import uuid
 import logging
 from typing import Optional
 from typing import BinaryIO
-
-from azure.core.exceptions import ResourceExistsError
-from azure.storage.blob import BlobServiceClient, generate_blob_sas, BlobSasPermissions
 from datetime import datetime, timedelta, timezone
+import os
 
 from app.core.config import settings
 
@@ -17,16 +15,27 @@ class StorageService:
         self.blob_service_client = None
 
         if self.connection_string:
-            try:
-                self.blob_service_client = BlobServiceClient.from_connection_string(self.connection_string)
-            except Exception as e:
-                logger.error(f"Azure Storage falló inicialización: {e}")
+            self.blob_service_client = self._create_blob_service_client()
         else:
             logger.warning("AZURE_STORAGE_CONNECTION_STRING no está definido. Almacenamiento en nube desactivado.")
+
+    def _create_blob_service_client(self):
+        try:
+            from azure.storage.blob import BlobServiceClient
+
+            return BlobServiceClient.from_connection_string(self.connection_string)
+        except Exception as e:
+            logger.error(f"Azure Storage falló inicialización: {e}")
+            return None
 
     def _get_container_client(self, container_name: str):
         if not self.blob_service_client:
             raise Exception("Azure Blob Storage no configurado en entorno.")
+
+        try:
+            from azure.core.exceptions import ResourceExistsError
+        except Exception:
+            ResourceExistsError = Exception
 
         container_client = self.blob_service_client.get_container_client(container_name)
         try:
@@ -44,8 +53,6 @@ class StorageService:
         """
         if not self.blob_service_client:
             logger.warning(f"Upload simulado local: {extension} en {container_name}")
-            import os
-            # Ensure static directory exists
             static_dir = os.path.join(os.getcwd(), 'static', container_name)
             os.makedirs(static_dir, exist_ok=True)
             

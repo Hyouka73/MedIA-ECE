@@ -21,6 +21,7 @@ import AdminRolesPage            from './pages/admin/AdminRolesPage'
 import PacientesListPage from './pages/Pacients/PacientesListPage';
 import ExpedientePage from './pages/Pacients/ExpedientePage';
 import PacienteFichaPage from './pages/Pacients/PacienteFichaPage';
+import PacienteAntecedentesPage from './pages/Pacients/PacienteAntecedentesPage';
 
 // Auditoría y Seguridad (Persona 5 - Corregido)
 import AuditoriaPage from './pages/audit/AuditoriaPage'
@@ -51,6 +52,7 @@ function App() {
                 <Route path="pacientes" element={<PacientesListPage />} />
                 <Route path="pacientes/nuevo" element={<PacienteFichaPage />} />
                 <Route path="pacientes/:id/editar" element={<PacienteFichaPage />} />
+                <Route path="pacientes/:id/antecedentes" element={<PacienteAntecedentesPage />} />
                 <Route path="expediente/:id" element={<ExpedientePage />} />
 
                 {/* ── Admin (Módulos Persona 5) ── */}
