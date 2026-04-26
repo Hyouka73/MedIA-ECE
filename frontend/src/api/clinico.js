@@ -20,8 +20,10 @@ export const clinicoAPI = {
     getSignos: (idEncuentro) => api.get(`/encuentros/${idEncuentro}/signos-vitales`),
 
     // ── Notas SOAP ─────────────────────────────────────────
-    // POST /encuentros/:id/notas — Crear nota SOAP
-    crearNota: (idEncuentro, data) => api.post(`/encuentros/${idEncuentro}/notas`, data),
+    // POST /encuentros/encuentros/:id/notas — Crear nota SOAP
+    // NOTA: URL con doble "encuentros" porque el router tiene prefijo /api/encuentros
+    // y la ruta interna es /encuentros/{id}/notas → /api/encuentros/encuentros/{id}/notas
+    crearNota: (idEncuentro, data) => api.post(`/encuentros/encuentros/${idEncuentro}/notas`, data),
     // PATCH /notas/:id/firmar — Firmar nota (irreversible)
     firmarNota: (idNota) => api.patch(`/notas/${idNota}/firmar`),
     // POST /notas/:id/enmienda — Crear enmienda a nota firmada

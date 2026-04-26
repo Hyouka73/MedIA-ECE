@@ -104,11 +104,16 @@ export default function NuevaConsultaPage() {
     return Number.isNaN(parsed) ? null : parsed
   }
 
-  const extraerMensajeError = (error) =>
-    error?.response?.data?.detail ||
-    error?.response?.data?.message ||
-    error?.message ||
-    'Ocurrió un error inesperado.'
+  const extraerMensajeError = (error) => {
+    if (error?.response?.data?.detail && Array.isArray(error.response.data.detail)) {
+      return error.response.data.detail
+        .map((e) => `${e.loc?.join('.') || 'campo'}: ${e.msg}`)
+        .join(' | ')
+    }
+    if (typeof error?.response?.data?.detail === 'string') return error.response.data.detail
+    if (error?.response?.data?.message) return error.response.data.message
+    return error?.message || 'Error desconocido'
+  }
 
   const extraerIdEncuentro = (resp) => {
     const data = resp?.data || resp
@@ -118,12 +123,10 @@ export default function NuevaConsultaPage() {
   const canGoStep2      = formData.motivo_consulta.trim().length > 0
   const canGoStep3      = canGoStep2 && formData.diagnosticos.length > 0
   const canCloseEncounter =
-    Boolean(encuentroId) &&
     formData.motivo_consulta.trim().length > 0 &&
     formData.diagnosticos.length > 0 &&
     formData.plan_terapeutico.trim().length > 0
 
-  // Búsqueda CIE-10 con debounce
   useEffect(() => {
     let active = true
     const run = async () => {
@@ -173,7 +176,6 @@ export default function NuevaConsultaPage() {
     })
   }
 
-  // ── PASO 1: valida motivo, navega ──────────────────────────────────
   const manejarPaso1 = () => {
     if (!formData.motivo_consulta.trim()) {
       setErrorGlobal('El motivo de consulta es obligatorio.')
@@ -184,7 +186,6 @@ export default function NuevaConsultaPage() {
     setCurrentStep(2)
   }
 
-  // ── PASO 2: valida diagnóstico, navega (sin API) ───────────────────
   const manejarPaso2 = () => {
     if (formData.diagnosticos.length === 0) {
       setErrorGlobal('Debes seleccionar al menos un diagnóstico.')
@@ -195,9 +196,6 @@ export default function NuevaConsultaPage() {
     setCurrentStep(3)
   }
 
-  // ── PASO 3: crea encuentro + signos + notas + diagnósticos ─────────
-  // FIX: id_diagnostico usa codigo_cie (el PK real de cat_cie10)
-  // FIX: signos vitales usan los nombres exactos del schema SignosVitalesCreateIn
   const manejarPaso3 = async () => {
     setErrorGlobal('')
     setLoading(true)
@@ -205,74 +203,54 @@ export default function NuevaConsultaPage() {
     const principal = formData.diagnosticos[0]
 
     try {
-      // 1. Crear encuentro — id_diagnostico = codigo_cie (PK de cat_cie10)
+      // 1. Crear encuentro
       const resp = await clinicoAPI.createEncuentro({
         id_paciente:     idPaciente,
         motivo_consulta: formData.motivo_consulta.trim(),
         diagnostico:     principal.descripcion,
-        id_diagnostico:  principal.codigo,  // "E11", "I10", etc. — PK de cat_cie10
+        id_diagnostico:  principal.codigo,
         tipo_consulta:   'SUBSECUENTE',
       })
 
       const nuevoId = extraerIdEncuentro(resp)
       if (!nuevoId) throw new Error('La API no devolvió el id del encuentro.')
+      
       setEncuentroId(nuevoId)
 
-      // 2. Signos vitales — nombres exactos del schema SignosVitalesCreateIn
-      await clinicoAPI.registrarSignos(nuevoId, {
-        id_encuentro:            nuevoId,
-        presion_sistolica:       getNumericOrNull(formData.tension_sistolica, parseInt),
-        presion_diastolica:      getNumericOrNull(formData.tension_diastolica, parseInt),
-        temperatura_c:           getNumericOrNull(formData.temp, parseFloat),
-        saturacion_oxigeno:      getNumericOrNull(formData.spo2, parseFloat),
-        frecuencia_cardiaca:     getNumericOrNull(formData.fc, parseInt),
-        frecuencia_respiratoria: null,
-        peso_kg:                 getNumericOrNull(formData.peso, parseFloat),
-        talla_cm:                getNumericOrNull(formData.talla, parseFloat),
-      })
+      // 2. Signos vitales — solo si están todos presentes y en rango
+      const sistolica = getNumericOrNull(formData.tension_sistolica, parseInt)
+      const diastolica = getNumericOrNull(formData.tension_diastolica, parseInt)
+      const temp = getNumericOrNull(formData.temp, parseFloat)
+      const spo2Raw = getNumericOrNull(formData.spo2, parseFloat)
+      const spo2 = spo2Raw !== null ? Math.round(spo2Raw) : null
+      const fc = getNumericOrNull(formData.fc, parseInt)
 
-      // 3. Nota de padecimiento actual (opcional)
-      if (formData.sintomas.trim()) {
-        await clinicoAPI.crearNota(nuevoId, {
-          tipo:     'PADECIMIENTO_ACTUAL',
-          nota:     formData.sintomas.trim(),
-          sintomas: formData.sintomas.trim(),
-        })
-      }
+      const todosPresentes = sistolica !== null && diastolica !== null && 
+                             temp !== null && spo2 !== null && fc !== null
 
-      // 4. Diagnóstico principal
-      await clinicoAPI.addDiagnostico(nuevoId, {
-        id_cie10: principal.codigo,
-        tipo:     'PRINCIPAL',
-      })
+      const enRango = todosPresentes &&
+        sistolica >= 60 && sistolica <= 250 &&
+        diastolica >= 40 && diastolica <= 150 &&
+        temp >= 34.0 && temp <= 42.0 &&
+        spo2 >= 70 && spo2 <= 100 &&
+        fc >= 30 && fc <= 220
 
-      // 5. Exploración física (si hay algo escrito)
-      const notaExploracion = [
-        formData.exploracion_general && `Exploración general: ${formData.exploracion_general}`,
-        formData.cabeza_cuello       && `Cabeza y cuello: ${formData.cabeza_cuello}`,
-        formData.torax               && `Tórax: ${formData.torax}`,
-        formData.abdomen             && `Abdomen: ${formData.abdomen}`,
-        formData.extremidades        && `Extremidades: ${formData.extremidades}`,
-      ].filter(Boolean).join('\n')
-
-      if (notaExploracion) {
-        await clinicoAPI.crearNota(nuevoId, {
-          tipo:                'EXPLORACION_FISICA',
-          nota:                notaExploracion,
-          exploracion_general: formData.exploracion_general || null,
-          cabeza_cuello:       formData.cabeza_cuello || null,
-          torax:               formData.torax || null,
-          abdomen:             formData.abdomen || null,
-          extremidades:        formData.extremidades || null,
-        })
-      }
-
-      // 6. Diagnósticos secundarios
-      for (const d of formData.diagnosticos.slice(1)) {
-        await clinicoAPI.addDiagnostico(nuevoId, {
-          id_cie10: d.codigo,
-          tipo:     'SECUNDARIO',
-        })
+      if (enRango) {
+        const payloadSignos = {
+          presion_sistolica: sistolica,
+          presion_diastolica: diastolica,
+          temperatura_c: temp,
+          saturacion_oxigeno: spo2,
+          frecuencia_cardiaca: fc,
+        }
+        
+        const peso = getNumericOrNull(formData.peso, parseFloat)
+        const talla = getNumericOrNull(formData.talla, parseFloat)
+        
+        if (peso !== null) payloadSignos.peso_kg = peso
+        if (talla !== null) payloadSignos.talla_cm = talla
+        
+        await clinicoAPI.registrarSignos(nuevoId, payloadSignos)
       }
 
       marcarPasoCompletado(3)
@@ -284,8 +262,12 @@ export default function NuevaConsultaPage() {
     }
   }
 
-  // ── PASO 4: guarda plan + prescripciones + cierra ─────────────────
   const manejarPaso4 = async () => {
+    if (!encuentroId) {
+      setErrorGlobal('No se encontró el encuentro creado. Intenta nuevamente.')
+      return
+    }
+    
     if (!canCloseEncounter) {
       setErrorGlobal('Motivo, Diagnóstico y Plan terapéutico son obligatorios para cerrar.')
       return
@@ -293,16 +275,24 @@ export default function NuevaConsultaPage() {
     setErrorGlobal('')
     setLoading(true)
     try {
+      // Guardar plan terapéutico como nota
       await clinicoAPI.crearNota(encuentroId, {
-        tipo:             'PLAN_TERAPEUTICO',
-        nota:             formData.plan_terapeutico.trim(),
-        plan_terapeutico: formData.plan_terapeutico.trim(),
+        tipo_nota: 'PLAN_TERAPEUTICO',
+        nota: formData.plan_terapeutico.trim(),
       })
+
+      // Agregar prescripción si hay
       if (formData.prescripciones.trim()) {
-        await clinicoAPI.addPrescripcion(encuentroId, {
-          texto: formData.prescripciones.trim(),
-        })
+        try {
+          await clinicoAPI.addPrescripcion(encuentroId, {
+            texto: formData.prescripciones.trim(),
+          })
+        } catch (error) {
+          console.error('Error al agregar prescripción:', error)
+        }
       }
+
+      // Cerrar encuentro
       await clinicoAPI.cerrarEncuentro(encuentroId)
       marcarPasoCompletado(4)
       navigate(`/expediente/${idPaciente}`)
@@ -379,7 +369,7 @@ export default function NuevaConsultaPage() {
       {errorGlobal && (
         <div className="mx-8 mt-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
           <AlertTriangle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-red-600">{errorGlobal}</p>
+          <p className="text-sm text-red-600 whitespace-pre-line">{errorGlobal}</p>
         </div>
       )}
 
@@ -601,7 +591,7 @@ export default function NuevaConsultaPage() {
           )}
 
           {/* ── PASO 4 ────────────────────────────────────────────── */}
-          {currentStep === 4 && encuentroId && (
+          {currentStep === 4 && (
             <div className="space-y-5">
               <h2 className="text-[#1B4F8A] font-bold flex items-center gap-2 text-base">
                 <FileSignature size={20} /> Plan Terapéutico y Cierre
