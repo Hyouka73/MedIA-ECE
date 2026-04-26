@@ -9,11 +9,11 @@ from app.services.encuentros import encuentro_service
 from app.services.notas_soap import NotaSOAPService, CatalogoService
 
 # Asegúrate de que estos schemas existan en este archivo o cámbialo a .notasoap
-from app.schemas.encuentros import (
-    EncuencerCreateIn, EncuentroOut, EncuentroDetalleOut,
-    EncuentroCerrarIn, NotaSOAPCreateIn, NotaSOAPUpdateIn, 
+from app.schemas.notas_soap import (
+    NotaSOAPCreateIn, NotaSOAPUpdateIn, 
     NotaSOAPOut, NotaEnmiendaCreateIn, NotaEnmiendaOut, CIE10ListOut
-) 
+)
+ 
 
 router = APIRouter()
 

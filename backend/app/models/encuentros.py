@@ -57,7 +57,8 @@ class DiagnosticoEncuentro(Base):
     observaciones = Column(Text)
 
     encuentro = relationship("EncuentroClinico")
-    cie10 = relationship("CatCIE10")
+    # cie10 = relationship("CatCIE10")
+    cie10 = relationship("CatCIE10", foreign_keys=[codigo_cie])
 
 
 # class SignosVitales(Base):
