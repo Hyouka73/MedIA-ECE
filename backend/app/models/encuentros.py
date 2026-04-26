@@ -39,7 +39,7 @@ class EncuentroClinico(Base):
     fecha_inicio = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
     fecha_cierre = Column(DateTime(timezone=True))
     motivo_consulta = Column(Text, nullable=False)
-    tipo_consulta = Column(String(20))  # PRIMERA_VEZ, SUBSECUENTE
+    # COMENTADO, ERROR BASE DE DATOS. tipo_consulta = Column(String(20))  # PRIMERA_VEZ, SUBSECUENTE
 
     paciente = relationship("Paciente")
     medico = relationship("User")

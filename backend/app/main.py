@@ -2,17 +2,20 @@
 MedIA ECE — FastAPI Backend
 Punto de entrada principal de la aplicación
 """
+import os
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from slowapi.middleware import SlowAPIMiddleware
 
 from app.core.config import settings
 from app.middleware.audit import AuditMiddleware
 from app.middleware.auth import AuthMiddleware
 from app.middleware.sanitize import SanitizeMiddleware
+
+# Importación de routers
 from app.modules.auth.router import router as auth_router
 from app.modules.personas.router import router as personas_router
 from app.modules.pacientes.router import router as pacientes_router
@@ -22,8 +25,6 @@ from app.modules.encuentros.router import router as encuentros_router
 from app.modules.admin.router import router as admin_router
 from app.modules.auditoria.router import router as auditoria_router
 from app.modules.signosvitales.router import router as signos_router
-
-import os
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -39,10 +40,11 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 # ── INICIALIZACIÓN DE MEMORIA FORENSE (BLACKLIST IN-MEMORY) ────────────
-app.state.blacklist_tokens = set()  # Para búsqueda O(1) súper rápida en el middleware
-app.state.blacklist_detalles = []   # Para listar los detalles en el Frontend de React
+app.state.blacklist_tokens = set()  # Búsqueda O(1)
+app.state.blacklist_detalles = []   # Para el Frontend
 
-# Orden correcto: Sanitize → CORS → Auth → Audit
+# ── Middlewares ────────────────────────────────────────────────────────
+# El orden es crítico para la seguridad y auditoría
 app.add_middleware(AuditMiddleware)
 app.add_middleware(AuthMiddleware)
 app.add_middleware(
@@ -55,15 +57,28 @@ app.add_middleware(
 app.add_middleware(SanitizeMiddleware)
 
 # ── Routers por Módulo ──────────────────────────────────────────────────
-app.include_router(auth_router,       prefix="/api/auth",       tags=["Autenticación"])
+app.include_router(auth_router,      prefix="/api/auth",       tags=["Autenticación"])
 app.include_router(personas_router,   prefix="/api/personas",   tags=["Personas"])
 app.include_router(pacientes_router,  prefix="/api/pacientes",  tags=["Pacientes"])
 app.include_router(expediente_router, prefix="/api/expediente", tags=["Expediente"])
 app.include_router(catalogos_router,  prefix="/api/catalogos",  tags=["Catálogos"])
+
+# Rutas de Encuentros y submódulos (Signos y Notas SOAP)
 app.include_router(encuentros_router, prefix="/api/encuentros", tags=["Encuentros"])
+<<<<<<< Updated upstream
 app.include_router(signos_router,     prefix="/api/signos-vitales", tags=["Signos Vitales"]) #signos vitales xd
 app.include_router(admin_router,       prefix="/api/admin",       tags=["Administración"])
 app.include_router(auditoria_router,   prefix="/api/auditoria",   tags=["Auditoría"])
+=======
+
+# CORRECCIÓN: Se anclan a /api/encuentros para resolver el error 404 del frontend
+# Esto permite rutas como: POST /api/encuentros/{id_encuentro}/signos-vitales
+app.include_router(signos_router,     prefix="/api/encuentros", tags=["Signos Vitales"])
+app.include_router(notas_router,      prefix="/api/encuentros", tags=["Notas SOAP"])
+
+app.include_router(admin_router,      prefix="/api/admin",      tags=["Administración"])
+app.include_router(auditoria_router,  prefix="/api/auditoria",  tags=["Auditoría"])
+>>>>>>> Stashed changes
 
 
 # ── Persona 5: Endpoint de Seguridad Avanzada (Logs Forenses) ───────────
@@ -74,24 +89,22 @@ async def get_forensic_logs():
         return {"content": ["> SISTEMA: Archivo de auditoría forense no encontrado."]}
     try:
         with open(log_path, "r", encoding="utf-8") as f:
-            # Leemos las últimas 50 líneas
             lines = f.readlines()
             return {"content": lines[-50:]}
     except Exception as e:
         raise HTTPException(status_code=500, detail="Error leyendo el log forense")
 
-# ── Blacklist de Sesiones (Implementación In-Memory Real) ──────────────
+# ── Blacklist de Sesiones ──────────────────────────────────────────────
 @app.get("/api/seguridad/sessions-blacklist", tags=["Auditoría"])
 async def get_blacklist(request: Request):
-    # Retorna directamente la lista de detalles de la memoria RAM del servidor
     return request.app.state.blacklist_detalles
 
-from fastapi.staticfiles import StaticFiles
-
+# ── Archivos Estáticos ──────────────────────────────────────────────────
 if settings.APP_ENV != "production":
     os.makedirs("static", exist_ok=True)
     app.mount("/static", StaticFiles(directory="static"), name="static")
 
+# ── Endpoints de Salud ──────────────────────────────────────────────────
 @app.get("/", include_in_schema=False)
 async def root():
     return {"status": "ok", "sistema": "MedIA ECE", "version": "1.0.0"}
