@@ -261,7 +261,7 @@ useEffect(() => {
                           {paciente.grupo_sanguineo || "Desconocido"}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-text-secondary">📱 {paciente.telefono}</td>
+                      <td className="px-6 py-4 text-sm text-text-secondary">{paciente.telefono}</td>
                       <td className="px-6 py-4 text-sm">
                         {tieneAlergias ? (
                           <div className="flex items-center gap-2">
@@ -277,11 +277,15 @@ useEffect(() => {
                         )}
                       </td>
                       <td className="px-6 py-4 text-sm">
-                        {paciente.tiene_barrera_linguistica ? (
-                          <span className="flex items-center gap-1 text-warning">
-                            <Languages size={16} />
-                             <span className="text-xs">Barrera Lingüística</span>
-                          </span>
+                        {paciente.lengua_materna ? (
+                          <div className="flex items-center gap-1">
+                            <span className="text-text-primary">{paciente.lengua_materna}</span>
+                            {paciente.tiene_barrera_linguistica && (
+                              <span className="flex items-center gap-1 text-warning" title="Barrera lingüística">
+                                <Languages size={14} />
+                              </span>
+                            )}
+                          </div>
                         ) : (
                           <span className="text-text-secondary text-xs">—</span>
                         )}
