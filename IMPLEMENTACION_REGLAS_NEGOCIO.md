@@ -185,6 +185,44 @@ GET /api/encuentros             → Regla 1 (si filtra por paciente)
 
 ---
 
+
+##  Funcion para generar numero_expediente automatico
+-- Crear función para generar número_expediente automático
+CREATE OR REPLACE FUNCTION fn_crear_paciente_automatico()
+RETURNS TRIGGER AS $$
+DECLARE
+    v_numero_expediente VARCHAR(50);
+    v_year INT;
+    v_seq INT;
+BEGIN
+    v_year := EXTRACT(YEAR FROM CURRENT_TIMESTAMP);
+    SELECT COALESCE(MAX(CAST(SUBSTRING(numero_expediente FROM 9) AS INT)), 0) + 1
+    INTO v_seq
+    FROM pacientes
+    WHERE EXTRACT(YEAR FROM fecha_registro) = v_year;
+    
+    v_numero_expediente := 'EXP-' || v_year || '-' || LPAD(v_seq::TEXT, 6, '0');
+    
+    INSERT INTO pacientes (
+        id_paciente, id_persona, numero_expediente,
+        grupo_sanguineo, fecha_registro, eliminado_en,
+        eliminado_por, motivo_baja
+    ) VALUES (
+        gen_random_uuid(), NEW.id_persona, v_numero_expediente,
+        NULL, CURRENT_TIMESTAMP, NULL, NULL, NULL
+    );
+    
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Crear trigger
+CREATE TRIGGER tr_auto_create_paciente
+AFTER INSERT ON personas
+FOR EACH ROW
+EXECUTE FUNCTION fn_crear_paciente_automatiko();
+
+
 ## 🛠 Integración con Frontend
 
 **Endpoints del frontend ahora funcionan con:**

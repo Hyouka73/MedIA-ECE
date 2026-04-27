@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-async def _get_edad(fecha_nacimiento: date) -> int:
+def _get_edad(fecha_nacimiento: date) -> int:
     """Calcula edad desde fecha de nacimiento"""
     from datetime import date as date_cls
     today = date_cls.today()

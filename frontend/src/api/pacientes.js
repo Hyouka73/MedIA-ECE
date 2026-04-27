@@ -36,6 +36,17 @@ export const pacientesAPI = {
     addAlergia: (id, data) => api.post(`/expediente/${id}/alergias`, data),
     // POST /expediente/:id/antecedentes/patologicos — Agregar antecedente
     addAntecedente: (id, data) => api.post(`/expediente/${id}/antecedentes/patologicos`, data),
+    
+    // ── Antecedentes específicos ────────────────────────────
+    // POST /pacientes/:id/antecedentes/heredofamiliares
+    addAntecedenteHeredofamiliar: (id, data) => api.post(`/pacientes/${id}/antecedentes/heredofamiliares`, data),
+    // POST /pacientes/:id/antecedentes/patologicos
+    addAntecedentePatologico: (id, data) => api.post(`/pacientes/${id}/antecedentes/patologicos`, data),
+    // POST /pacientes/:id/antecedentes/no-patologicos
+    addAntecedenteNoPatologico: (id, data) => api.post(`/pacientes/${id}/antecedentes/no-patologicos`, data),
+    // POST /pacientes/:id/antecedentes/ginecoobstetricos
+    addAntecedenteGinecoobstetrico: (id, data) => api.post(`/pacientes/${id}/antecedentes/ginecoobstetricos`, data),
+    
     // POST /expediente/:id/inmunizaciones — Agregar inmunización
     addInmunizacion: (id, data) => api.post(`/expediente/${id}/inmunizaciones`, data),
     

@@ -18,9 +18,16 @@ import AdminEspecialidadesPage from './pages/admin/AdminEspecialidadesPage'
 import AdminRolesPage from './pages/admin/AdminRolesPage'
 
 // Pacientes
+<<<<<<< HEAD
 import PacientesListPage from './pages/pacients/PacientesListPage'
 import ExpedientePage from './pages/pacients/ExpedientePage'
 import PacienteFichaPage from './pages/pacients/PacienteFichaPage'
+=======
+import PacientesListPage from './pages/Pacients/PacientesListPage';
+import ExpedientePage from './pages/Pacients/ExpedientePage';
+import PacienteFichaPage from './pages/Pacients/PacienteFichaPage';
+import PacienteAntecedentesPage from './pages/Pacients/PacienteAntecedentesPage';
+>>>>>>> origin/develop
 
 // Consulta
 import NuevaConsultaPage from './pages/pacients/consulta/NuevaConsultaPage'
@@ -53,6 +60,7 @@ function App() {
                 <Route path="pacientes" element={<PacientesListPage />} />
                 <Route path="pacientes/nuevo" element={<PacienteFichaPage />} />
                 <Route path="pacientes/:id/editar" element={<PacienteFichaPage />} />
+                <Route path="pacientes/:id/antecedentes" element={<PacienteAntecedentesPage />} />
                 <Route path="expediente/:id" element={<ExpedientePage />} />
                 <Route path="consulta/nueva" element={<NuevaConsultaPage />} />
 
