@@ -25,6 +25,7 @@ from app.modules.encuentros.router import router as encuentros_router
 from app.modules.admin.router import router as admin_router
 from app.modules.auditoria.router import router as auditoria_router
 from app.modules.signosvitales.router import router as signos_router
+from app.modules.referencias.router import router as referencias_router
 
 limiter = Limiter(key_func=get_remote_address)
 
@@ -67,6 +68,7 @@ app.include_router(catalogos_router,  prefix="/api/catalogos",  tags=["Catálogo
 app.include_router(encuentros_router, prefix="/api/encuentros", tags=["Encuentros"])
 <<<<<<< Updated upstream
 app.include_router(signos_router,     prefix="/api/signos-vitales", tags=["Signos Vitales"]) #signos vitales xd
+app.include_router(referencias_router, prefix="/api/referencias", tags=["Referencias Médicas"])
 app.include_router(admin_router,       prefix="/api/admin",       tags=["Administración"])
 app.include_router(auditoria_router,   prefix="/api/auditoria",   tags=["Auditoría"])
 =======
