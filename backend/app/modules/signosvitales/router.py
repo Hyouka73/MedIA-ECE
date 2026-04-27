@@ -9,17 +9,20 @@ from app.core.deps import get_current_user, require_role
 from app.schemas.signosvitales import SignosVitalesCreateIn
 
 logger = logging.getLogger(__name__)
-router = APIRouter(prefix="/signos-vitales", tags=["Signos Vitales"])
 
-# --- POST: Registro con validación S4 y NOM-004 ---
-@router.post("", status_code=status.HTTP_201_CREATED)
+# Dejamos el prefijo vacío aquí porque el main.py ya usa /api/encuentros
+router = APIRouter(tags=["Signos Vitales"])
+
+# --- POST: Registro ajustado al estándar de la DB (ID 4, 5, 6) ---
+@router.post("/{id_encuentro}/signos-vitales", status_code=status.HTTP_201_CREATED)
 async def registrar_signos(
+    id_encuentro: UUID,
     data: SignosVitalesCreateIn,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role("ENFERMERO", "MEDICO_GENERAL", "ESPECIALISTA"))
+    # AJUSTE: Se cambió "ENFERMERO" por "ENFERMERIA" para coincidir con la DB
+    current_user: dict = Depends(require_role("ENFERMERIA", "MEDICO_GENERAL", "ESPECIALISTA"))
 ):
     try:
-        # Trazabilidad NOM-004: No enviamos fecha, la DB usa su CURRENT_TIMESTAMP
         query = text("""
             INSERT INTO signos_vitales 
             (id_encuentro, id_enfermero, presion_sistolica, presion_diastolica, 
@@ -30,7 +33,7 @@ async def registrar_signos(
         """)
         
         result = await db.execute(query, {
-            "id_e": data.id_encuentro,
+            "id_e": id_encuentro,
             "id_u": current_user["sub"],
             "ps": data.presion_sistolica,
             "pd": data.presion_diastolica,
@@ -48,14 +51,13 @@ async def registrar_signos(
         logger.error(f"Error registrando signos: {str(e)}")
         raise HTTPException(status_code=400, detail="Error al guardar los signos vitales")
 
-# --- GET: Consulta usando la vista de P3 ---
-@router.get("", response_model=dict)
+# --- GET: Consulta ---
+@router.get("/{id_encuentro}/signos-vitales", response_model=dict)
 async def obtener_signos_encuentro(
-    id_encuentro: UUID = Query(...),
+    id_encuentro: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
-    """Retorna los signos del encuentro activo usando la vista v_signos_encuentro"""
     try:
         query = text("SELECT * FROM v_signos_encuentro WHERE id_encuentro = :id_e")
         result = await db.execute(query, {"id_e": id_encuentro})
@@ -64,7 +66,6 @@ async def obtener_signos_encuentro(
         if not row:
             return {"data": None, "message": "No hay signos registrados para este encuentro"}
             
-        # ._asdict() es necesario para convertir la fila de SQLAlchemy a un diccionario JSON
         return {"data": row._asdict(), "message": "Signos obtenidos correctamente"}
     except Exception as e:
         logger.error(f"Error consultando vista P3: {str(e)}")

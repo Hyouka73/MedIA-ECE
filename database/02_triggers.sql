@@ -100,6 +100,7 @@ CREATE TRIGGER tr_hist_ant_patologicos AFTER UPDATE ON antecedentes_patologicos 
 CREATE TRIGGER tr_hist_ant_no_patologicos AFTER UPDATE ON antecedentes_no_patologicos FOR EACH ROW EXECUTE FUNCTION fn_registrar_cambio();
 CREATE TRIGGER tr_hist_ant_ginecoobs AFTER UPDATE ON antecedentes_ginecoobstetricos FOR EACH ROW EXECUTE FUNCTION fn_registrar_cambio();
 CREATE TRIGGER tr_hist_inmunizaciones AFTER UPDATE ON inmunizaciones FOR EACH ROW EXECUTE FUNCTION fn_registrar_cambio();
+CREATE TRIGGER tr_hist_referencias AFTER UPDATE ON referencias_medicas FOR EACH ROW EXECUTE FUNCTION fn_registrar_cambio();
 
 -- ==========================================
 -- 4. Bloqueo por Intentos Fallidos
@@ -161,6 +162,34 @@ $$ LANGUAGE plpgsql;
 
 CREATE TRIGGER tr_registro_borrado_pacientes
 AFTER UPDATE ON pacientes
+FOR EACH ROW EXECUTE FUNCTION fn_registro_borrado_logico();
+
+CREATE TRIGGER tr_registro_borrado_alergias
+AFTER UPDATE ON alergias
+FOR EACH ROW EXECUTE FUNCTION fn_registro_borrado_logico();
+
+CREATE TRIGGER tr_registro_borrado_ant_heredofam
+AFTER UPDATE ON antecedentes_heredofamiliares
+FOR EACH ROW EXECUTE FUNCTION fn_registro_borrado_logico();
+
+CREATE TRIGGER tr_registro_borrado_ant_patologicos
+AFTER UPDATE ON antecedentes_patologicos
+FOR EACH ROW EXECUTE FUNCTION fn_registro_borrado_logico();
+
+CREATE TRIGGER tr_registro_borrado_ant_no_patologicos
+AFTER UPDATE ON antecedentes_no_patologicos
+FOR EACH ROW EXECUTE FUNCTION fn_registro_borrado_logico();
+
+CREATE TRIGGER tr_registro_borrado_ant_ginecoobs
+AFTER UPDATE ON antecedentes_ginecoobstetricos
+FOR EACH ROW EXECUTE FUNCTION fn_registro_borrado_logico();
+
+CREATE TRIGGER tr_registro_borrado_inmunizaciones
+AFTER UPDATE ON inmunizaciones
+FOR EACH ROW EXECUTE FUNCTION fn_registro_borrado_logico();
+
+CREATE TRIGGER tr_registro_borrado_referencias
+AFTER UPDATE ON referencias_medicas
 FOR EACH ROW EXECUTE FUNCTION fn_registro_borrado_logico();
 
 

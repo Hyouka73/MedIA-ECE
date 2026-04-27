@@ -10,14 +10,22 @@ export const BarreraLinguisticaAlert = ({
   size = 'medium',
   showLabel = true 
 }) => {
-  // Validar si debe mostrarse la alerta
-  if (!paciente?.persona?.alerta_barrera_linguistica) {
+  const spanishId = '1';
+  const lenguaMaternaId = paciente?.persona?.id_lengua_materna != null
+    ? String(paciente.persona.id_lengua_materna)
+    : null;
+
+  const tieneBarrera = lenguaMaternaId
+    ? lenguaMaternaId !== spanishId
+    : Boolean(paciente?.persona?.alerta_barrera_linguistica);
+
+  if (!tieneBarrera) {
     return null;
   }
 
-  const tieneLengua = paciente.persona.id_lengua_materna != null;
-  const lenguaMaterna = paciente.persona.id_lengua_materna;
-  const nombreLengua = tieneLengua ? paciente.persona.nombre_lengua_materna : "No especificada";
+  const tieneLengua = lenguaMaternaId != null;
+  const lenguaMaterna = paciente?.persona?.id_lengua_materna;
+  const nombreLengua = tieneLengua ? paciente.persona.nombre_lengua_materna || "No especificada" : "No especificada";
 
   const styles = {
     small: {

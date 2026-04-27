@@ -223,6 +223,67 @@ export default function PacienteFichaPage() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const handleSaveAndContinue = async () => {
+    setValidationErrors([]);
+    
+    if (!validateForm()) {
+      setError("Por favor, completa los campos requeridos correctamente");
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+    setSuccessMsg("");
+
+    try {
+      console.log('📦 Datos del formulario:', form);
+      
+      const pacientePayload = {
+        persona: {
+          nombre: form.nombre.trim(),
+          primer_apellido: form.primer_apellido.trim(),
+          segundo_apellido: form.segundo_apellido.trim() || null,
+          curp: form.curp.trim().toUpperCase() || null,
+          fecha_nacimiento: form.fecha_nacimiento,
+          sexo: form.sexo,
+          id_localidad: form.id_localidad || null,
+          calle_numero: form.calle_numero.trim() || null,
+          referencia_geografica: form.referencia_geografica.trim() || null,
+          telefono: form.telefono.trim() || null,
+          id_lengua_materna: form.id_lengua_materna ? parseInt(form.id_lengua_materna) : null,
+        },
+        grupo_sanguineo: form.grupo_sanguineo || null
+      };
+      
+      const getNombreLengua = lenguas.find(l => l.id_lengua.toString() === form.id_lengua_materna)?.nombre || "Desconocida";
+      console.log('📤 Enviando paciente:', pacientePayload);
+      
+      const pacienteResponse = await pacientesAPI.createPaciente(pacientePayload);
+      const nuevoPaciente = pacienteResponse.data?.data;
+      
+      setSuccessMsg("Paciente registrado exitosamente. Redirigiendo a antecedentes...");
+      setTimeout(() => navigate(`/pacientes/${nuevoPaciente.id_paciente}/antecedentes`), 1500);
+    } catch (err) {
+      console.error("Error guardando paciente:", err);
+      
+      if (err.response?.status === 422) {
+        const detail = err.response.data?.detail;
+        if (Array.isArray(detail)) {
+          setValidationErrors(detail);
+          setError(detail.map(e => `${e.loc.join('.')}: ${e.msg}`).join('\n'));
+        } else {
+          setError(JSON.stringify(detail));
+        }
+      } else {
+        setError(err.response?.data?.detail || err.message || "Error al guardar paciente");
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setValidationErrors([]);
@@ -540,6 +601,30 @@ export default function PacienteFichaPage() {
           {/* Botones */}
           <div style={{ display: "flex", gap: 12, justifyContent: "flex-end" }}>
             <button type="button" onClick={() => navigate(-1)} style={{ padding: "10px 20px", background: "transparent", border: "1.5px solid #2459A8", color: "#2459A8", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 500 }}>Cancelar</button>
+            {!isEdit && (
+              <button 
+                type="button" 
+                onClick={handleSaveAndContinue} 
+                disabled={saving}
+                style={{ 
+                  padding: "10px 20px", 
+                  background: "#059669", 
+                  color: "#fff", 
+                  border: "none", 
+                  borderRadius: 6, 
+                  cursor: saving ? "not-allowed" : "pointer", 
+                  fontSize: 13, 
+                  fontWeight: 500, 
+                  opacity: saving ? 0.6 : 1, 
+                  display: "flex", 
+                  alignItems: "center", 
+                  gap: 8 
+                }}
+              >
+                <Save size={16} />
+                {saving ? "Guardando..." : "Guardar y Continuar →"}
+              </button>
+            )}
             <button type="submit" disabled={saving} style={{ padding: "10px 20px", background: "#2459A8", color: "#fff", border: "none", borderRadius: 6, cursor: saving ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 500, opacity: saving ? 0.6 : 1, display: "flex", alignItems: "center", gap: 8 }}>
               <Save size={16} />
               {saving ? "Guardando..." : isEdit ? "Actualizar" : "Registrar"}

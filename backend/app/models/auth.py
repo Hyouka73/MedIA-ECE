@@ -53,6 +53,7 @@ class Persona(Base):
     fecha_registro = Column(DateTime(timezone=True), nullable=False, default=func.now())
 
     usuario = relationship("User", back_populates="persona", uselist=False)
+    lengua = relationship("Lengua")
 
 
 class SesionActiva(Base):
@@ -72,9 +73,17 @@ class Establecimiento(Base):
     id_establecimiento = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     clues = Column(String(20), unique=True, nullable=False)
     nombre = Column(String(200), nullable=False)
-    id_jurisdiccion = Column(Integer) 
+    id_jurisdiccion = Column(Integer)
     id_localidad = Column(String(9))
     nivel_atencion = Column(Integer)
+
+
+class EstablecimientoEspecialidad(Base):
+    __tablename__ = "establecimientos_especialidades"
+    id_establecimiento = Column(UUID(as_uuid=True), ForeignKey("establecimientos.id_establecimiento"), primary_key=True)
+    id_especialidad = Column(Integer, ForeignKey("cat_especialidades_medicas.id_especialidad"), primary_key=True)
+    activo = Column(Boolean, nullable=False, server_default="true")
+    fecha_habilitacion = Column(DateTime(timezone=True), server_default=func.now())
 
 
 class Paciente(Base):
@@ -288,12 +297,26 @@ class PacienteTutor(Base):
 class Referencia(Base):
     __tablename__ = "referencias_medicas"
     id_referencia = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    folio = Column(String(20), unique=True, nullable=False)  # Folio único generado
+    tipo = Column(String(20), nullable=False, server_default="REFERENCIA")  # REFERENCIA | CONTRAREFERENCIA
+    id_referencia_origen = Column(UUID(as_uuid=True), ForeignKey("referencias_medicas.id_referencia"), nullable=True)  # Para contrarreferencias
     id_encuentro_origen = Column(UUID(as_uuid=True), ForeignKey("encuentros_clinicos.id_encuentro"), nullable=False)
     id_establecimiento_destino = Column(UUID(as_uuid=True), ForeignKey("establecimientos.id_establecimiento"), nullable=False)
     id_especialidad_destino = Column(Integer, ForeignKey("cat_especialidades_medicas.id_especialidad"), nullable=False)
-    estado = Column(String(20), nullable=False, server_default="EMITIDA")  # EMITIDA | ACEPTADA | RECHAZADA | ATENDIDA | CONTRARREFERIDA
+    estado = Column(String(20), nullable=False, server_default="PENDIENTE")  # PENDIENTE | ACEPTADA | ATENDIDA | CANCELADA
+    urgencia = Column(String(20), nullable=False)  # URGENTE | PROGRAMADA
     motivo_referencia = Column(Text, nullable=False)
+    diagnostico_cie10 = Column(String(10), nullable=True)  # Código CIE-10
+    resumen_contrarreferencia = Column(Text, nullable=True)  # Solo para contrarreferencias
     fecha_emision = Column(DateTime(timezone=True), server_default=func.now())
     fecha_respuesta = Column(DateTime(timezone=True), nullable=True)
+    id_usuario_emisor = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), nullable=False)
+    id_usuario_respuesta = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), nullable=True)
 
+    # Relaciones
     encuentro = relationship("EncuentroClinico")
+    establecimiento_destino = relationship("Establecimiento")
+    especialidad_destino = relationship("EspecialidadMedica")
+    usuario_emisor = relationship("User", foreign_keys=[id_usuario_emisor])
+    usuario_respuesta = relationship("User", foreign_keys=[id_usuario_respuesta])
+    referencia_origen = relationship("Referencia", remote_side=[id_referencia])
