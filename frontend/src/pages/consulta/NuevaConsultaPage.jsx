@@ -13,7 +13,7 @@ import {
   UserCircle,
   X,
 } from 'lucide-react'
-import { clinicoAPI } from '../../../api/clinico'
+import { clinicoAPI } from '../../api/clinico'
 
 
 const Field = ({ label, children, error, hint }) => (
