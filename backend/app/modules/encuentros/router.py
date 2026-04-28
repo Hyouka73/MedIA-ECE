@@ -6,32 +6,32 @@ from uuid import UUID
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from sqlalchemy import select, text
-from uuid import UUID, uuid4
+from sqlalchemy import select, text, delete
+from uuid import UUID as uuid, uuid4
 from datetime import datetime, timezone
+
 
 from app.database.session import get_db
 from app.core.deps import get_current_user, require_role
-from app.services.encuentros import encuentro_service
-from app.services.notas_soap import NotaSOAPService, CatalogoService
-from app.schemas.encuentros import (
-    EncuentroCreateIn, EncuentroOut, EncuentroDetalleOut,
-    EncuentroCerrarIn, EncuentroPacienteOut,
-    NotaSOAPCreateIn, NotaSOAPUpdateIn, NotaSOAPOut,
-    NotaEnmiendaCreateIn, NotaEnmiendaOut, CIE10ListOut
-) 
-import logging
-from pydantic import BaseModel 
-
-from app.services.encuentros import encuentro_service
-
 from app.schemas.encuentros import (
     EncuentroCreateIn, EncuentroOut, EncuentroDetalleOut,
     EncuentroCerrarIn, EncuentroPacienteOut
+) 
+
+from app.schemas.notas_soap import (
+    NotaSOAPCreateIn, NotaSOAPUpdateIn, NotaSOAPOut,
+    NotaEnmiendaCreateIn, NotaEnmiendaOut, CIE10ListOut
 )
+)
+import logging
+from pydantic import BaseModel
+
+
+from app.services.encuentros import encuentro_service
+
 
 from app.models.auth import CatMedicamento, Alergia, AuditoriaAcceso, CatCIE10
+
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -67,7 +67,7 @@ async def list_encuentros(
                 if not tiene_acceso:
                     logger.warning(f"Acceso denegado en verificación para {current_user['sub']}")
             except ImportError:
-                logger.warning("Servicio de acceso no disponible")
+                logger.info("Servicio de acceso no disponible (opcional)")
 
         query = """
             SELECT
@@ -141,35 +141,148 @@ async def list_encuentros(
         raise HTTPException(status_code=500, detail="Error interno al obtener encuentros")
 
 
-# ── POST /encuentros ────────────────────────────────────────────────────
 @router.post("", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_encuentro(
     data: dict,
-    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
-    db: AsyncSession = Depends(get_db)
+    current_user: dict = Depends(
+        require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")
+    ),
+    db: AsyncSession = Depends(get_db),
 ):
-    """POST /encuentros — Crea un encuentro validando el catálogo CIE-10"""
+    """POST /encuentros — Crea un encuentro VALIDANDO CIE-10 y guardando el diagnóstico en diagnosticos_encuentro"""
+    """POST /encuentros — Crea un encuentro clínico
+    
+    Campos opcionales (se obtienen del contexto del usuario si no se proporcionan):
+    - id_establecimiento: Se obtiene del establecimiento asignado al usuario
+    - id_especialidad: Se obtiene de la especialidad del usuario
+    
+    Campos requeridos:
+    - id_paciente: UUID del paciente
+    - motivo_consulta: Motivo de la consulta
+    
+    Los diagnósticos (CIE-10) se agregan después en la tabla diagnosticos_encuentro
+    """
     try:
+        # 1. Extraer datos del request o del contexto del usuario
         id_paciente = data.get("id_paciente")
         id_establecimiento = data.get("id_establecimiento")
         id_especialidad = data.get("id_especialidad")
-        id_diagnostico = data.get("id_diagnostico")
+        id_cie10 = data.get("id_diagnostico")  # ← código CIE-10 (ej: "A09")
+        id_establecimiento = data.get("id_establecimiento") or current_user.get("id_establecimiento")
+        id_especialidad = data.get("id_especialidad") or current_user.get("id_especialidad")
         motivo_consulta = data.get("motivo_consulta", "").strip()
+        id_medico = UUID(current_user["sub"])
 
-        if not id_paciente or not id_diagnostico or not motivo_consulta:
-            raise HTTPException(status_code=422, detail="Paciente, Diagnóstico y Motivo son requeridos")
+        if not id_paciente or not motivo_consulta:
+            raise HTTPException(
+                status_code=422,
+                detail="id_paciente y motivo_consulta son requeridos"
+            )
 
-        stmt_cie = select(CatCIE10).where(CatCIE10.id_cie10 == id_diagnostico)
+        # Validar que el código CIE-10 exista
+        if not id_cie10:
+            raise HTTPException(
+                status_code=400, detail="id_diagnostico (código CIE-10) es requerido"
+            )
+
+        stmt_cie = select(CatCIE10).where(CatCIE10.codigo_cie == id_cie10)
         res_cie = await db.execute(stmt_cie)
-        if not res_cie.scalar_one_or_none():
-            raise HTTPException(status_code=400, detail=f"Código CIE-10 '{id_diagnostico}' no válido")
+        cie10 = res_cie.scalar_one_or_none()
 
+        if not cie10:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Código CIE-10 '{id_cie10}' no válido en cat_cie10"
+            )
+
+        # Conversión de id_establecimiento:
+        # - si es None o "None" → None
+        # - si es UUID → str(uuid)
+        if not id_establecimiento or id_establecimiento in (None, "None"):
+            id_establecimiento = None
+        else:
+            try:
+                id_establecimiento = str(UUID(id_establecimiento))
+            except Exception:
+                raise HTTPException(status_code=400, detail="id_establecimiento debe ser UUID o None")
+
+        # Crear el id_encuentro
+        # 2. Validar campos requeridos
+        if not id_paciente:
+            raise HTTPException(status_code=422, detail="id_paciente es requerido")
+        if not motivo_consulta:
+            raise HTTPException(status_code=422, detail="motivo_consulta es requerido")
+        if not id_establecimiento:
+            # id_establecimiento = "CSSSA023999"
+            raise HTTPException(status_code=422, detail="No se pudo determinar el establecimiento del usuario")
+        if not id_especialidad:
+            id_especialidad = 1
+            # raise HTTPException(status_code=422, detail="No se pudo determinar la especialidad del usuario")
+
+        # 3. Insertar encuentro (SIN diagnóstico - se agrega después en diagnosticos_encuentro)
         id_encuentro = str(uuid4())
+        fecha_inicio = datetime.now(timezone.utc)
+
+        # Insertar ENCUENTRO (sin id_diagnostico)
+        try:
+            await db.execute(
+                text("""
+                    INSERT INTO encuentros_clinicos
+                    (
+                        id_encuentro, id_paciente, id_medico,
+                        id_establecimiento, id_especialidad,
+                        fecha_inicio, motivo_consulta
+                    )
+                    VALUES
+                        (:id, :pac, :med, :est, :esp, :fecha, :mot)
+                """),
+                {
+                    "id": id_encuentro,
+                    "pac": str(id_paciente),
+                    "med": str(id_medico),
+                    "est": id_establecimiento,
+                    "esp": id_especialidad,
+                    "fecha": fecha_inicio,
+                    "mot": motivo_consulta
+                },
+            )
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"Error al insertar encuentro: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error al crear el encuentro clínico"
+            )
+
+        # Insertar DIAGNÓSTICO en diagnosticos_encuentro
+        try:
+            id_diagnostico_pk = str(uuid4())
+
+            await db.execute(
+                text("""
+                    INSERT INTO diagnosticos_encuentro
+                    (id_diagnostico, id_encuentro, codigo_cie)
+                    VALUES (:id_diag, :id_enc, :codigo_cie)
+                """),
+                {
+                    "id_diag": id_diagnostico_pk,
+                    "id_enc": id_encuentro,
+                    "codigo_cie": id_cie10,
+                },
+            )
+        except Exception as e:
+            await db.rollback()
+            logger.error(f"Error al insertar diagnóstico: {e}")
+            raise HTTPException(
+                status_code=500,
+                detail="Error al guardar el diagnóstico CIE-10 del encuentro"
+            )
+
         await db.execute(
             text("""
-                INSERT INTO encuentros_clinicos
-                (id_encuentro, id_paciente, id_medico, id_establecimiento, id_especialidad, id_diagnostico, fecha_inicio, motivo_consulta)
-                VALUES (:id, :pac, :med, :est, :esp, :diag, :fecha, :mot)
+                INSERT INTO encuentros_clinicos 
+                (id_encuentro, id_paciente, id_medico, id_establecimiento, id_especialidad, fecha_inicio, motivo_consulta)
+                VALUES (:id, :pac, :med, :est, :esp, :fecha, :mot)
             """),
             {
                 "id": id_encuentro,
@@ -177,7 +290,6 @@ async def create_encuentro(
                 "med": current_user["sub"],
                 "est": str(id_establecimiento),
                 "esp": id_especialidad,
-                "diag": id_diagnostico,
                 "fecha": datetime.now(timezone.utc),
                 "mot": motivo_consulta
             }
@@ -187,17 +299,21 @@ async def create_encuentro(
         return {
             "data": {
                 "id_encuentro": id_encuentro,
-                "fecha_inicio": datetime.now(timezone.utc).isoformat()
+                "fecha_inicio": fecha_inicio.isoformat(),
+                "id_cie10": id_cie10,
             },
-            "message": "Encuentro clínico creado exitosamente"
+            "message": "Encuentro clínico y diagnóstico CIE-10 creados exitosamente",
+            "message": "Encuentro clínico creado exitosamente. Los diagnósticos pueden agregarse después."
         }
 
     except HTTPException:
         raise
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error al crear encuentro: {str(e)}")
+        logger.error(f"Error general al crear encuentro: {str(e)}")
         raise HTTPException(status_code=500, detail="Error interno al crear encuentro")
+        logger.error(f"Error al crear encuentro: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
 
 # ── PATCH /encuentros/{id}/cerrar ──────────────────────────────────────
@@ -216,9 +332,9 @@ async def cerrar_encuentro(
         encuentro = result.fetchone()
 
         if not encuentro:
-            raise HTTPException(status_code=404, detail="No encontrado")
-        if encuentro[0] != current_user["sub"]:
-            raise HTTPException(status_code=403, detail="No autorizado")
+            raise HTTPException(status_code=404, detail="Encuentro no encontrado")
+        if str(encuentro[0]) != current_user["sub"]:
+            raise HTTPException(status_code=403, detail="No autorizado (no es el autor)")
         if encuentro[1] is not None:
             raise HTTPException(status_code=400, detail="Ya está cerrado")
 
@@ -235,122 +351,10 @@ async def cerrar_encuentro(
     except Exception as e:
         await db.rollback()
         logger.error(f"Error al cerrar encuentro: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error al cerrar encuentro")
         raise HTTPException(status_code=500, detail="Error al cerrar")
 
 
-# # ── POST /encuentros/{id}/signos-vitales ───────────────────────────────
-# @router.post("/{id_encuentro}/signos-vitales", response_model=dict, status_code=status.HTTP_201_CREATED)
-# async def registrar_signos_vitales(
-#     id_encuentro: UUID,
-#     data: dict,
-#     current_user: dict = Depends(require_role("ENFERMERO", "MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
-#     db: AsyncSession = Depends(get_db)
-# ):
-#     """POST /encuentros/{id}/signos-vitales — Registra signos vitales"""
-#     try:
-#         res_check = await db.execute(
-#             text("SELECT fecha_cierre FROM encuentros_clinicos WHERE id_encuentro = :id"),
-#             {"id": str(id_encuentro)}
-#         )
-#         enc = res_check.fetchone()
-#         if not enc or enc[0] is not None:
-#             raise HTTPException(status_code=400, detail="Encuentro cerrado o inexistente")
-
-#         id_signos = str(uuid4())
-#         await db.execute(
-#             text("""
-#                 INSERT INTO signos_vitales
-#                 (id_signos, id_encuentro, id_enfermero, peso_kg, talla_cm, temperatura_c,
-#                  frecuencia_cardiaca, frecuencia_respiratoria, presion_sistolica, presion_diastolica,
-#                  saturacion_oxigeno, fecha_toma)
-#                 VALUES (:id_sig, :id_enc, :id_enf, :peso, :talla, :temp, :fc, :fr, :ps, :pd, :so2, :fecha)
-#             """),
-#             {
-#                 "id_sig": id_signos,
-#                 "id_enc": str(id_encuentro),
-#                 "id_enf": current_user["sub"],
-#                 "peso": data.get("peso_kg"),
-#                 "talla": data.get("talla_cm"),
-#                 "temp": data.get("temperatura_c"),
-#                 "fc": data.get("frecuencia_cardiaca"),
-#                 "fr": data.get("frecuencia_respiratoria"),
-#                 "ps": data.get("presion_sistolica"),
-#                 "pd": data.get("presion_diastolica"),
-#                 "so2": data.get("saturacion_oxigeno"),
-#                 "fecha": datetime.now(timezone.utc)
-#             }
-#         )
-#         await db.commit()
-
-#         return {
-#             "data": {"id_signos": id_signos},
-#             "message": "Signos vitales registrados exitosamente"
-#         }
-
-#     except HTTPException:
-#         raise
-#     except Exception as e:
-#         await db.rollback()
-#         logger.error(f"Error al registrar signos vitales: {str(e)}")
-#         raise HTTPException(status_code=500, detail="Error al registrar signos")
-
-
-# ── POST /encuentros/{id}/prescripciones ───────────────────────────────
-# @router.post("/{id_encuentro}/prescripciones", status_code=status.HTTP_201_CREATED)
-# async def crear_prescripcion(
-#     id_encuentro: UUID, 
-#     data: PrescripcionCreate, 
-#     db: AsyncSession = Depends(get_db),
-#     current_user: dict = Depends(get_current_user)
-# ):
-#     """
-#     POST /encuentros/{id}/prescripciones con validación de alergias y auditoría
-#     """
-#     # 1. Buscar medicamento
-#     stmt_med = select(CatMedicamento).where(CatMedicamento.codigo_medicamento_ssa == data.id_medicamento)
-#     res_med = await db.execute(stmt_med)
-#     medicamento = res_med.scalar_one_or_none()
-    
-#     if not medicamento:
-#         raise HTTPException(status_code=404, detail="Medicamento no encontrado en catálogo")
-
-#     # 2. VALIDACIÓN DE ALERGIAS REAL (Usando Alergia del modelo centralizado)
-#     stmt_ale = select(Alergia).where(
-#         Alergia.id_paciente == data.id_paciente,
-#         Alergia.alergia.ilike(f"%{medicamento.nombre_generico}%")
-#     )
-#     res_ale = await db.execute(stmt_ale)
-#     alergias = res_ale.scalars().all()
-
-#     for ale in alergias:
-#         if ale.severidad == "CRITICA" and not data.confirmar_alergia:
-#             try:
-#                 # AUDITORÍA FORENSE USANDO MODELO CENTRALIZADO
-#                 stmt_audit = insert(AuditoriaAcceso).values(
-#                     id_usuario=current_user["sub"], 
-#                     direccion_ip="127.0.0.1",
-#                     modulo_funcion="CLINICO_PRESCIPCION",
-#                     tipo_evento="INTENTO_RIESGO_ALERGIA",
-#                     resultado="DENEGADO",
-#                     nivel_severidad="CRITICA",
-#                     detalles={
-#                         "alerta": "Alergia bloqueada",
-#                         "medicamento": medicamento.nombre_generico,
-#                         "paciente_id": str(data.id_paciente)
-#                     }
-#                 )
-#                 await db.execute(stmt_audit)
-#                 await db.commit()
-#             except Exception as e:
-#                 logger.error(f"Error auditoria: {str(e)}")
-#                 await db.rollback()
-
-#             raise HTTPException(
-#                 status_code=409,
-#                 detail={"codigo": "ALERTA_ALERGIA", "mensaje": f"BLOQUEO: Alérgico a {ale.alergia}"}
-#             )
-
-#     return {"status": "success", "message": "Prescripción validada correctamente"}
 
 
 # ─── ENDPOINTS DE RESPALDO (usando encuentro_service) ───────────────────
@@ -358,8 +362,10 @@ async def cerrar_encuentro(
 @router.post("/", response_model=EncuentroOut, status_code=201)
 async def crear_encuentro_bck(
     data: EncuentroCreateIn,
-    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
-    db: AsyncSession = Depends(get_db)
+    current_user: dict = Depends(
+        require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")
+    ),
+    db: AsyncSession = Depends(get_db),
 ):
     """POST /encuentros/ — Respaldo usando encuentro_service"""
     id_medico = UUID(current_user["id"])
@@ -381,16 +387,18 @@ async def crear_encuentro_bck(
         fecha_inicio=encuentro.fecha_inicio,
         fecha_cierre=encuentro.fecha_cierre,
         motivo_consulta=encuentro.motivo_consulta,
-        tipo_consulta=encuentro.tipo_consulta
+        tipo_consulta=encuentro.tipo_consulta,
     )
 
 
 @router.get("/activos", response_model=List[EncuentroOut])
 async def listar_encuentros_activos(
-    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "ENFERMERIA", "SUPERADMIN")),
+    current_user: dict = Depends(
+        require_role("MEDICO_GENERAL", "ESPECIALISTA", "ENFERMERIA", "SUPERADMIN")
+    ),
     db: AsyncSession = Depends(get_db),
     skip: int = Query(0, ge=0),
-    limit: int = Query(50, ge=1, le=100)
+    limit: int = Query(50, ge=1, le=100),
 ):
     """GET /encuentros/activos — Lista encuentros activos del establecimiento"""
     id_establecimiento = UUID(current_user.get("establecimiento", "CSSSA023999"))
@@ -399,7 +407,7 @@ async def listar_encuentros_activos(
         db=db,
         id_establecimiento=id_establecimiento,
         skip=skip,
-        limit=limit
+        limit=limit,
     )
 
     return [
@@ -414,9 +422,11 @@ async def listar_encuentros_activos(
             motivo_consulta=e.motivo_consulta,
             tipo_consulta=e.tipo_consulta,
             paciente_numero_expediente=e.paciente.numero_expediente if e.paciente else None,
-            paciente_nombre=f"{e.paciente.persona.nombre} {e.paciente.persona.primer_apellido}" if e.paciente and e.paciente.persona else None,
-            medico_nombre=f"{e.medico.persona.nombre} {e.medico.persona.primer_apellido}" if e.medico and e.medico.persona else None,
-            establecimiento_nombre=e.establecimiento.nombre if e.establecimiento else None
+            paciente_nombre=f"{e.paciente.persona.nombre} {e.paciente.persona.primer_apellido}"
+                           if e.paciente and e.paciente.persona else None,
+            medico_nombre=f"{e.medico.persona.nombre} {e.medico.persona.primer_apellido}"
+                         if e.medico and e.medico.persona else None,
+            establecimiento_nombre=e.establecimiento.nombre if e.establecimiento else None,
         )
         for e in encuentros
     ]
@@ -425,8 +435,10 @@ async def listar_encuentros_activos(
 @router.get("/{id}", response_model=EncuentroDetalleOut)
 async def obtener_encuentro(
     id: UUID,
-    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "ENFERMERIA", "SUPERADMIN")),
-    db: AsyncSession = Depends(get_db)
+    current_user: dict = Depends(
+        require_role("MEDICO_GENERAL", "ESPECIALISTA", "ENFERMERIA", "SUPERADMIN")
+    ),
+    db: AsyncSession = Depends(get_db),
 ):
     """GET /encuentros/{id} — Detalle completo del encuentro"""
     id_usuario = UUID(current_user["id"])
@@ -434,7 +446,7 @@ async def obtener_encuentro(
     encuentro = await encuentro_service.obtener_encuentro(
         db=db,
         id_encuentro=id,
-        id_usuario=id_usuario
+        id_usuario=id_usuario,
     )
 
     return EncuentroDetalleOut(
@@ -448,10 +460,12 @@ async def obtener_encuentro(
         motivo_consulta=encuentro.motivo_consulta,
         tipo_consulta=encuentro.tipo_consulta,
         paciente_numero_expediente=encuentro.paciente.numero_expediente if encuentro.paciente else None,
-        paciente_nombre=f"{encuentro.paciente.persona.nombre} {encuentro.paciente.persona.primer_apellido}" if encuentro.paciente and encuentro.paciente.persona else None,
-        medico_nombre=f"{encuentro.medico.persona.nombre} {encuentro.medico.persona.primer_apellido}" if encuentro.medico and encuentro.medico.persona else None,
+        paciente_nombre=f"{encuentro.paciente.persona.nombre} {encuentro.paciente.persona.primer_apellido}"
+                       if encuentro.paciente and encuentro.paciente.persona else None,
+        medico_nombre=f"{encuentro.medico.persona.nombre} {encuentro.medico.persona.primer_apellido}"
+                     if encuentro.medico and encuentro.medico.persona else None,
         establecimiento_nombre=encuentro.establecimiento.nombre if encuentro.establecimiento else None,
         notas=[],
         signos_vitales=None,
-        diagnosticos=[]
+        diagnosticos=[],
     )

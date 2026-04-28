@@ -8,14 +8,14 @@ import { ToastProvider } from './components/ui/Alert'
 
 // Dashboard
 import DashboardPage from './pages/dashboard/DashboardPage'
-import ProfilePage   from './pages/dashboard/ProfilePage'
+import ProfilePage from './pages/dashboard/ProfilePage'
 
-// Admin (Persona 5)
-import AdminDashboardPage         from './pages/admin/AdminDashboardPage'
-import AdminUsuariosPage          from './pages/admin/AdminUsuariosPage'
+// Admin
+import AdminDashboardPage from './pages/admin/AdminDashboardPage'
+import AdminUsuariosPage from './pages/admin/AdminUsuariosPage'
 import AdminEstablecimientosPage from './pages/admin/AdminEstablecimientosPage'
-import AdminEspecialidadesPage   from './pages/admin/AdminEspecialidadesPage'
-import AdminRolesPage            from './pages/admin/AdminRolesPage'
+import AdminEspecialidadesPage from './pages/admin/AdminEspecialidadesPage'
+import AdminRolesPage from './pages/admin/AdminRolesPage'
 
 // Pacientes
 import PacientesListPage from './pages/Pacients/PacientesListPage';
@@ -23,8 +23,8 @@ import ExpedientePage from './pages/Pacients/ExpedientePage';
 import PacienteFichaPage from './pages/Pacients/PacienteFichaPage';
 import PacienteAntecedentesPage from './pages/Pacients/PacienteAntecedentesPage';
 
-// Auditoría y Seguridad (Persona 5 - Corregido)
-import AuditoriaPage from './pages/audit/AuditoriaPage'
+// Consulta
+import NuevaConsultaPage from './pages/consulta/NuevaConsultaPage'
 
 // Referencias
 import ReferenciasListPage from './pages/references/ReferenciasListaPage';
@@ -45,20 +45,21 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/403"   element={<Unauthorized />} />
+            <Route path="/403" element={<Unauthorized />} />
 
             <Route path="/" element={<ProtectedRoute />}>
               <Route element={<MainLayout />}>
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardPage />} />
-                <Route path="perfil"    element={<ProfilePage />} />
-                
-                {/* ── Clínica ── */}
+                <Route path="perfil" element={<ProfilePage />} />
+
+                {/* Clínica */}
                 <Route path="pacientes" element={<PacientesListPage />} />
                 <Route path="pacientes/nuevo" element={<PacienteFichaPage />} />
                 <Route path="pacientes/:id/editar" element={<PacienteFichaPage />} />
                 <Route path="pacientes/:id/antecedentes" element={<PacienteAntecedentesPage />} />
                 <Route path="expediente/:id" element={<ExpedientePage />} />
+                <Route path="consulta/nueva" element={<NuevaConsultaPage />} />
 
                 {/* ── Referencias ── */}
                 <Route path="referencias" element={<ReferenciasListPage />} />
@@ -68,11 +69,11 @@ function App() {
                 <Route path="admin"                 element={<AdminDashboardPage />} />
                 <Route path="admin/usuarios"         element={<AdminUsuariosPage />} />
                 <Route path="admin/establecimientos" element={<AdminEstablecimientosPage />} />
-                <Route path="admin/especialidades"   element={<AdminEspecialidadesPage />} />
-                <Route path="admin/roles"            element={<AdminRolesPage />} />
+                <Route path="admin/especialidades" element={<AdminEspecialidadesPage />} />
+                <Route path="admin/roles" element={<AdminRolesPage />} />
 
-                {/* ── Auditoría y Seguridad (Módulos Persona 5) ── */}
-                <Route path="audit/logs"       element={<AuditoriaPage />} />
+                {/* Auditoría */}
+                <Route path="audit/logs" element={<AuditoriaPage />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Route>
             </Route>
