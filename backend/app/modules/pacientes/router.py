@@ -9,10 +9,9 @@ from app.schemas.pacientes import PacienteOut, PacienteCreateIn, PersonaOut
 from uuid import UUID, uuid4
 from datetime import datetime, timezone, date
 from sqlalchemy import update
-from typing import Optional
-from pydantic import BaseModel as PydanticBaseModel
 import uuid
 import logging
+from app.core.utils import sanitize_input
 from sqlalchemy.orm import joinedload, selectinload
 from app.services.acceso import check_regla_1
 
@@ -209,18 +208,18 @@ async def create_paciente(
             id_persona = uuid.uuid4()
             nueva_persona = Persona(
                 id_persona=id_persona,
-                nombre=persona_data.nombre,
-                primer_apellido=persona_data.primer_apellido,
-                segundo_apellido=persona_data.segundo_apellido,
+                nombre=sanitize_input(persona_data.nombre),
+                primer_apellido=sanitize_input(persona_data.primer_apellido),
+                segundo_apellido=sanitize_input(persona_data.segundo_apellido),
                 #curp=Optional[persona_data.curp] if persona_data.curp else None,
                 curp = persona_data.curp if persona_data.curp else None, #Vamo a probar así
                 fecha_nacimiento=persona_data.fecha_nacimiento,
                 sexo=persona_data.sexo,
                 id_localidad=persona_data.id_localidad,
-                calle_numero=persona_data.calle_numero,
-                referencia_geografica=persona_data.referencia_geografica,
+                calle_numero=sanitize_input(persona_data.calle_numero),
+                referencia_geografica=sanitize_input(persona_data.referencia_geografica),
                 id_lengua_materna=persona_data.id_lengua_materna,
-                telefono=persona_data.telefono,
+                telefono=sanitize_input(persona_data.telefono),
                 url_foto=None,
                 fecha_registro=datetime.now(timezone.utc)
             )
@@ -662,7 +661,7 @@ async def add_alergia(
         await db.execute(query_insert, {
             "id_alergia": id_alergia,
             "id_paciente": str(id_paciente),
-            "alergia": alergia_texto,
+            "alergia": sanitize_input(alergia_texto),
             "severidad": severidad,
             "registrado_por": current_user["sub"],
             "fecha_registro": datetime.now(timezone.utc)
@@ -789,7 +788,7 @@ async def delete_alergia(
             "id_alergia": str(id_alergia),
             "eliminado_en": datetime.now(timezone.utc),
             "eliminado_por": current_user["sub"],
-            "motivo_baja": motivo_baja.strip()
+            "motivo_baja": sanitize_input(motivo_baja.strip())
         })
 
         await db.commit()

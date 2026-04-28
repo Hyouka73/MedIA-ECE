@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 from fastapi import HTTPException, status
 
+from app.core.utils import sanitize_input
 from app.models.encuentros import  EncuentroClinico
 from app.models.notas_soap import NotaMedica, NotaSOAP, NotaEnmienda
 from app.models.auth import User, CatCIE10
@@ -82,10 +83,10 @@ class NotaSOAPService:
         # Crear detalle SOAP
         nota_soap = NotaSOAP(
             id_nota=nota.id_nota,
-            subjetivo=data.subjetivo,
-            objetivo=data.objetivo,
-            analisis=data.analisis,
-            plan=data.plan
+            subjetivo=sanitize_input(data.subjetivo),
+            objetivo=sanitize_input(data.objetivo),
+            analisis=sanitize_input(data.analisis),
+            plan=sanitize_input(data.plan)
         )
         db.add(nota_soap)
 
@@ -183,13 +184,13 @@ class NotaSOAPService:
         # Actualizar detalle SOAP
         if nota.soap_detalle:
             if data.subjetivo is not None:
-                nota.soap_detalle.subjetivo = data.subjetivo
+                nota.soap_detalle.subjetivo = sanitize_input(data.subjetivo)
             if data.objetivo is not None:
-                nota.soap_detalle.objetivo = data.objetivo
+                nota.soap_detalle.objetivo = sanitize_input(data.objetivo)
             if data.analisis is not None:
-                nota.soap_detalle.analisis = data.analisis
+                nota.soap_detalle.analisis = sanitize_input(data.analisis)
             if data.plan is not None:
-                nota.soap_detalle.plan = data.plan
+                nota.soap_detalle.plan = sanitize_input(data.plan)
 
         await db.commit()
         await db.refresh(nota)
@@ -292,7 +293,7 @@ class NotaSOAPService:
         # Crear enmienda
         enmienda = NotaEnmienda(
             id_nota=id_nota,
-            texto_correccion=data.texto_correccion,
+            texto_correccion=sanitize_input(data.texto_correccion),
             id_medico=id_medico
         )
 
