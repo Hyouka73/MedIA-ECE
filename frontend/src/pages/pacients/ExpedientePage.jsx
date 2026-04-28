@@ -4,7 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { pacientesAPI } from '../../api/pacientes'
 import { clinicoAPI } from '../../api/clinico'
 import { AlertCircle, ChevronLeft, Clock, FileText, Pill, TrendingUp } from 'lucide-react'
-import { BarreraLinguisticaAlert } from '../../components/ui/BarreraLinguisticaAlert'
+import BarreraLinguisticaAlert from '../../components/ui/BarreraLinguisticaAlert'
 
 export default function ExpedientePage() {
   const { user } = useAuth()
@@ -30,7 +30,6 @@ export default function ExpedientePage() {
 
   const tieneAcceso = user && rolesPermitidos.includes(user.rol)
 
-  // ✅ Función para calcular edad (corregida)
   const calcularEdad = (fechaNacimiento) => {
     if (!fechaNacimiento) return null;
     const hoy = new Date();
@@ -268,7 +267,7 @@ export default function ExpedientePage() {
           </div>
 
           <div style={{ display: 'flex', gap: 8 }}>
-            <button
+            <button onClick={() => navigate(`/pacientes/${paciente.id_paciente}/editar`)}
               style={{
                 padding: '8px 16px',
                 background: 'transparent',
@@ -280,7 +279,22 @@ export default function ExpedientePage() {
                 fontWeight: 500,
               }}
             >
-              📋 Historial
+              Editar Paciente
+            </button>
+
+            <button onClick={() => navigate(`/pacientes/${paciente.id_paciente}/antecedentes`)}
+              style={{
+                padding: '8px 16px',
+                background: 'transparent',
+                border: '1.5px solid #2459A8',
+                color: '#2459A8',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontSize: 12,
+                fontWeight: 500,
+              }}
+            >
+              Agregar Antecedente
             </button>
 
             <button
@@ -333,7 +347,7 @@ export default function ExpedientePage() {
               {paciente.persona?.nombre || `${paciente.nombre} ${paciente.primer_apellido}`}
             </h2>
             <div style={{ color: '#2C2620', fontSize: 12, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <span>{paciente.edad} años</span>
+              <span>{calcularEdad(paciente?.persona?.fecha_nacimiento)} años</span>
               <span>·</span>
               <span>Nac. {paciente.persona?.fecha_nacimiento || 'N/A'}</span>
               <span>·</span>
@@ -445,15 +459,14 @@ export default function ExpedientePage() {
             </button>
           ))}
         </div>
-
         {activeTab === 'Antecedentes' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div style={{ padding: 18, background: '#FDFAF5', border: '1px solid #DAD4CC', borderRadius: 10 }}>
               <h3 style={{ fontSize: 11, fontWeight: 700, color: '#5A5048', letterSpacing: '0.4px', textTransform: 'uppercase', marginBottom: 14 }}>
                 Enfermedades Crónicas
               </h3>
-              {paciente.enfermedades_cronicas?.length > 0 ? (
-                paciente.enfermedades_cronicas.map((enfermedad, i) => (
+              {paciente?.enfermedades_cronicas?.length > 0 ? (
+                paciente?.enfermedades_cronicas?.map((enfermedad, i) => (
                   <div key={i} style={{ display: 'flex', gap: 9, marginBottom: 10, alignItems: 'flex-start' }}>
                     <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#E8921F', marginTop: 5, flexShrink: 0 }} />
                     <span style={{ fontSize: 13, color: '#1A1510', lineHeight: 1.45 }}>{enfermedad}</span>

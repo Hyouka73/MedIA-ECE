@@ -23,12 +23,16 @@ import ExpedientePage from './pages/Pacients/ExpedientePage';
 import PacienteFichaPage from './pages/Pacients/PacienteFichaPage';
 import PacienteAntecedentesPage from './pages/Pacients/PacienteAntecedentesPage';
 
+// Auditoría
+import AuditoriaPage from './pages/audit/AuditoriaPage';
+
 // Consulta
 import NuevaConsultaPage from './pages/consulta/NuevaConsultaPage'
 
 // Referencias
 import ReferenciasListPage from './pages/references/ReferenciasListaPage';
 import ReferenciaDetallePage from './pages/references/ReferenciasDetallePage';
+import ReferenciasFichaPage from './pages/references/ReferenciasFichaPage'
 
 
 
@@ -64,6 +68,8 @@ function App() {
                 {/* ── Referencias ── */}
                 <Route path="referencias" element={<ReferenciasListPage />} />
                 <Route path="referencias/:id" element={<ReferenciaDetallePage />} />
+                <Route path="referencias/nueva" element={<ReferenciasFichaPage />} />
+                <Route path="referencias/:id/editar" element={<ReferenciasFichaPage />} />
 
                 {/* ── Admin (Módulos Persona 5) ── */}
                 <Route path="admin"                 element={<AdminDashboardPage />} />
