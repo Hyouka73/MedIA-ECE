@@ -20,6 +20,24 @@ class NotaMedica(Base):
     encuentro = relationship("EncuentroClinico", back_populates="notas")
     autor = relationship("User", foreign_keys=[id_medico])
     firmante = relationship("User", foreign_keys=[firmado_por])
+    soap_detalle = relationship("NotaSOAP", backref="nota", uselist=False)
+    enmiendas = relationship("NotaEnmienda", back_populates="nota")
+
+    @property
+    def subjetivo(self):
+        return self.soap_detalle.subjetivo if self.soap_detalle else None
+
+    @property
+    def objetivo(self):
+        return self.soap_detalle.objetivo if self.soap_detalle else None
+
+    @property
+    def analisis(self):
+        return self.soap_detalle.analisis if self.soap_detalle else None
+
+    @property
+    def plan(self):
+        return self.soap_detalle.plan if self.soap_detalle else None
 
 
 class NotaSOAP(Base):

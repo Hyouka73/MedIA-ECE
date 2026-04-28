@@ -57,8 +57,7 @@ class EncuentroService:
             id_paciente=data.id_paciente,
             id_medico=id_medico,
             id_establecimiento=id_establecimiento,
-            motivo_consulta=data.motivo_consulta,
-            tipo_consulta=data.tipo_consulta
+            motivo_consulta=data.motivo_consulta
         )
 
         db.add(encuentro)
@@ -78,7 +77,7 @@ class EncuentroService:
         result = await db.execute(
             select(EncuentroClinico)
             .options(
-                joinedload(EncuentroClinico.paciente),
+                joinedload(EncuentroClinico.paciente).joinedload(Paciente.persona),
                 joinedload(EncuentroClinico.medico).joinedload(User.persona),
                 joinedload(EncuentroClinico.establecimiento)
             )
@@ -104,10 +103,11 @@ class EncuentroService:
         result = await db.execute(
             select(EncuentroClinico)
             .options(
-                joinedload(EncuentroClinico.paciente),
+                joinedload(EncuentroClinico.paciente).joinedload(Paciente.persona),
                 joinedload(EncuentroClinico.medico).joinedload(User.persona),
                 joinedload(EncuentroClinico.establecimiento),
-                joinedload(EncuentroClinico.especialidad)
+                joinedload(EncuentroClinico.especialidad),
+                joinedload(EncuentroClinico.notas)
             )
             .where(EncuentroClinico.id_encuentro == id_encuentro)
         )

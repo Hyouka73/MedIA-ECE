@@ -60,7 +60,9 @@ function App() {
                 {/* Clínica (Protección por Módulo) */}
                 <Route element={<ProtectedRoute module="PACIENTES" />}>
                   <Route path="pacientes" element={<PacientesListPage />} />
-                  <Route path="pacientes/nuevo" element={<PacienteFichaPage />} />
+                  <Route element={<ProtectedRoute module="PACIENTES" action="puede_crear" />}>
+                    <Route path="pacientes/nuevo" element={<PacienteFichaPage />} />
+                  </Route>
                   <Route path="pacientes/:id/editar" element={<PacienteFichaPage />} />
                   <Route path="pacientes/:id/antecedentes" element={<PacienteAntecedentesPage />} />
                 </Route>

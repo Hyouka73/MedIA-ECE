@@ -2,15 +2,21 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_role
 from app.database.session import get_db
 from app.models.auth import Paciente, Persona, Lengua
-from app.schemas.pacientes import PacienteOut, PacienteCreateIn, PersonaOut
+from app.schemas.pacientes import (
+    PacienteOut, PacienteCreateIn, PersonaOut, 
+    PacienteCreateWithPersonaIn, PacienteUpdateIn
+)
 from uuid import UUID, uuid4
 from datetime import datetime, timezone, date
 from sqlalchemy import update
 import uuid
+from pydantic import BaseModel as PydanticBaseModel
+from typing import Optional
 import logging
+import re
 from app.core.utils import sanitize_input
 from sqlalchemy.orm import joinedload, selectinload
 from app.services.acceso import check_regla_1
@@ -18,6 +24,11 @@ from app.services.acceso import check_regla_1
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+def clean_phone(phone: Optional[str]) -> Optional[str]:
+    if not phone:
+        return None
+    return re.sub(r"\D", "", phone)
 
 
 # ── Schemas Adicionales ─────────────────────────────────────────
@@ -166,7 +177,7 @@ async def list_pacientes(
 @router.post("", response_model=dict, status_code=201)
 async def create_paciente(
     paciente_in: PacienteCreateWithPersonaIn,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -219,7 +230,7 @@ async def create_paciente(
                 calle_numero=sanitize_input(persona_data.calle_numero),
                 referencia_geografica=sanitize_input(persona_data.referencia_geografica),
                 id_lengua_materna=persona_data.id_lengua_materna,
-                telefono=sanitize_input(persona_data.telefono),
+                telefono=clean_phone(persona_data.telefono),
                 url_foto=None,
                 fecha_registro=datetime.now(timezone.utc)
             )
@@ -497,7 +508,7 @@ async def get_expediente(
 async def update_paciente(
     id_paciente: UUID,
     paciente_update: PacienteUpdateIn,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """PUT /pacientes/{id} — Actualiza datos clínicos del paciente"""
@@ -534,7 +545,7 @@ async def update_paciente(
 @router.delete("/{id_paciente}", response_model=dict, status_code=200)
 async def delete_paciente(
     id_paciente: UUID,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """DELETE /pacientes/{id} — Soft delete del paciente (requiere aprobación)"""
@@ -626,7 +637,7 @@ async def get_alergias(
 async def add_alergia(
     id_paciente: UUID,
     alergia_in: dict,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["MEDICO_GENERAL", "RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """POST /pacientes/{id}/alergias — Registra nueva alergia. Audita creación en historial_cambios."""
@@ -922,7 +933,7 @@ async def get_antecedentes(
 async def add_antecedente_heredofamiliar(
     id_paciente: UUID,
     antecedente_in: dict,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """POST /pacientes/{id}/antecedentes/heredofamiliares — Registra antecedente hereditario"""
@@ -1011,7 +1022,7 @@ async def add_antecedente_heredofamiliar(
 async def add_antecedente_patologico(
     id_paciente: UUID,
     antecedente_in: dict,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """POST /pacientes/{id}/antecedentes/patologicos — Registra antecedente patológico personal"""
@@ -1075,7 +1086,7 @@ async def add_antecedente_patologico(
 async def add_antecedente_no_patologico(
     id_paciente: UUID,
     antecedente_in: dict,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """POST /pacientes/{id}/antecedentes/no-patologicos — Registra determinante social de la salud"""
@@ -1159,7 +1170,7 @@ async def add_antecedente_no_patologico(
 async def add_antecedente_ginecoobstetrico(
     id_paciente: UUID,
     antecedente_in: dict,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """POST /pacientes/{id}/antecedentes/ginecoobstetricos — Solo pacientes con sexo='F'. Registra datos reproductivos"""
@@ -1397,7 +1408,7 @@ async def get_inmunizaciones(
 async def add_inmunizacion(
     id_paciente: UUID,
     inmunizacion_in: dict,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """POST /pacientes/{id}/inmunizaciones — Registra vacuna aplicada conforme al Esquema Nacional"""
@@ -1510,7 +1521,7 @@ async def delete_inmunizacion(
 async def add_tutor(
     id_paciente: UUID,
     tutor: dict = Body(...),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """POST /pacientes/{id}/tutores — Agrega tutor (requiere documento_legal_url ya en Azure)"""
