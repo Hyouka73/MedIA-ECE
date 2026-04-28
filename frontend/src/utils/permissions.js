@@ -1,40 +1,18 @@
-// utilerías de permisos y RBAC (Role Based Access Control)
+/**
+ * Utilería de permisos dinámica para MedIA.
+ * Valida el acceso basándose en la matriz de permisos devuelta por el backend.
+ * 
+ * @param {Object} userPermissions - Matriz de permisos (user.permisos)
+ * @param {string} moduleCode - Código del módulo (ej: 'PACIENTES')
+ * @param {string} requiredAction - Acción requerida ('puede_leer', 'puede_crear', 'puede_editar', 'puede_eliminar')
+ * @returns {boolean}
+ */
+export function canAccess(userPermissions, moduleCode, requiredAction = 'puede_leer') {
+    if (!userPermissions || !moduleCode) return false;
 
-// Este diccionario debería poblarse al vuelo desde la DB (permisos_rol),
-// pero para agilizar el frontend se maneja una copia cacheada.
-
-const rolePermissionsMatrix = {
-    SUPERADMIN: {
-        PACIENTES: { _all: true },
-        EXPEDIENTE: { _all: true },
-        ENCUENTROS: { _all: true },
-        ESTUDIOS: { _all: true },
-        FARMACIA: { _all: true },
-        ADMIN: { _all: true },
-        AUDITORIA: { _all: true },
-    },
-    MEDICO_GENERAL: {
-        PACIENTES: { puede_leer: true, puede_editar: true }, // No puede_crear
-        EXPEDIENTE: { _all: true, puede_eliminar: false },
-        ENCUENTROS: { _all: true, puede_eliminar: false },
-        FARMACIA: { _all: true, puede_eliminar: false },
-    },
-    RECEPCIONISTA: {
-        PACIENTES: { puede_leer: true, puede_crear: true, puede_editar: true, puede_eliminar: false },
-        ENCUENTROS: { puede_leer: true } // solo para ver adónde mandar al paciente
-    }
-};
-
-export function canAccess(roleCode, moduleCode, requiredAction = 'puede_leer') {
-    if (!roleCode || !moduleCode) return false;
-
-    const rolePerms = rolePermissionsMatrix[roleCode];
-    if (!rolePerms) return false;
-
-    const modPerms = rolePerms[moduleCode];
+    const modPerms = userPermissions[moduleCode];
     if (!modPerms) return false;
 
-    if (modPerms._all) return true;
-
+    // Retorna true solo si la acción específica está permitida (true)
     return !!modPerms[requiredAction];
 }

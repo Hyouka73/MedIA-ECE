@@ -79,12 +79,35 @@ async def _get_user_context(db: AsyncSession, user_id: UUID) -> dict:
     )
     esp_row = result_esp.fetchone()
 
+    # Obtener matriz de permisos por rol
+    result_perms = await db.execute(
+        text("""
+            SELECT m.codigo, p.puede_leer, p.puede_crear, p.puede_editar, p.puede_eliminar
+            FROM permisos_rol p
+            JOIN cat_modulos m ON m.id_modulo = p.id_modulo
+            JOIN usuarios_sistema u ON u.id_rol = p.id_rol
+            WHERE u.id_usuario = :user_id
+        """),
+        {"user_id": str(user_id)}
+    )
+    perms_rows = result_perms.fetchall()
+    permisos = {
+        row[0]: {
+            "puede_leer": row[1],
+            "puede_crear": row[2],
+            "puede_editar": row[3],
+            "puede_eliminar": row[4]
+        }
+        for row in perms_rows
+    }
+
     return {
         "establecimiento_clues": est_row[0] if est_row else None,
         "establecimiento_nombre": est_row[1] if est_row else None,
         "id_establecimiento": str(est_row[2]) if est_row else None,
         "id_especialidad": esp_row[0] if esp_row else None,
         "especialidad_nombre": esp_row[1] if esp_row else None,
+        "permisos": permisos
     }
 
 
@@ -100,9 +123,7 @@ def _build_user_response(user: User, rol_codigo: str, context: dict) -> dict:
         "id_establecimiento": context.get("id_establecimiento"),
         "id_especialidad": context.get("id_especialidad"),
         "especialidad_nombre": context.get("especialidad_nombre"),
-        "establecimiento": context["establecimiento_clues"],
-        "id_establecimiento": context["id_establecimiento"],
-        "id_especialidad": context["id_especialidad"]
+        "permisos": context.get("permisos", {})
     }
 
 
