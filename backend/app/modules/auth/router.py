@@ -20,7 +20,8 @@ import pyotp
 from app.database.session import get_db
 from app.core.security import (
     verify_password, create_access_token, create_refresh_token,
-    verify_token, verify_totp, generate_totp_secret
+    verify_token, verify_totp, generate_totp_secret,
+    encrypt_secret, decrypt_secret
 )
 from app.core.config import settings
 from app.models.auth import User, Role, Persona, SesionActiva
@@ -198,11 +199,14 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
             expires_delta=300
         )
         if not user.totp_secret:
-            user.totp_secret = generate_totp_secret()
+            raw_secret = generate_totp_secret()
+            user.totp_secret = encrypt_secret(raw_secret)
             await db.commit()
             await db.refresh(user)
-
-        codigo_enviado = pyotp.TOTP(user.totp_secret, interval=300).now()
+        
+        # Descifrar para generar código
+        raw_secret = decrypt_secret(user.totp_secret)
+        codigo_enviado = pyotp.TOTP(raw_secret, interval=60).now()
 
         if settings.APP_ENV != "production":
             print(f"🔑 [DEV MODO] CÓDIGO 2FA PARA {user.email}: {codigo_enviado}")
@@ -293,7 +297,9 @@ async def verify_2fa(request: Request, data: VerifyTOTPRequest, db: AsyncSession
     dev_bypass = {"000000"}
     es_valido = data.code in dev_bypass
     if not es_valido and user.totp_secret:
-        es_valido = verify_totp(user.totp_secret, data.code)
+        # Descifrar para validar
+        raw_secret = decrypt_secret(user.totp_secret)
+        es_valido = verify_totp(raw_secret, data.code)
 
     if not es_valido:
         intentos = user.intentos_fallidos + 1

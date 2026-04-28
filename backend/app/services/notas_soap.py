@@ -72,6 +72,7 @@ class NotaSOAPService:
         # Crear nota médica (borrador)
         nota = NotaMedica(
             id_encuentro=id_encuentro,
+            id_medico=id_medico,  # Guardar autor original
             tipo_nota=data.tipo_nota,
             esta_firmada=False
         )
@@ -172,8 +173,12 @@ class NotaSOAPService:
                 detail="No puede modificar una nota firmada. Use enmiendas para correcciones."
             )
 
-        # TODO: Validar que el médico que actualiza es el mismo que creó
-        # Por ahora permitimos cualquier médico actualizar
+        # Validar que el médico que actualiza es el mismo que creó
+        if nota.id_medico != id_medico:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Solo el autor original puede modificar esta nota."
+            )
 
         # Actualizar detalle SOAP
         if nota.soap_detalle:
