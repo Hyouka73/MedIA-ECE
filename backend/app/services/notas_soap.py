@@ -11,9 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 from fastapi import HTTPException, status
 
-from app.models.encuentros import NotaMedica, NotaSOAP, NotaEnmienda, EncuentroClinico
+from app.models.encuentros import  EncuentroClinico
+from app.models.notas_soap import NotaMedica, NotaSOAP, NotaEnmienda
 from app.models.auth import User, CatCIE10
-from app.schemas.encuentros import (
+from app.schemas.notas_soap import (
     NotaSOAPCreateIn, NotaSOAPUpdateIn, NotaSOAPOut, NotaSOAPFirmarIn,
     NotaEnmiendaCreateIn, NotaEnmiendaOut, CIE10Out, CIE10ListOut
 )
@@ -380,4 +381,4 @@ class CatalogoService:
         )
         total = count_result.scalar()
 
-        return diagnosticos, total
+        return diagnosticos, total 

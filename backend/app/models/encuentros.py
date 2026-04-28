@@ -39,47 +39,13 @@ class EncuentroClinico(Base):
     fecha_inicio = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
     fecha_cierre = Column(DateTime(timezone=True))
     motivo_consulta = Column(Text, nullable=False)
-    tipo_consulta = Column(String(20))  # PRIMERA_VEZ, SUBSECUENTE
+    # COMENTADO, ERROR BASE DE DATOS. tipo_consulta = Column(String(20))  # PRIMERA_VEZ, SUBSECUENTE
 
     paciente = relationship("Paciente")
     medico = relationship("User")
     establecimiento = relationship("Establecimiento")
     especialidad = relationship("EspecialidadMedica")
-
-
-class NotaMedica(Base):
-    __tablename__ = "notas_medicas"
-    id_nota = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    id_encuentro = Column(UUID(as_uuid=True), ForeignKey("encuentros_clinicos.id_encuentro"))
-    tipo_nota = Column(String(50), nullable=False)
-    esta_firmada = Column(Boolean, default=False)
-    fecha_creacion = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
-    fecha_firma = Column(DateTime(timezone=True))
-    pdf_url = Column(Text)
-    pdf_hash = Column(String(255))
-
-    encuentro = relationship("EncuentroClinico")
-
-
-class NotaSOAP(Base):
-    __tablename__ = "notas_soap_detalle"
-    id_nota = Column(UUID(as_uuid=True), ForeignKey("notas_medicas.id_nota"), primary_key=True)
-    subjetivo = Column(Text)
-    objetivo = Column(Text)
-    analisis = Column(Text)
-    plan = Column(Text)
-
-
-class NotaEnmienda(Base):
-    __tablename__ = "notas_enmienda"
-    id_enmienda = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    id_nota = Column(UUID(as_uuid=True), ForeignKey("notas_medicas.id_nota"))
-    texto_correccion = Column(Text, nullable=False)
-    id_medico = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"))
-    fecha_enmienda = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
-
-    nota = relationship("NotaMedica")
-    medico = relationship("User")
+    notas = relationship("NotaMedica", back_populates="encuentro")
 
 
 class DiagnosticoEncuentro(Base):
@@ -91,7 +57,8 @@ class DiagnosticoEncuentro(Base):
     observaciones = Column(Text)
 
     encuentro = relationship("EncuentroClinico")
-    cie10 = relationship("CatCIE10")
+    # cie10 = relationship("CatCIE10")
+    cie10 = relationship("CatCIE10", foreign_keys=[codigo_cie])
 
 
 # class SignosVitales(Base):

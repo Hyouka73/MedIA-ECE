@@ -1,7 +1,7 @@
 """Catálogos module router — Endpoints INEGI y clínicos con TTL de caché 24h"""
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, text
 from app.core.deps import get_current_user
 from app.database.session import get_db
 from app.models.auth import Estado, Municipio, Localidad, Lengua
@@ -9,9 +9,12 @@ from app.schemas.pacientes import EstadoOut, MunicipioOut, LocalidadOut, LenguaO
 from typing import List, Optional
 import logging
 
+
 logger = logging.getLogger(__name__)
 
+
 router = APIRouter()
+
 
 
 # ── GET /estados — Listar todos los estados ────────────────────────────
@@ -45,6 +48,7 @@ async def get_estados(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error interno al obtener estados"
         )
+
 
 
 # ── GET /municipios — Listar municipios por estado ─────────────────────
@@ -98,6 +102,7 @@ async def get_municipios(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Error interno al obtener municipios"
         )
+
 
 
 # ── GET /localidades — Listar localidades por municipio ───────────────
@@ -154,6 +159,7 @@ async def get_localidades(
         )
 
 
+
 # ── GET /lenguas — Listar lenguas indígenas ────────────────────────────
 @router.get("/lenguas", response_model=dict)
 async def get_lenguas(
@@ -192,15 +198,58 @@ async def get_lenguas(
         )
 
 
-# ── Endpoints legacy (mantener retrocompatibilidad) ───────────────────
+
+# ── GET /cie10 — Búsqueda de diagnósticos CIE-10 ──────────────────────
 @router.get("/cie10", response_model=dict)
-async def search_cie10(q: str = "", current_user: dict = Depends(get_current_user)):
-    """GET /catalogos/cie10?q= — TODO Persona 5"""
-    return {"data": [], "message": "TODO: autocompletar de CIE-10 (NOTAS_PENDIENTES)"}
+async def search_cie10(
+    q: str = Query("", description="Buscar por código (ej: E11) o descripción (ej: Diabetes). Mín. 3 caracteres."),
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """GET /catalogos/cie10?q= — Búsqueda en catálogo CIE-10 (tabla: cat_cie10)"""
+    if len(q.strip()) < 3:
+        return {"data": [], "message": "Mínimo 3 caracteres para buscar"}
+
+    try:
+        stmt = text("""
+            SELECT codigo_cie, descripcion, codigo_padre
+            FROM cat_cie10
+            WHERE codigo_cie  ILIKE :codigo
+               OR descripcion ILIKE :desc
+            ORDER BY
+                CASE WHEN codigo_cie ILIKE :codigo THEN 0 ELSE 1 END,
+                codigo_cie
+            LIMIT 20
+        """)
+
+        result = await db.execute(stmt, {
+            "codigo": f"{q.strip()}%",
+            "desc":   f"%{q.strip()}%",
+        })
+        rows = result.mappings().all()
+
+        data = [
+            {
+                "id":          row["codigo_cie"],    # Cie10Search.jsx usa item.id para deduplicar
+                "codigo":      row["codigo_cie"],
+                "descripcion": row["descripcion"],
+                "tipo":        row["codigo_padre"],  # None = código raíz, valor = tiene padre
+            }
+            for row in rows
+        ]
+
+        return {"data": data, "message": f"{len(data)} resultados para '{q}'"}
+
+    except Exception as e:
+        logger.error(f"Error en búsqueda CIE-10: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error interno al buscar en catálogo CIE-10"
+        )
+
 
 
 @router.get("/medicamentos", response_model=dict)
 async def search_medicamentos(q: str = "", current_user: dict = Depends(get_current_user)):
     """GET /catalogos/medicamentos?q= — TODO Persona 5"""
     return {"data": [], "message": "TODO: búsqueda de medicamentos SSA"}
-

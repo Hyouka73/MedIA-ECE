@@ -10,7 +10,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 from fastapi import HTTPException, status
 
-from app.models.encuentros import EncuentroClinico, Paciente, NotaMedica
+from app.models.encuentros import EncuentroClinico, Paciente
+from app.models.notas_soap import NotaMedica
 from app.models.auth import User, Establecimiento
 from app.schemas.encuentros import (
     EncuentroCreateIn, EncuentroOut, EncuentroDetalleOut,
