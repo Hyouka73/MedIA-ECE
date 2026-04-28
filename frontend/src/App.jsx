@@ -26,6 +26,11 @@ import PacienteAntecedentesPage from './pages/Pacients/PacienteAntecedentesPage'
 // Auditoría y Seguridad (Persona 5 - Corregido)
 import AuditoriaPage from './pages/audit/AuditoriaPage'
 
+// Referencias
+import ReferenciasListPage from './pages/references/ReferenciasListaPage';
+import ReferenciaDetallePage from './pages/references/ReferenciasDetallePage';
+
+
 
 const Unauthorized = () => (
   <div className="p-6 flex items-center justify-center text-[#DC2626] font-bold">
@@ -54,6 +59,10 @@ function App() {
                 <Route path="pacientes/:id/editar" element={<PacienteFichaPage />} />
                 <Route path="pacientes/:id/antecedentes" element={<PacienteAntecedentesPage />} />
                 <Route path="expediente/:id" element={<ExpedientePage />} />
+
+                {/* ── Referencias ── */}
+                <Route path="referencias" element={<ReferenciasListPage />} />
+                <Route path="referencias/:id" element={<ReferenciaDetallePage />} />
 
                 {/* ── Admin (Módulos Persona 5) ── */}
                 <Route path="admin"                 element={<AdminDashboardPage />} />

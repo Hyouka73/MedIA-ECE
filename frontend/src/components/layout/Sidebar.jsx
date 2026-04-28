@@ -12,7 +12,7 @@ const NAV_ITEMS = [
     // Rutas que requieren flujo de paciente marcadas con requiresPatientFlow
     { id: 'expediente', icon: FileText, label: 'Expediente', group: 'CLÍNICA', href: '/expediente', roles: ['SUPERADMIN', 'OMNIADMIN', 'MEDICO_GENERAL', 'ESPECIALISTA'], requiresPatientFlow: true },
     { id: 'consulta', icon: ClipboardList, label: 'Consulta', group: 'CLÍNICA', href: '/consulta', roles: ['SUPERADMIN', 'OMNIADMIN', 'MEDICO_GENERAL', 'ESPECIALISTA', 'ENFERMERIA'], requiresPatientFlow: true },
-    { id: 'referencias', icon: Send, label: 'Referencias', group: 'CLÍNICA', href: '/referencias', roles: ['SUPERADMIN', 'OMNIADMIN', 'MEDICO_GENERAL', 'ESPECIALISTA'], requiresPatientFlow: true },
+    { id: 'referencias', icon: Send, label: 'Referencias', group: 'CLÍNICA', href: '/referencias', roles: ['SUPERADMIN', 'OMNIADMIN', 'MEDICO_GENERAL', 'ESPECIALISTA'], requiresPatientFlow: false },
     { id: 'documentos', icon: FileBox, label: 'Documentos', group: 'CLÍNICA', href: '/documentos', roles: ['SUPERADMIN', 'OMNIADMIN', 'MEDICO_GENERAL', 'ESPECIALISTA'], requiresPatientFlow: true },
     
     { id: 'auditoria', icon: ShieldAlert, label: 'Auditoría', group: 'SISTEMA', href: '/audit/logs', roles: ['SUPERADMIN', 'OMNIADMIN', 'AUDITOR_SEGURIDAD'] },

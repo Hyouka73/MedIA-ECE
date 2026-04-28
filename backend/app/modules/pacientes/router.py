@@ -946,27 +946,46 @@ async def add_antecedente_heredofamiliar(
         detalles = antecedente_in.get("detalles", "").strip()
 
         # Insertar o actualizar (solo uno por paciente)
-        query_upsert = text("""
-            INSERT INTO antecedentes_heredofamiliares (id_ahf, id_paciente, diabetes, hipertension, cardiopatia, neoplasia, detalles)
-            VALUES (:id_ahf, :id_paciente, :diabetes, :hipertension, :cardiopatia, :neoplasia, :detalles)
-            ON CONFLICT (id_paciente) WHERE eliminado_en IS NULL
-            DO UPDATE SET
-                diabetes = EXCLUDED.diabetes,
-                hipertension = EXCLUDED.hipertension,
-                cardiopatia = EXCLUDED.cardiopatia,
-                neoplasia = EXCLUDED.neoplasia,
-                detalles = EXCLUDED.detalles
-        """)
-
-        await db.execute(query_upsert, {
-            "id_ahf": str(uuid4()),
-            "id_paciente": str(id_paciente),
-            "diabetes": diabetes,
-            "hipertension": hipertension,
-            "cardiopatia": cardiopatia,
-            "neoplasia": neoplasia,
-            "detalles": detalles
-        })
+        # Primero verificar si ya existe
+        existing = await db.scalar(text("""
+            SELECT id_ahf FROM antecedentes_heredofamiliares 
+            WHERE id_paciente = :id_paciente AND eliminado_en IS NULL
+        """), {"id_paciente": str(id_paciente)})
+        
+        if existing:
+            # Actualizar
+            query_update = text("""
+                UPDATE antecedentes_heredofamiliares SET
+                    diabetes = :diabetes,
+                    hipertension = :hipertension,
+                    cardiopatia = :cardiopatia,
+                    neoplasia = :neoplasia,
+                    detalles = :detalles
+                WHERE id_ahf = :id_ahf
+            """)
+            await db.execute(query_update, {
+                "id_ahf": str(existing),
+                "diabetes": diabetes,
+                "hipertension": hipertension,
+                "cardiopatia": cardiopatia,
+                "neoplasia": neoplasia,
+                "detalles": detalles
+            })
+        else:
+            # Insertar
+            query_insert = text("""
+                INSERT INTO antecedentes_heredofamiliares (id_ahf, id_paciente, diabetes, hipertension, cardiopatia, neoplasia, detalles)
+                VALUES (:id_ahf, :id_paciente, :diabetes, :hipertension, :cardiopatia, :neoplasia, :detalles)
+            """)
+            await db.execute(query_insert, {
+                "id_ahf": str(uuid4()),
+                "id_paciente": str(id_paciente),
+                "diabetes": diabetes,
+                "hipertension": hipertension,
+                "cardiopatia": cardiopatia,
+                "neoplasia": neoplasia,
+                "detalles": detalles
+            })
 
         await db.commit()
 
@@ -1071,25 +1090,43 @@ async def add_antecedente_no_patologico(
         detalles = antecedente_in.get("detalles", "").strip()
 
         # Insertar o actualizar (solo uno por paciente)
-        query_upsert = text("""
-            INSERT INTO antecedentes_no_patologicos (id_anp, id_paciente, tabaquismo, alcoholismo, drogas, detalles)
-            VALUES (:id_anp, :id_paciente, :tabaquismo, :alcoholismo, :drogas, :detalles)
-            ON CONFLICT (id_paciente) WHERE eliminado_en IS NULL
-            DO UPDATE SET
-                tabaquismo = EXCLUDED.tabaquismo,
-                alcoholismo = EXCLUDED.alcoholismo,
-                drogas = EXCLUDED.drogas,
-                detalles = EXCLUDED.detalles
-        """)
-
-        await db.execute(query_upsert, {
-            "id_anp": str(uuid4()),
-            "id_paciente": str(id_paciente),
-            "tabaquismo": tabaquismo,
-            "alcoholismo": alcoholismo,
-            "drogas": drogas,
-            "detalles": detalles
-        })
+        # Primero verificar si ya existe
+        existing = await db.scalar(text("""
+            SELECT id_anp FROM antecedentes_no_patologicos 
+            WHERE id_paciente = :id_paciente AND eliminado_en IS NULL
+        """), {"id_paciente": str(id_paciente)})
+        
+        if existing:
+            # Actualizar
+            query_update = text("""
+                UPDATE antecedentes_no_patologicos SET
+                    tabaquismo = :tabaquismo,
+                    alcoholismo = :alcoholismo,
+                    drogas = :drogas,
+                    detalles = :detalles
+                WHERE id_anp = :id_anp
+            """)
+            await db.execute(query_update, {
+                "id_anp": str(existing),
+                "tabaquismo": tabaquismo,
+                "alcoholismo": alcoholismo,
+                "drogas": drogas,
+                "detalles": detalles
+            })
+        else:
+            # Insertar
+            query_insert = text("""
+                INSERT INTO antecedentes_no_patologicos (id_anp, id_paciente, tabaquismo, alcoholismo, drogas, detalles)
+                VALUES (:id_anp, :id_paciente, :tabaquismo, :alcoholismo, :drogas, :detalles)
+            """)
+            await db.execute(query_insert, {
+                "id_anp": str(uuid4()),
+                "id_paciente": str(id_paciente),
+                "tabaquismo": tabaquismo,
+                "alcoholismo": alcoholismo,
+                "drogas": drogas,
+                "detalles": detalles
+            })
 
         await db.commit()
 
@@ -1126,7 +1163,7 @@ async def add_antecedente_ginecoobstetrico(
             raise HTTPException(status_code=403, detail="Acceso denegado")
 
         # Verificar paciente existe y es mujer
-        paciente = await db.scalar(select(Paciente).where(Paciente.id_paciente == id_paciente, Paciente.eliminado_en == None))
+        paciente = await db.scalar(select(Paciente).options(joinedload(Paciente.persona)).where(Paciente.id_paciente == id_paciente, Paciente.eliminado_en == None))
         if not paciente:
             raise HTTPException(status_code=404, detail="Paciente no encontrado")
 
@@ -1147,37 +1184,61 @@ async def add_antecedente_ginecoobstetrico(
         detalles = antecedente_in.get("detalles", "").strip()
 
         # Insertar o actualizar (solo uno por paciente)
-        query_upsert = text("""
-            INSERT INTO antecedentes_ginecoobstetricos (id_ago, id_paciente, menarca, ritmo_menstrual, gestas, partos, abortos, cesareas, ultimo_papanicolaou, ultimo_mamograma, anticonceptivos, detalles)
-            VALUES (:id_ago, :id_paciente, :menarca, :ritmo_menstrual, :gestas, :partos, :abortos, :cesareas, :ultimo_papanicolaou, :ultimo_mamograma, :anticonceptivos, :detalles)
-            ON CONFLICT (id_paciente) WHERE eliminado_en IS NULL
-            DO UPDATE SET
-                menarca = EXCLUDED.menarca,
-                ritmo_menstrual = EXCLUDED.ritmo_menstrual,
-                gestas = EXCLUDED.gestas,
-                partos = EXCLUDED.partos,
-                abortos = EXCLUDED.abortos,
-                cesareas = EXCLUDED.cesareas,
-                ultimo_papanicolaou = EXCLUDED.ultimo_papanicolaou,
-                ultimo_mamograma = EXCLUDED.ultimo_mamograma,
-                anticonceptivos = EXCLUDED.anticonceptivos,
-                detalles = EXCLUDED.detalles
-        """)
-
-        await db.execute(query_upsert, {
-            "id_ago": str(uuid4()),
-            "id_paciente": str(id_paciente),
-            "menarca": menarca,
-            "ritmo_menstrual": ritmo_menstrual,
-            "gestas": gestas,
-            "partos": partos,
-            "abortos": abortos,
-            "cesareas": cesareas,
-            "ultimo_papanicolaou": ultimo_papanicolaou,
-            "ultimo_mamograma": ultimo_mamograma,
-            "anticonceptivos": anticonceptivos,
-            "detalles": detalles
-        })
+        # Primero verificar si ya existe
+        existing = await db.scalar(text("""
+            SELECT id_ago FROM antecedentes_ginecoobstetricos 
+            WHERE id_paciente = :id_paciente AND eliminado_en IS NULL
+        """), {"id_paciente": str(id_paciente)})
+        
+        if existing:
+            # Actualizar
+            query_update = text("""
+                UPDATE antecedentes_ginecoobstetricos SET
+                    menarca = :menarca,
+                    ritmo_menstrual = :ritmo_menstrual,
+                    gestas = :gestas,
+                    partos = :partos,
+                    abortos = :abortos,
+                    cesareas = :cesareas,
+                    ultimo_papanicolaou = :ultimo_papanicolaou,
+                    ultimo_mamograma = :ultimo_mamograma,
+                    anticonceptivos = :anticonceptivos,
+                    detalles = :detalles
+                WHERE id_ago = :id_ago
+            """)
+            await db.execute(query_update, {
+                "id_ago": str(existing),
+                "menarca": menarca,
+                "ritmo_menstrual": ritmo_menstrual,
+                "gestas": gestas,
+                "partos": partos,
+                "abortos": abortos,
+                "cesareas": cesareas,
+                "ultimo_papanicolaou": ultimo_papanicolaou,
+                "ultimo_mamograma": ultimo_mamograma,
+                "anticonceptivos": anticonceptivos,
+                "detalles": detalles
+            })
+        else:
+            # Insertar
+            query_insert = text("""
+                INSERT INTO antecedentes_ginecoobstetricos (id_ago, id_paciente, menarca, ritmo_menstrual, gestas, partos, abortos, cesareas, ultimo_papanicolaou, ultimo_mamograma, anticonceptivos, detalles)
+                VALUES (:id_ago, :id_paciente, :menarca, :ritmo_menstrual, :gestas, :partos, :abortos, :cesareas, :ultimo_papanicolaou, :ultimo_mamograma, :anticonceptivos, :detalles)
+            """)
+            await db.execute(query_insert, {
+                "id_ago": str(uuid4()),
+                "id_paciente": str(id_paciente),
+                "menarca": menarca,
+                "ritmo_menstrual": ritmo_menstrual,
+                "gestas": gestas,
+                "partos": partos,
+                "abortos": abortos,
+                "cesareas": cesareas,
+                "ultimo_papanicolaou": ultimo_papanicolaou,
+                "ultimo_mamograma": ultimo_mamograma,
+                "anticonceptivos": anticonceptivos,
+                "detalles": detalles
+            })
 
         await db.commit()
 
