@@ -6,6 +6,7 @@ from typing import Optional, Union
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from cryptography.fernet import Fernet
 import pyotp
 
 from app.core.config import settings
@@ -45,6 +46,19 @@ def verify_token(token: str) -> Optional[dict]:
         return None
 
 
+# Cifrado AES-256 para Semilla TOTP
+fernet = Fernet(settings.TOTP_ENCRYPTION_KEY.encode() if hasattr(settings, 'TOTP_ENCRYPTION_KEY') and settings.TOTP_ENCRYPTION_KEY else Fernet.generate_key())
+
+def encrypt_secret(secret: str) -> str:
+    """Cifra la semilla TOTP antes de guardarla en DB."""
+    return fernet.encrypt(secret.encode()).decode()
+
+
+def decrypt_secret(encrypted_secret: str) -> str:
+    """Descifra la semilla TOTP para validación."""
+    return fernet.decrypt(encrypted_secret.encode()).decode()
+
+
 def generate_totp_secret() -> str:
     return pyotp.random_base32()
 
@@ -62,7 +76,7 @@ def create_refresh_token(data: dict) -> str:
 
 
 def verify_totp(secret: str, code: str) -> bool:
-    # Usamos interval=300 (5 minutos de validez) porque el correo tarda más que un Google Authenticator
-    totp = pyotp.TOTP(secret, interval=300)
-    # valid_window=1 permite un margen extra de ±5 mins por si el servidor y el cliente están desincronizados
+    # Reducción de ventana de tiempo de 300s a 60s para cumplimiento de estándares de seguridad
+    totp = pyotp.TOTP(secret, interval=60)
+    # valid_window=1 permite un margen extra de ±60s por desincronización
     return totp.verify(code, valid_window=1)
