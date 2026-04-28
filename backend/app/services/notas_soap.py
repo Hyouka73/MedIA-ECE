@@ -11,8 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 from fastapi import HTTPException, status
 
+
 from app.core.utils import sanitize_input
-from app.models.encuentros import  EncuentroClinico
+from app.models.encuentros import EncuentroClinico
 from app.models.notas_soap import NotaMedica, NotaSOAP, NotaEnmienda
 from app.models.auth import User, CatCIE10
 from app.schemas.notas_soap import (
@@ -21,8 +22,10 @@ from app.schemas.notas_soap import (
 )
 
 
+
 class NotaSOAPService:
     """CRUD de Notas SOAP con firma digital y enmiendas"""
+
 
     @staticmethod
     async def crear_nota_soap(
@@ -58,11 +61,13 @@ class NotaSOAPService:
         )
         encuentro_obj = encuentro.scalar_one_or_none()
 
+
         if not encuentro_obj:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Encuentro no encontrado"
             )
+
 
         if encuentro_obj.fecha_cierre:
             raise HTTPException(
@@ -70,15 +75,27 @@ class NotaSOAPService:
                 detail="No puede crear notas en un encuentro cerrado"
             )
 
+
         # Crear nota médica (borrador)
         nota = NotaMedica(
             id_encuentro=id_encuentro,
-            id_medico=id_medico,  # Guardar autor original
+
+            # COMENTADO:
+            # En el modelo PDF original sí existía la idea de guardar el autor en notas_medicas.
+            # PERO en la BD real la tabla notas_medicas NO tiene columna id_medico.
+            # El autor real del acto médico está en encuentros_clinicos.id_medico.
+            # Si esta línea se deja activa, SQLAlchemy intenta hacer INSERT de una columna inexistente
+            # y truena con:
+            # asyncpg.exceptions.UndefinedColumnError: column "id_medico" of relation "notas_medicas" does not exist
+            #
+            # id_medico=id_medico,
+
             tipo_nota=data.tipo_nota,
             esta_firmada=False
         )
         db.add(nota)
         await db.flush()  # Obtener id_nota generado
+
 
         # Crear detalle SOAP
         nota_soap = NotaSOAP(
@@ -90,8 +107,10 @@ class NotaSOAPService:
         )
         db.add(nota_soap)
 
+
         await db.commit()
         return await NotaSOAPService.obtener_nota_soap(db, nota.id_nota, id_medico)
+
 
     @staticmethod
     async def obtener_nota_soap(
@@ -123,16 +142,20 @@ class NotaSOAPService:
         )
         nota = result.unique().scalar_one_or_none()
 
+
         if not nota:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Nota no encontrada"
             )
 
+
         # TODO: Validar permisos de acceso según reglas de negocio
         # Por ahora, cualquier usuario autenticado puede ver
 
+
         return nota
+
 
     @staticmethod
     async def actualizar_nota_soap(
@@ -162,18 +185,31 @@ class NotaSOAPService:
         # Obtener nota con detalle
         nota = await NotaSOAPService.obtener_nota_soap(db, id_nota, id_medico)
 
+
         if nota.esta_firmada:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="No puede modificar una nota firmada. Use enmiendas para correcciones."
             )
 
+
         # Validar que el médico que actualiza es el mismo que creó
-        if nota.id_medico != id_medico:
+        #
+        # IMPORTANTE:
+        # Antes se usaba:
+        #   if nota.id_medico != id_medico:
+        #
+        # Eso asumía que notas_medicas tenía una columna id_medico.
+        # En la BD real NO existe esa columna.
+        #
+        # Ahora la validación correcta se hace contra el encuentro relacionado,
+        # porque el autor real se guarda en encuentros_clinicos.id_medico.
+        if nota.encuentro and str(nota.encuentro.id_medico) != str(id_medico):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Solo el autor original puede modificar esta nota."
             )
+
 
         # Actualizar detalle SOAP
         if nota.soap_detalle:
@@ -186,8 +222,10 @@ class NotaSOAPService:
             if data.plan is not None:
                 nota.soap_detalle.plan = sanitize_input(data.plan)
 
+
         await db.commit()
         return await NotaSOAPService.obtener_nota_soap(db, nota.id_nota, id_medico)
+
 
     @staticmethod
     async def firmar_nota_soap(
@@ -200,7 +238,7 @@ class NotaSOAPService:
         Proceso NOM-151:
         1. Genera hash SHA-256 del contenido completo
         2. Establece esta_firmada=TRUE
-        3. Registra firmado_por, fecha_firma, cedula_profesional
+        3. Registra pdf_hash
         4. El trigger tr_notes_protection la hace inmutable
         
         Args:
@@ -218,11 +256,13 @@ class NotaSOAPService:
         # Obtener nota con detalle
         nota = await NotaSOAPService.obtener_nota_soap(db, id_nota, id_medico)
 
+
         if nota.esta_firmada:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="La nota ya está firmada"
             )
+
 
         # Obtener cédula profesional del médico
         medico = await db.get(User, id_medico)
@@ -232,19 +272,38 @@ class NotaSOAPService:
                 detail="El médico debe tener cédula profesional registrada para firmar"
             )
 
+
         # Generar hash SHA-256 del contenido completo
         contenido = f"{nota.soap_detalle.subjetivo or ''}|{nota.soap_detalle.objetivo or ''}|{nota.soap_detalle.analisis or ''}|{nota.soap_detalle.plan or ''}"
         pdf_hash = hashlib.sha256(contenido.encode('utf-8')).hexdigest()
 
+
         # Firmar la nota (esto activa el trigger de inmutabilidad)
         nota.esta_firmada = True
-        nota.firmado_por = id_medico
-        nota.cedula_profesional = medico.cedula_profesional
         nota.pdf_hash = pdf_hash
-        # fecha_firma se establece automáticamente en BD con CURRENT_TIMESTAMP
+
+        # COMENTADO:
+        # Estas 2 columnas venían del diseño/modelo original,
+        # pero NO existen en la tabla notas_medicas real.
+        # Si se dejan activas, truenan en tiempo de ejecución.
+        #
+        # nota.firmado_por = id_medico
+        # nota.cedula_profesional = medico.cedula_profesional
+        #
+        # Si después quieren guardar esa info de forma persistente,
+        # hay 2 opciones correctas:
+        # 1) agregar esas columnas mediante migración Alembic, o
+        # 2) derivarlas desde usuarios_sistema / encuentros_clinicos al consultar.
+        #
+        # fecha_firma sí existe en la BD, pero aquí no se asigna manualmente porque
+        # ustedes estaban manejando la firma por flujo de aplicación/trigger.
+        # Si luego quieren setearla explícitamente, se puede hacer con:
+        # nota.fecha_firma = datetime.now(timezone.utc)
+
 
         await db.commit()
         return await NotaSOAPService.obtener_nota_soap(db, nota.id_nota, id_medico)
+
 
     @staticmethod
     async def crear_enmienda(
@@ -274,11 +333,13 @@ class NotaSOAPService:
         # Verificar que la nota existe y está firmada
         nota = await NotaSOAPService.obtener_nota_soap(db, id_nota, id_medico)
 
+
         if not nota.esta_firmada:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Solo puede crear enmiendas para notas firmadas"
             )
+
 
         # Crear enmienda
         enmienda = NotaEnmienda(
@@ -287,16 +348,20 @@ class NotaSOAPService:
             id_medico=id_medico
         )
 
+
         db.add(enmienda)
         await db.commit()
         await db.refresh(enmienda)
 
+
         # Cargar relación con médico para respuesta
-        await db.refresh(enmienda, ['medico'])
+        await db.refresh(enmienda, ["medico"])
         if enmienda.medico and enmienda.medico.persona:
             enmienda.medico_nombre = f"{enmienda.medico.persona.nombre} {enmienda.medico.persona.primer_apellido}"
 
+
         return enmienda
+
 
     @staticmethod
     async def listar_notas_encuentro(
@@ -330,8 +395,10 @@ class NotaSOAPService:
         return result.unique().scalars().all()
 
 
+
 class CatalogoService:
     """Servicios para catálogos médicos"""
+
 
     @staticmethod
     async def buscar_cie10(
@@ -365,6 +432,7 @@ class CatalogoService:
         )
         diagnosticos = result.scalars().all()
 
+
         # Contar total de resultados
         count_result = await db.execute(
             select(func.count(CatCIE10.codigo_cie))
@@ -377,4 +445,5 @@ class CatalogoService:
         )
         total = count_result.scalar()
 
-        return diagnosticos, total 
+
+        return diagnosticos, total

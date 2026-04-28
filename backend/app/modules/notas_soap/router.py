@@ -24,7 +24,7 @@ async def crear_nota(
     id_encuentro: UUID,
     data: NotaSOAPCreateIn,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role(["MEDICO_GENERAL", "MEDICO_ESPECIALISTA"])),
+    current_user=Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA"])),
 ):
     """Crea una nota SOAP en borrador para un encuentro específico"""
     return await NotaSOAPService.crear_nota_soap(
@@ -40,7 +40,7 @@ async def actualizar_nota(
     id_nota: UUID,
     data: NotaSOAPUpdateIn,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role(["MEDICO_GENERAL", "MEDICO_ESPECIALISTA"])),
+    current_user=Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA"])),
 ):
     """Actualiza una nota (solo si esta_firmada = FALSE)"""
     return await NotaSOAPService.actualizar_nota_soap(
@@ -55,7 +55,7 @@ async def actualizar_nota(
 async def firmar_nota(
     id_nota: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role(["MEDICO_GENERAL", "MEDICO_ESPECIALISTA"])),
+    current_user=Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA"])),
 ):
     """Firma digitalmente la nota y activa inmutabilidad (SHA-256)"""
     return await NotaSOAPService.firmar_nota_soap(
@@ -72,7 +72,7 @@ async def crear_enmienda(
     id_nota: UUID,
     data: NotaEnmiendaCreateIn,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(require_role(["MEDICO_GENERAL", "MEDICO_ESPECIALISTA"])),
+    current_user=Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA"])),
 ):
     """Crea una corrección (Addendum) para una nota ya firmada"""
     return await NotaSOAPService.crear_enmienda(

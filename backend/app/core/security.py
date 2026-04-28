@@ -46,17 +46,52 @@ def verify_token(token: str) -> Optional[dict]:
         return None
 
 
-# Cifrado AES-256 para Semilla TOTP
-fernet = Fernet(settings.TOTP_ENCRYPTION_KEY.encode() if hasattr(settings, 'TOTP_ENCRYPTION_KEY') and settings.TOTP_ENCRYPTION_KEY else Fernet.generate_key())
+def get_fernet() -> Optional[Fernet]:
+    """
+    Obtiene la instancia de Fernet para cifrado/descifrado.
+    La clave DEBE ser la misma siempre, definida en settings.
+    """
+    try:
+        encryption_key = getattr(settings, 'TOTP_ENCRYPTION_KEY', None)
+        
+        if not encryption_key:
+            print("ERROR: TOTP_ENCRYPTION_KEY no está configurada")
+            return None
+        
+        return Fernet(encryption_key.encode())
+    except Exception as e:
+        print(f"Error al inicializar Fernet: {e}")
+        return None
+
 
 def encrypt_secret(secret: str) -> str:
     """Cifra la semilla TOTP antes de guardarla en DB."""
+    fernet = get_fernet()
+    if not fernet:
+        raise ValueError("TOTP encryption not properly configured")
+    
     return fernet.encrypt(secret.encode()).decode()
 
 
 def decrypt_secret(encrypted_secret: str) -> str:
     """Descifra la semilla TOTP para validación."""
-    return fernet.decrypt(encrypted_secret.encode()).decode()
+    if not encrypted_secret:
+        return ""
+    
+    fernet = get_fernet()
+    if not fernet:
+        raise ValueError("TOTP encryption not properly configured")
+    
+    try:
+        decrypted = fernet.decrypt(encrypted_secret.encode()).decode()
+        return decrypted
+    except Exception as e:
+        # Si hay error, podría ser que el dato no esté cifrado o la clave cambió
+        print(f"Error decrypting secret: {e}")
+        # Si no parece un token de Fernet (no empieza con gAAAAA), asumir que está en texto plano
+        if not encrypted_secret.startswith('gAAAAA'):
+            return encrypted_secret
+        raise
 
 
 def generate_totp_secret() -> str:
