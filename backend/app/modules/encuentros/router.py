@@ -22,7 +22,6 @@ from app.schemas.notas_soap import (
     NotaSOAPCreateIn, NotaSOAPUpdateIn, NotaSOAPOut,
     NotaEnmiendaCreateIn, NotaEnmiendaOut, CIE10ListOut
 )
-)
 import logging
 from pydantic import BaseModel
 

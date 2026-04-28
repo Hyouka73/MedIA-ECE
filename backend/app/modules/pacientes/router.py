@@ -1029,12 +1029,20 @@ async def add_antecedente_patologico(
 
         # Validar campos
         enfermedad = antecedente_in.get("enfermedad", "").strip()
-        fecha_diagnostico = antecedente_in.get("fecha_diagnostico")
+        fecha_diagnostico_str = antecedente_in.get("fecha_diagnostico")
         tratamiento_actual = antecedente_in.get("tratamiento_actual", "").strip()
 
         if not enfermedad:
             raise HTTPException(status_code=422, detail="Campo 'enfermedad' requerido")
-
+        
+        from datetime import date as data_type
+        fecha_diagnostico = None
+        if fecha_diagnostico_str:
+            try:
+                fecha_diagnostico = data_type.fromisoformat(fecha_diagnostico_str)
+            except ValueError:
+                raise HTTPException(status_code=422, detail="Formato de fecha inválido. Use YYYY-MM-DD")
+            
         # Insertar
         query_insert = text("""
             INSERT INTO antecedentes_patologicos (id_ap, id_paciente, enfermedad, fecha_diagnostico, tratamiento_actual)
