@@ -91,13 +91,7 @@ class NotaSOAPService:
         db.add(nota_soap)
 
         await db.commit()
-        await db.refresh(nota)
-
-        # Cargar relaciones para respuesta
-        await db.refresh(nota_soap)
-        nota.soap_detalle = nota_soap
-
-        return nota
+        return await NotaSOAPService.obtener_nota_soap(db, nota.id_nota, id_medico)
 
     @staticmethod
     async def obtener_nota_soap(
@@ -193,9 +187,7 @@ class NotaSOAPService:
                 nota.soap_detalle.plan = sanitize_input(data.plan)
 
         await db.commit()
-        await db.refresh(nota)
-
-        return nota
+        return await NotaSOAPService.obtener_nota_soap(db, nota.id_nota, id_medico)
 
     @staticmethod
     async def firmar_nota_soap(
@@ -252,9 +244,7 @@ class NotaSOAPService:
         # fecha_firma se establece automáticamente en BD con CURRENT_TIMESTAMP
 
         await db.commit()
-        await db.refresh(nota)
-
-        return nota
+        return await NotaSOAPService.obtener_nota_soap(db, nota.id_nota, id_medico)
 
     @staticmethod
     async def crear_enmienda(

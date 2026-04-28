@@ -12,26 +12,50 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS tr_audit_no_changes ON auditoria_accesos;
 CREATE TRIGGER tr_audit_no_changes
 BEFORE UPDATE OR DELETE ON auditoria_accesos
 FOR EACH ROW EXECUTE FUNCTION fn_audit_no_changes();
 
 -- ==========================================
--- 2. Bloqueo de Notas Clínicas Firmadas
+-- 2. Bloqueo de Notas Clínicas Firmadas (NOM-004)
 -- ==========================================
 CREATE OR REPLACE FUNCTION fn_notes_protection()
 RETURNS TRIGGER AS $$
 BEGIN
-    -- Si la nota ya estaba firmada antes del UPDATE, no dejar modificar
-    IF OLD.esta_firmada = TRUE THEN
-        RAISE EXCEPTION 'Cumplimiento NOM-004: Una nota firmada es inmutable. Use notas_enmienda para correcciones.';
+    -- Caso 1: notas_medicas (Tabla principal)
+    IF TG_TABLE_NAME = 'notas_medicas' THEN
+        RAISE NOTICE 'Trigger en notas_medicas, OP: %, Firmada: %', TG_OP, OLD.esta_firmada;
+        -- Si la nota ya está firmada, prohibir UPDATE o DELETE
+        IF OLD.esta_firmada = TRUE THEN
+            RAISE EXCEPTION 'Cumplimiento NOM-004: Una nota firmada es inmutable. No se permite modificar ni eliminar.';
+        END IF;
+    
+    -- Caso 2: notas_soap_detalle (Tabla dependiente)
+    ELSIF TG_TABLE_NAME = 'notas_soap_detalle' THEN
+        -- Verificar el estado de la nota en la tabla padre
+        IF EXISTS (SELECT 1 FROM notas_medicas WHERE id_nota = OLD.id_nota AND esta_firmada = TRUE) THEN
+            RAISE EXCEPTION 'Violación NOM-004: El detalle de una nota firmada es inmutable.';
+        END IF;
+    END IF;
+
+    IF TG_OP = 'DELETE' THEN
+        RETURN OLD;
     END IF;
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
+-- Trigger para notas_medicas
+DROP TRIGGER IF EXISTS tr_notes_protection ON notas_medicas;
 CREATE TRIGGER tr_notes_protection
-BEFORE UPDATE ON notas_medicas
+BEFORE UPDATE OR DELETE ON notas_medicas
+FOR EACH ROW EXECUTE FUNCTION fn_notes_protection();
+
+-- Trigger para notas_soap_detalle
+DROP TRIGGER IF EXISTS tr_notes_soap_protection ON notas_soap_detalle;
+CREATE TRIGGER tr_notes_soap_protection
+BEFORE UPDATE OR DELETE ON notas_soap_detalle
 FOR EACH ROW EXECUTE FUNCTION fn_notes_protection();
 
 -- ==========================================
@@ -231,7 +255,7 @@ FOR EACH ROW EXECUTE FUNCTION fn_registro_borrado_logico();
 -- ==========================================
 
 -- A. v_paciente_basico: Datos desensibilizados para búsquedas
-CREATE VIEW v_paciente_basico AS 
+CREATE OR REPLACE VIEW v_paciente_basico AS 
 SELECT 
     p.numero_expediente,
     per.nombre, 
@@ -243,7 +267,7 @@ JOIN personas per ON p.id_persona = per.id_persona
 WHERE p.eliminado_en IS NULL;
 
 -- B. v_signos_encuentro: Para que el rol Enfermería no vea SOAP sensible
-CREATE VIEW v_signos_encuentro AS
+CREATE OR REPLACE VIEW v_signos_encuentro AS
 SELECT
     sv.id_signos,
     sv.id_encuentro,
@@ -257,7 +281,7 @@ FROM signos_vitales sv
 JOIN encuentros_clinicos e ON sv.id_encuentro = e.id_encuentro;
 
 -- C. v_auditoria_estadistica: Para dashboard de Auditor SIN revelar nombres
-CREATE VIEW v_auditoria_estadistica AS
+CREATE OR REPLACE VIEW v_auditoria_estadistica AS
 SELECT 
     DATE(timestamp_evento) as fecha,
     nivel_severidad,

@@ -17,6 +17,8 @@ from app.core.config import settings
 from app.middleware.audit import AuditMiddleware
 from app.middleware.auth import AuthMiddleware
 from app.middleware.sanitize import SanitizeMiddleware
+from app.core.deps import require_role, get_current_user
+from fastapi import Depends
 
 # Routers base
 from app.modules.auth.router import router as auth_router
@@ -110,7 +112,7 @@ app.include_router(auditoria_router,   prefix="/api/auditoria",   tags=["Auditor
 
 # SEGURIDAD
 @app.get("/api/seguridad/logs-forenses", tags=["Auditoría"])
-async def get_forensic_logs():
+async def get_forensic_logs(current_user: dict = Depends(require_role(["AUDITOR_SEGURIDAD", "OMNIADMIN"]))):
     log_path = os.path.join(os.getcwd(), "logs", "auditoria_forense.log")
     if not os.path.exists(log_path):
         return {"content": ["> SISTEMA: Archivo de auditoría forense no encontrado."]}
@@ -118,7 +120,7 @@ async def get_forensic_logs():
         return {"content": f.readlines()[-50:]}
 
 @app.get("/api/seguridad/sessions-blacklist", tags=["Auditoría"])
-async def get_blacklist(request: Request):
+async def get_blacklist(request: Request, current_user: dict = Depends(require_role(["AUDITOR_SEGURIDAD", "OMNIADMIN"]))):
     return request.app.state.blacklist_detalles
 
 if settings.APP_ENV != "production":

@@ -173,7 +173,7 @@ async def _limpiar_sesiones_expiradas(db: AsyncSession) -> None:
 
 # ── POST /auth/login ─────────────────────────────────────────
 @router.post("/login")
-@limiter.limit("5/minute")
+@limiter.limit("30/minute")
 async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends(get_db)):
     """
     Login con bloqueo por intentos.
