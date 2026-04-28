@@ -13,6 +13,9 @@ export default function ExpedientePage() {
 
   const [paciente, setPaciente] = useState(null)
   const [encuentros, setEncuentros] = useState([])
+  const [medicamentos, setMedicamentos] = useState([])
+  const [antecedentes, setAntecedentes] = useState({})
+  const [inmunizaciones, setInmunizaciones] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('Antecedentes')
@@ -31,54 +34,119 @@ export default function ExpedientePage() {
   const tieneAcceso = user && rolesPermitidos.includes(user.rol)
 
   const calcularEdad = (fechaNacimiento) => {
-    if (!fechaNacimiento) return null;
-    const hoy = new Date();
-    const nacimiento = new Date(fechaNacimiento);
-    let edad = hoy.getFullYear() - nacimiento.getFullYear();
-    const mes = hoy.getMonth() - nacimiento.getMonth();
-    if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) {
-      edad--;
-    }
-    return edad;
-  };
+    if (!fechaNacimiento) return null
+    const hoy = new Date()
+    const nacimiento = new Date(fechaNacimiento)
+    let edad = hoy.getFullYear() - nacimiento.getFullYear()
+    const mes = hoy.getMonth() - nacimiento.getMonth()
+    if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) edad--
+    return edad
+  }
 
-  // ✅ Datos de demostración
+  const formatearFecha = (fecha) => {
+    if (!fecha) return 'N/A'
+    try {
+      return new Date(fecha).toLocaleDateString('es-MX', {
+        year: 'numeric',
+        month: 'short',
+        day: '2-digit',
+      })
+    } catch {
+      return fecha
+    }
+  }
+
+  const formatearHora = (fecha) => {
+    if (!fecha) return 'N/A'
+    try {
+      return new Date(fecha).toLocaleTimeString('es-MX', {
+        hour: '2-digit',
+        minute: '2-digit',
+      })
+    } catch {
+      return 'N/A'
+    }
+  }
+
+  const extraerObjeto = (res) => res?.data?.data || res?.data || {}
+
+  const extraerLista = (res) => {
+    if (Array.isArray(res?.data?.data?.items)) return res.data.data.items
+    if (Array.isArray(res?.data?.data)) return res.data.data
+    if (Array.isArray(res?.data?.items)) return res.data.items
+    if (Array.isArray(res?.data)) return res.data
+    return []
+  }
+
+  const normalizarAlergias = (lista = []) =>
+    lista.map((a) => ({
+      ...a,
+      nombre: a.nombre || a.sustancia || a.alergia || a.descripcion || 'Alergia registrada',
+      severidad: (a.severidad || '').toLowerCase(),
+    }))
+
+  const normalizarEncuentros = (lista = []) =>
+    lista.map((enc) => ({
+      ...enc,
+      hora_inicio: enc.hora_inicio || formatearHora(enc.fecha_inicio),
+      medico:
+        enc.medico ||
+        enc.nombre_medico ||
+        enc.medico_responsable ||
+        enc.nombre_medico_responsable ||
+        'Médico no disponible',
+      estado: enc.estado || (enc.fecha_cierre ? 'finalizado' : 'abierto'),
+      diagnosticos: Array.isArray(enc.diagnosticos) ? enc.diagnosticos : [],
+      prescripciones: Array.isArray(enc.prescripciones) ? enc.prescripciones : [],
+    }))
+
+  const obtenerTextoAntecedente = (item) => {
+    if (typeof item === 'string') return item
+    return (
+      item?.descripcion ||
+      item?.descripcion_patologia ||
+      item?.tipo_patologia ||
+      item?.categoria ||
+      item?.familiar ||
+      item?.enfermedad ||
+      'Antecedente registrado'
+    )
+  }
+
+  const obtenerNombreMedicamento = (med) =>
+    med?.medicamento?.nombre_generico ||
+    med?.nombre_generico ||
+    med?.nombre ||
+    med?.descripcion ||
+    'Medicamento'
+
   const generarPacienteDemo = (pacienteId) => ({
     id_paciente: pacienteId,
     numero_expediente: `EXP-2025-${String(14832).padStart(5, '0')}`,
-    nombre: "Rosa María",
-    primer_apellido: "García",
-    segundo_apellido: "Hernández",
+    nombre: 'Rosa María',
+    primer_apellido: 'García',
+    segundo_apellido: 'Hernández',
     persona: {
-      nombre: "Rosa María García Hernández",
-      curp: "GAHR860723MDFGRR09",
-      fecha_nacimiento: "1986-07-23",
-      sexo: "F",
-      telefono: "55 1234-5678",
-      calle_numero: "Calle Principal #123, Depto 4B",
+      nombre: 'Rosa María García Hernández',
+      curp: 'GAHR860723MDFGRR09',
+      fecha_nacimiento: '1986-07-23',
+      sexo: 'F',
+      telefono: '55 1234-5678',
+      calle_numero: 'Calle Principal #123, Depto 4B',
       id_lengua_materna: null,
       alerta_barrera_linguistica: false,
     },
     grupo_sanguineo: 'O+',
-    edad: 47,
-    dob: '23/Jul/1986',
     alergias: [
       { nombre: 'Penicilina', severidad: 'alta' },
       { nombre: 'Cefalosporinas', severidad: 'media' },
     ],
-    enfermedades_cronicas: [
-      'Diabetes Mellitus tipo 2',
-      'Hipertensión arterial',
-      'Hiperlipidemia',
-    ],
-    ultima_consulta: '28 May 2025',
-    num_consultas: 12,
   })
 
   const generarEncuentrosDemo = () => [
     {
       id_encuentro: '1',
-      fecha_inicio: '2025-05-28',
+      fecha_inicio: '2025-05-28T09:30:00',
       hora_inicio: '09:30',
       motivo_consulta: 'Control de diabetes',
       estado: 'finalizado',
@@ -88,23 +156,13 @@ export default function ExpedientePage() {
     },
     {
       id_encuentro: '2',
-      fecha_inicio: '2025-04-10',
+      fecha_inicio: '2025-04-10T14:15:00',
       hora_inicio: '14:15',
       motivo_consulta: 'Dolor de cabeza',
       estado: 'finalizado',
       medico: 'Dra. Patricia López',
       diagnosticos: ['G43 - Migraña'],
       prescripciones: ['Ibuprofeno 400mg c/8h'],
-    },
-    {
-      id_encuentro: '3',
-      fecha_inicio: '2025-06-01',
-      hora_inicio: '11:00',
-      motivo_consulta: 'Seguimiento de hipertensión',
-      estado: 'finalizado',
-      medico: 'Dr. Roberto Morales',
-      diagnosticos: ['I10 - Hipertensión esencial'],
-      prescripciones: ['Captopril 25mg c/8h'],
     },
   ]
 
@@ -117,35 +175,135 @@ export default function ExpedientePage() {
         setError(null)
 
         const pacRes = await pacientesAPI.getPaciente(id)
+        const pacienteData = extraerObjeto(pacRes)
 
-        if (pacRes.data?.data) {
-          setPaciente(pacRes.data.data)
-        } else if (pacRes.data) {
-          setPaciente(pacRes.data)
-        } else {
+        if (!pacienteData || Object.keys(pacienteData).length === 0) {
           throw new Error('No se recibieron datos del paciente')
         }
 
+        let alergiasData = []
+        let antecedentesData = {}
+        let inmunizacionesData = []
+
+        try {
+          if (typeof pacientesAPI.getAlergias === 'function') {
+            const alergRes = await pacientesAPI.getAlergias(id)
+            alergiasData = extraerLista(alergRes)
+          }
+        } catch (err) {
+          console.warn('No se pudieron cargar alergias', err)
+        }
+
+        // ===== CORREGIDO: Usar getExpedienteCompleto que SÍ existe =====
+        try {
+          const expRes = await pacientesAPI.getExpedienteCompleto(id)
+          const expData = extraerObjeto(expRes)
+          antecedentesData = expData?.antecedentes || expData || {}
+          console.log('📦 Antecedentes cargados:', antecedentesData)
+        } catch (err) {
+          console.warn('No se pudieron cargar antecedentes', err)
+        }
+
+        try {
+          if (typeof pacientesAPI.getInmunizaciones === 'function') {
+            const inmRes = await pacientesAPI.getInmunizaciones(id)
+            inmunizacionesData = extraerLista(inmRes)
+          }
+        } catch (err) {
+          console.warn('No se pudieron cargar inmunizaciones', err)
+        }
+
+        setPaciente({
+          ...pacienteData,
+          alergias: normalizarAlergias(
+            pacienteData.alergias?.length ? pacienteData.alergias : alergiasData
+          ),
+        })
+
+        setAntecedentes(antecedentesData || {})
+        setInmunizaciones(inmunizacionesData || [])
+
         try {
           const encRes = await clinicoAPI.getEncuentros({ id_paciente: id, page: 1, limit: 20 })
-          if (encRes.data?.data?.items) {
-            setEncuentros(encRes.data.data.items)
-          } else if (encRes.data?.items) {
-            setEncuentros(encRes.data.items)
+          const encuentrosData = normalizarEncuentros(extraerLista(encRes))
+          setEncuentros(encuentrosData)
+
+          if (typeof clinicoAPI.getPrescripciones === 'function' && encuentrosData.length > 0) {
+            const prescripcionesPorEncuentro = await Promise.all(
+              encuentrosData.map(async (enc) => {
+                try {
+                  const rxRes = await clinicoAPI.getPrescripciones(enc.id_encuentro)
+                  const rxItems = extraerLista(rxRes)
+                  return rxItems.map((rx, index) => ({
+                    ...rx,
+                    _key: `${enc.id_encuentro}-${rx.id_prescripcion || index}`,
+                    id_encuentro: enc.id_encuentro,
+                    fecha_inicio: enc.fecha_inicio,
+                    motivo_consulta: enc.motivo_consulta,
+                  }))
+                } catch (err) {
+                  return (enc.prescripciones || []).map((rx, index) => ({
+                    _key: `${enc.id_encuentro}-fallback-${index}`,
+                    nombre_generico: typeof rx === 'string' ? rx : obtenerNombreMedicamento(rx),
+                    dosis: typeof rx === 'string' ? '' : rx.dosis,
+                    via_administracion: typeof rx === 'string' ? '' : rx.via_administracion,
+                    frecuencia: typeof rx === 'string' ? '' : rx.frecuencia,
+                    indicaciones: typeof rx === 'string' ? '' : rx.indicaciones,
+                    fecha_inicio: enc.fecha_inicio,
+                    motivo_consulta: enc.motivo_consulta,
+                  }))
+                }
+              })
+            )
+            setMedicamentos(prescripcionesPorEncuentro.flat())
           } else {
-            setEncuentros([])
+            const medsFallback = encuentrosData.flatMap((enc) =>
+              (enc.prescripciones || []).map((rx, index) => ({
+                _key: `${enc.id_encuentro}-inline-${index}`,
+                nombre_generico: typeof rx === 'string' ? rx : obtenerNombreMedicamento(rx),
+                dosis: typeof rx === 'string' ? '' : rx.dosis,
+                via_administracion: typeof rx === 'string' ? '' : rx.via_administracion,
+                frecuencia: typeof rx === 'string' ? '' : rx.frecuencia,
+                indicaciones: typeof rx === 'string' ? '' : rx.indicaciones,
+                fecha_inicio: enc.fecha_inicio,
+                motivo_consulta: enc.motivo_consulta,
+              }))
+            )
+            setMedicamentos(medsFallback)
           }
         } catch (err) {
           console.warn('Encuentros no disponibles, usando datos demo', err)
-          setEncuentros(generarEncuentrosDemo())
+          const demoEncuentros = generarEncuentrosDemo()
+          setEncuentros(demoEncuentros)
+          setMedicamentos(
+            demoEncuentros.flatMap((enc) =>
+              (enc.prescripciones || []).map((rx, index) => ({
+                _key: `${enc.id_encuentro}-demo-${index}`,
+                nombre_generico: typeof rx === 'string' ? rx : obtenerNombreMedicamento(rx),
+                fecha_inicio: enc.fecha_inicio,
+                motivo_consulta: enc.motivo_consulta,
+              }))
+            )
+          )
         }
       } catch (err) {
         console.error('Error cargando expediente:', err)
-        setError(err.message)
+        setError(err?.response?.data?.detail || err.message || 'Error al cargar expediente')
 
         if (process.env.NODE_ENV === 'development') {
           setPaciente(generarPacienteDemo(id))
-          setEncuentros(generarEncuentrosDemo())
+          const demoEncuentros = generarEncuentrosDemo()
+          setEncuentros(demoEncuentros)
+          setMedicamentos(
+            demoEncuentros.flatMap((enc) =>
+              (enc.prescripciones || []).map((rx, index) => ({
+                _key: `${enc.id_encuentro}-dev-${index}`,
+                nombre_generico: typeof rx === 'string' ? rx : obtenerNombreMedicamento(rx),
+                fecha_inicio: enc.fecha_inicio,
+                motivo_consulta: enc.motivo_consulta,
+              }))
+            )
+          )
         }
       } finally {
         setLoading(false)
@@ -232,16 +390,28 @@ export default function ExpedientePage() {
     return `${nombre[0] || ''}${apellido[0] || ''}`.toUpperCase() || 'P'
   })()
 
+  // ===== CORREGIDO: Soporta tanto ARRAY como OBJETO =====
+  const patologicos = Array.isArray(antecedentes?.patologicos)
+    ? antecedentes.patologicos
+    : Array.isArray(antecedentes?.antecedentes_patologicos)
+      ? antecedentes.antecedentes_patologicos
+      : []
+
+  const heredoData = antecedentes?.heredofamiliares || antecedentes?.antecedentes_heredofamiliares || {}
+  const noPatData = antecedentes?.no_patologicos || antecedentes?.antecedentes_no_patologicos || {}
+
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#EDEBE6' }}>
-      <div style={{
-        padding: '16px 28px',
-        background: '#FDFAF5',
-        borderBottom: '1px solid #DAD4CC',
-        backdropFilter: 'blur(12px)',
-        zIndex: 10,
-        boxShadow: '0 1px 3px rgba(26,21,16,0.05)',
-      }}>
+      <div
+        style={{
+          padding: '16px 28px',
+          background: '#FDFAF5',
+          borderBottom: '1px solid #DAD4CC',
+          backdropFilter: 'blur(12px)',
+          zIndex: 10,
+          boxShadow: '0 1px 3px rgba(26,21,16,0.05)',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button
@@ -267,7 +437,8 @@ export default function ExpedientePage() {
           </div>
 
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => navigate(`/pacientes/${paciente.id_paciente}/editar`)}
+            <button
+              onClick={() => navigate(`/pacientes/${paciente.id_paciente}/editar`)}
               style={{
                 padding: '8px 16px',
                 background: 'transparent',
@@ -282,7 +453,8 @@ export default function ExpedientePage() {
               Editar Paciente
             </button>
 
-            <button onClick={() => navigate(`/pacientes/${paciente.id_paciente}/antecedentes`)}
+            <button
+              onClick={() => navigate(`/pacientes/${paciente.id_paciente}/antecedentes`)}
               style={{
                 padding: '8px 16px',
                 background: 'transparent',
@@ -317,105 +489,125 @@ export default function ExpedientePage() {
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: '22px 28px' }}>
-        <div style={{
-          display: 'flex',
-          gap: 16,
-          alignItems: 'flex-start',
-          marginBottom: 20,
-          padding: '18px 20px',
-          background: '#F5F2EC',
-          border: '1px solid #DAD4CC',
-          borderRadius: 12,
-        }}>
-          <div style={{
-            width: 56,
-            height: 56,
-            borderRadius: '50%',
-            flexShrink: 0,
-            background: 'linear-gradient(135deg, #5B7ABC, #2459A8)',
+        <div
+          style={{
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#fff',
-            fontSize: 18,
-            fontWeight: 700,
-          }}>
+            gap: 16,
+            alignItems: 'flex-start',
+            marginBottom: 20,
+            padding: '18px 20px',
+            background: '#F5F2EC',
+            border: '1px solid #DAD4CC',
+            borderRadius: 12,
+          }}
+        >
+          <div
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              flexShrink: 0,
+              background: 'linear-gradient(135deg, #5B7ABC, #2459A8)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              fontSize: 18,
+              fontWeight: 700,
+            }}
+          >
             {initials}
           </div>
+
           <div style={{ flex: 1 }}>
             <h2 style={{ color: '#1A1510', fontSize: 18, fontWeight: 700, margin: '0 0 8px 0' }}>
-              {paciente.persona?.nombre || `${paciente.nombre} ${paciente.primer_apellido}`}
+              {paciente.persona?.nombre || `${paciente.nombre || ''} ${paciente.primer_apellido || ''}`}
             </h2>
+
             <div style={{ color: '#2C2620', fontSize: 12, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <span>{calcularEdad(paciente?.persona?.fecha_nacimiento)} años</span>
               <span>·</span>
               <span>Nac. {paciente.persona?.fecha_nacimiento || 'N/A'}</span>
               <span>·</span>
-              <span style={{
-                padding: '2px 8px',
-                borderRadius: 4,
-                background: '#F5969C',
-                color: '#BA2E45',
-                fontWeight: 600,
-                fontSize: 11,
-              }}>
-                Grupo {paciente.grupo_sanguineo}
+              <span
+                style={{
+                  padding: '2px 8px',
+                  borderRadius: 4,
+                  background: '#F5969C',
+                  color: '#BA2E45',
+                  fontWeight: 600,
+                  fontSize: 11,
+                }}
+              >
+                Grupo {paciente.grupo_sanguineo || 'N/A'}
               </span>
               <span>·</span>
-              <span>📞 {paciente.persona?.telefono || 'N/A'}</span>
+              <span>📞 {paciente.persona?.telefono || paciente.persona?.telefono_contacto || 'N/A'}</span>
             </div>
+
             <p style={{ color: '#5A5048', fontSize: 10, margin: '6px 0 0 0', fontFamily: 'monospace', letterSpacing: '0.5px' }}>
               CURP: {paciente.persona?.curp || 'N/A'}
             </p>
           </div>
         </div>
 
-        {/* ✅ Alerta de Barrera Lingüística */}
         {paciente?.persona?.alerta_barrera_linguistica && (
           <BarreraLinguisticaAlert paciente={paciente} size="large" />
         )}
 
         {paciente.alergias && paciente.alergias.length > 0 && (
           <div style={{ marginBottom: 18 }}>
-            <div style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: '#5A5048',
-              letterSpacing: '0.5px',
-              textTransform: 'uppercase',
-              marginBottom: 8,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}>
-              <span style={{
-                width: 16,
-                height: 16,
-                borderRadius: '50%',
-                background: '#BA2E45',
-                color: '#fff',
-                fontSize: 9,
-                fontWeight: 800,
-                display: 'inline-flex',
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: '#5A5048',
+                letterSpacing: '0.5px',
+                textTransform: 'uppercase',
+                marginBottom: 8,
+                display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-              }}>!</span>
+                gap: 6,
+              }}
+            >
+              <span
+                style={{
+                  width: 16,
+                  height: 16,
+                  borderRadius: '50%',
+                  background: '#BA2E45',
+                  color: '#fff',
+                  fontSize: 9,
+                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                !
+              </span>
               Alergias Registradas
             </div>
+
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               {paciente.alergias.map((alergia, i) => {
-                const isHigh = alergia.severidad === 'alta'
+                const sev = (alergia.severidad || '').toLowerCase()
+                const isHigh = ['alta', 'critica', 'crítica'].includes(sev)
+
                 return (
-                  <div key={i} style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '10px 14px',
-                    borderRadius: 10,
-                    background: isHigh ? '#F5969E' : '#F9E5BA',
-                    border: `1.5px solid ${isHigh ? '#BA2E45' : '#B86E12'}`,
-                    boxShadow: `0 2px 8px ${isHigh ? '#BA2E4530' : '#B86E1230'}`,
-                  }}>
+                  <div
+                    key={alergia.id_alergia || i}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 10,
+                      padding: '10px 14px',
+                      borderRadius: 10,
+                      background: isHigh ? '#F5969E' : '#F9E5BA',
+                      border: `1.5px solid ${isHigh ? '#BA2E45' : '#B86E12'}`,
+                      boxShadow: `0 2px 8px ${isHigh ? '#BA2E4530' : '#B86E1230'}`,
+                    }}
+                  >
                     <span style={{ fontSize: 20 }}>{isHigh ? '🔴' : '🟡'}</span>
                     <div>
                       <div style={{ fontSize: 13, fontWeight: 700, color: isHigh ? '#BA2E45' : '#B86E12' }}>
@@ -432,13 +624,15 @@ export default function ExpedientePage() {
           </div>
         )}
 
-        <div style={{
-          display: 'flex',
-          gap: 0,
-          borderBottom: '1px solid #DAD4CC',
-          marginBottom: 18,
-          overflowX: 'auto',
-        }}>
+        <div
+          style={{
+            display: 'flex',
+            gap: 0,
+            borderBottom: '1px solid #DAD4CC',
+            marginBottom: 18,
+            overflowX: 'auto',
+          }}
+        >
           {['Antecedentes', 'Medicamentos', 'Estudios', 'Notas', 'Encuentros'].map((tab) => (
             <button
               key={tab}
@@ -459,21 +653,27 @@ export default function ExpedientePage() {
             </button>
           ))}
         </div>
+
         {activeTab === 'Antecedentes' && (
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div style={{ padding: 18, background: '#FDFAF5', border: '1px solid #DAD4CC', borderRadius: 10 }}>
               <h3 style={{ fontSize: 11, fontWeight: 700, color: '#5A5048', letterSpacing: '0.4px', textTransform: 'uppercase', marginBottom: 14 }}>
                 Enfermedades Crónicas
               </h3>
-              {paciente?.enfermedades_cronicas?.length > 0 ? (
-                paciente?.enfermedades_cronicas?.map((enfermedad, i) => (
-                  <div key={i} style={{ display: 'flex', gap: 9, marginBottom: 10, alignItems: 'flex-start' }}>
+
+              {patologicos.length > 0 ? (
+                patologicos.map((item, i) => (
+                  <div key={item.id_antecedente || i} style={{ display: 'flex', gap: 9, marginBottom: 10, alignItems: 'flex-start' }}>
                     <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#E8921F', marginTop: 5, flexShrink: 0 }} />
-                    <span style={{ fontSize: 13, color: '#1A1510', lineHeight: 1.45 }}>{enfermedad}</span>
+                    <span style={{ fontSize: 13, color: '#1A1510', lineHeight: 1.45 }}>
+                      {obtenerTextoAntecedente(item)}
+                    </span>
                   </div>
                 ))
               ) : (
-                <div style={{ fontSize: 13, color: '#5A5048', fontStyle: 'italic' }}>Sin enfermedades crónicas registradas</div>
+                <div style={{ fontSize: 13, color: '#5A5048', fontStyle: 'italic' }}>
+                  Sin enfermedades crónicas registradas
+                </div>
               )}
             </div>
 
@@ -481,16 +681,22 @@ export default function ExpedientePage() {
               <h3 style={{ fontSize: 11, fontWeight: 700, color: '#5A5048', letterSpacing: '0.4px', textTransform: 'uppercase', marginBottom: 14 }}>
                 Resumen Clínico
               </h3>
+
               {[
                 ['Grupo Sanguíneo', paciente.grupo_sanguineo || 'N/A'],
-                ['Última Consulta', paciente.ultima_consulta || 'N/A'],
-                ['Total Consultas', paciente.num_consultas || '0'],
+                ['Última Consulta', encuentros?.length ? formatearFecha(encuentros[0]?.fecha_inicio) : 'N/A'],
+                ['Total Consultas', encuentros?.length || '0'],
                 ['Alergias', paciente.alergias?.length ? `${paciente.alergias.length} registrada(s)` : 'Ninguna'],
+                ['Vacunas', inmunizaciones?.length ? `${inmunizaciones.length} registrada(s)` : 'Ninguna'],
+                ['Diabetes Heredofamiliar', heredoData?.diabetes ? '✅ Sí' : '❌ No'],
+                ['Hipertensión Heredofamiliar', heredoData?.hipertension ? '✅ Sí' : '❌ No'],
+                ['Tabaquismo', noPatData?.tabaquismo ? '✅ Sí' : '❌ No'],
+                ['Alcoholismo', noPatData?.alcoholismo ? '✅ Sí' : '❌ No'],
                 ['🌐 Lengua Materna', paciente.persona?.id_lengua_materna ? `ID: ${paciente.persona.id_lengua_materna}` : 'No especificada'],
               ].map(([label, value]) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, gap: 10 }}>
                   <span style={{ fontSize: 12, color: '#5A5048' }}>{label}</span>
-                  <span style={{ fontSize: 12, color: '#1A1510', fontWeight: 500 }}>{value}</span>
+                  <span style={{ fontSize: 12, color: '#1A1510', fontWeight: 500, textAlign: 'right' }}>{value}</span>
                 </div>
               ))}
             </div>
@@ -498,9 +704,53 @@ export default function ExpedientePage() {
         )}
 
         {activeTab === 'Medicamentos' && (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#5A5048', fontSize: 13 }}>
-            <Pill size={40} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
-            📁 Sección <strong>{activeTab}</strong> — próximamente
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {medicamentos.length > 0 ? (
+              medicamentos.map((med, i) => (
+                <div
+                  key={med._key || i}
+                  style={{
+                    padding: 16,
+                    background: '#FDFAF5',
+                    border: '1px solid #DAD4CC',
+                    borderRadius: 10,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                    <div>
+                      <h4 style={{ margin: '0 0 6px 0', fontSize: 14, fontWeight: 700, color: '#1A1510' }}>
+                        {obtenerNombreMedicamento(med)}
+                      </h4>
+                      <p style={{ margin: '0 0 4px 0', fontSize: 12, color: '#5A5048' }}>
+                        {[med.dosis, med.via_administracion, med.frecuencia].filter(Boolean).join(' · ') || 'Sin detalle de prescripción'}
+                      </p>
+                    </div>
+
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 11, color: '#5A5048' }}>
+                        {formatearFecha(med.fecha_inicio)}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#2459A8', fontWeight: 600 }}>
+                        {med.motivo_consulta || 'Encuentro clínico'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {med.indicaciones && (
+                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #E7E0D8' }}>
+                      <p style={{ margin: 0, fontSize: 12, color: '#1A1510' }}>
+                        <strong>Indicaciones:</strong> {med.indicaciones}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: '#5A5048', fontSize: 13 }}>
+                <Pill size={40} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
+                Sin medicamentos registrados
+              </div>
+            )}
           </div>
         )}
 
@@ -538,29 +788,33 @@ export default function ExpedientePage() {
                     )
                   }
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
                     <div>
                       <h4 style={{ color: '#1A1510', fontSize: 13, fontWeight: 600, margin: '0 0 6px 0' }}>
                         {encuentro.motivo_consulta}
                       </h4>
-                      <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#5A5048' }}>
-                        <span>📅 {encuentro.fecha_inicio}</span>
+                      <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#5A5048', flexWrap: 'wrap' }}>
+                        <span>📅 {formatearFecha(encuentro.fecha_inicio)}</span>
                         <span>🕐 {encuentro.hora_inicio}</span>
                         <span>👨‍⚕️ {encuentro.medico}</span>
                       </div>
                     </div>
-                    <span style={{
-                      display: 'inline-block',
-                      padding: '4px 10px',
-                      background: '#E8F5E9',
-                      color: '#237A4B',
-                      borderRadius: 4,
-                      fontSize: 11,
-                      fontWeight: 600,
-                    }}>
-                      ✓ {encuentro.estado}
+
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        padding: '4px 10px',
+                        background: encuentro.estado === 'abierto' ? '#FFF4D6' : '#E8F5E9',
+                        color: encuentro.estado === 'abierto' ? '#9A6700' : '#237A4B',
+                        borderRadius: 4,
+                        fontSize: 11,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {encuentro.estado === 'abierto' ? '⏳ Abierto' : `✓ ${encuentro.estado}`}
                     </span>
                   </div>
+
                   {expandedEncuentro === encuentro.id_encuentro && (
                     <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #DAD4CC' }}>
                       {encuentro.diagnosticos?.length > 0 && (
@@ -570,11 +824,12 @@ export default function ExpedientePage() {
                           </p>
                           {encuentro.diagnosticos.map((dx, i) => (
                             <p key={i} style={{ fontSize: 12, color: '#1A1510', margin: '4px 0' }}>
-                              • {dx}
+                              • {typeof dx === 'string' ? dx : dx.descripcion_narrativa || dx.descripcion || dx.codigo_cie || 'Diagnóstico'}
                             </p>
                           ))}
                         </div>
                       )}
+
                       {encuentro.prescripciones?.length > 0 && (
                         <div>
                           <p style={{ color: '#5A5048', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', marginBottom: 6 }}>
@@ -582,7 +837,7 @@ export default function ExpedientePage() {
                           </p>
                           {encuentro.prescripciones.map((rx, i) => (
                             <p key={i} style={{ fontSize: 12, color: '#1A1510', margin: '4px 0' }}>
-                              • {rx}
+                              • {typeof rx === 'string' ? rx : `${obtenerNombreMedicamento(rx)}${rx.dosis ? ` - ${rx.dosis}` : ''}`}
                             </p>
                           ))}
                         </div>
@@ -601,5 +856,5 @@ export default function ExpedientePage() {
         )}
       </div>
     </div>
-  );
-} 
+  )
+}
