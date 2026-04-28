@@ -144,7 +144,7 @@ async def list_encuentros(
 async def create_encuentro(
     data: dict,
     current_user: dict = Depends(
-        require_role("MEDICO_GENERAL", "MEDICO_ESPECIALISTA", "SUPERADMIN")
+        require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")
     ),
     db: AsyncSession = Depends(get_db),
 ):
@@ -346,7 +346,7 @@ async def cerrar_encuentro(
 async def crear_encuentro_bck(
     data: EncuentroCreateIn,
     current_user: dict = Depends(
-        require_role("MEDICO_GENERAL", "MEDICO_ESPECIALISTA", "SUPERADMIN")
+        require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")
     ),
     db: AsyncSession = Depends(get_db),
 ):
@@ -376,7 +376,7 @@ async def crear_encuentro_bck(
 @router.get("/activos", response_model=List[EncuentroOut])
 async def listar_encuentros_activos(
     current_user: dict = Depends(
-        require_role("MEDICO_GENERAL", "MEDICO_ESPECIALISTA", "ENFERMERIA", "SUPERADMIN")
+        require_role("MEDICO_GENERAL", "ESPECIALISTA", "ENFERMERIA", "SUPERADMIN")
     ),
     db: AsyncSession = Depends(get_db),
     skip: int = Query(0, ge=0),
@@ -417,7 +417,7 @@ async def listar_encuentros_activos(
 async def obtener_encuentro(
     id: UUID,
     current_user: dict = Depends(
-        require_role("MEDICO_GENERAL", "MEDICO_ESPECIALISTA", "ENFERMERIA", "SUPERADMIN")
+        require_role("MEDICO_GENERAL", "ESPECIALISTA", "ENFERMERIA", "SUPERADMIN")
     ),
     db: AsyncSession = Depends(get_db),
 ):
