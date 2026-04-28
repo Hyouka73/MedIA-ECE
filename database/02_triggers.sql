@@ -112,6 +112,24 @@ BEGIN
         -- Bloqueo de 30 minutos
         NEW.bloqueado_hasta = CURRENT_TIMESTAMP + INTERVAL '30 minutes';
         NEW.intentos_fallidos = 0; -- Reiniciar contador después de aplicar el castigo
+
+        -- Forense: Registrar el bloqueo en la bitácora de auditoría
+        INSERT INTO auditoria_accesos (
+            direccion_ip, 
+            modulo_funcion, 
+            tipo_evento, 
+            resultado, 
+            nivel_severidad, 
+            detalles
+        )
+        VALUES (
+            inet_client_addr(), 
+            'auth.lockout', 
+            'CUENTA_BLOQUEADA', 
+            'DENEGADO', 
+            'ALTO', 
+            jsonb_build_object('usuario_afectado', NEW.email, 'motivo', 'Exceso de intentos fallidos (5)')
+        );
     END IF;
     RETURN NEW;
 END;
@@ -138,6 +156,21 @@ $$ LANGUAGE plpgsql;
 CREATE TRIGGER tr_alerta_incidente_critico
 AFTER INSERT ON auditoria_accesos
 FOR EACH ROW EXECUTE FUNCTION fn_alerta_incidente_critico();
+
+-- ==========================================
+-- 5b. Inmutabilidad Selectiva de Incidentes
+-- ==========================================
+-- Proteger contra borrado (evidencia permanente) pero permitir UPDATE (gestión)
+CREATE OR REPLACE FUNCTION fn_incidentes_no_delete()
+RETURNS TRIGGER AS $$
+BEGIN
+    RAISE EXCEPTION 'Violación Forense: Los incidentes de seguridad no pueden ser eliminados para preservar la trazabilidad histórica.';
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER tr_incidentes_no_delete
+BEFORE DELETE ON incidentes_seguridad
+FOR EACH ROW EXECUTE FUNCTION fn_incidentes_no_delete();
 
 -- ==========================================
 -- 6. Registro Forense de Borrado Lógico
