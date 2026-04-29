@@ -8,19 +8,19 @@ import { useNavigate } from 'react-router-dom';
 export default function DashboardPage() {
     const { user } = useAuth();
     const navigate = useNavigate();
-    
+
     const [pendientesSignos, setPendientesSignos] = useState([]);
     const [encuentrosConSignos, setEncuentrosConSignos] = useState([]);
 
     useEffect(() => {
         if (!user) return;
-        
+
         if (user.rol === 'ENFERMERIA' || user.rol === 'OMNIADMIN') {
             clinicoAPI.getEncuentrosPendientesSignos()
                 .then(res => setPendientesSignos(res.data.data.items || []))
                 .catch(err => console.error(err));
         }
-        
+
         if (user.rol === 'MEDICO_GENERAL' || user.rol === 'ESPECIALISTA' || user.rol === 'OMNIADMIN') {
             clinicoAPI.getEncuentrosConSignos()
                 .then(res => setEncuentrosConSignos(res.data.data.items || []))
@@ -62,7 +62,7 @@ export default function DashboardPage() {
                                                 <p className="text-sm font-bold text-gray-800">{enc.paciente_nombre}</p>
                                                 <p className="text-xs text-gray-500 truncate max-w-[200px]">{enc.motivo_consulta}</p>
                                             </div>
-                                            <button 
+                                            <button
                                                 onClick={() => navigate(`/consulta/nueva?id_encuentro=${enc.id_encuentro}&id_paciente=${enc.id_paciente}`)}
                                                 className="text-[#1B4F8A] opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-blue-200 p-1.5 rounded-md hover:bg-blue-600 hover:text-white"
                                             >
@@ -96,7 +96,7 @@ export default function DashboardPage() {
                                                 <p className="text-sm font-bold text-gray-800">{enc.paciente_nombre}</p>
                                                 <p className="text-xs text-gray-500 truncate max-w-[200px]">{enc.motivo_consulta}</p>
                                             </div>
-                                            <button 
+                                            <button
                                                 onClick={() => navigate(`/consulta/triaje?id_encuentro=${enc.id_encuentro}&id_paciente=${enc.id_paciente}&motivo=${encodeURIComponent(enc.motivo_consulta)}`)}
                                                 className="text-[#2D8653] opacity-0 group-hover:opacity-100 transition-opacity bg-white border border-green-200 px-2 py-1 text-xs font-bold rounded-md hover:bg-[#2D8653] hover:text-white"
                                             >
