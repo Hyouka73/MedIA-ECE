@@ -4,11 +4,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { pacientesAPI } from '../../api/pacientes';
 import { AlertCircle, ChevronLeft, Save, Heart, Stethoscope, Cigarette, Baby } from 'lucide-react';
 
+
 /**
  * PacienteAntecedentesPage — Segunda página del registro de pacientes
  * Permite agregar antecedentes heredofamiliares, patológicos, no patológicos y ginecoobstétricos
  * Compatible con NOM-024-SSA3-2012 y diseño MedIA
  */
+
 
 export default function PacienteAntecedentesPage() {
   const { user } = useAuth();
@@ -60,6 +62,23 @@ export default function PacienteAntecedentesPage() {
 
   const tieneAcceso = user && rolesPermitidos.includes(user.rol);
 
+  const normalizarTexto = (value = "") =>
+    String(value)
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLowerCase();
+
+  const extractPaciente = (response) =>
+    response?.data?.data || response?.data || null;
+
+  const extractAntecedentes = (response) =>
+    response?.data?.data?.antecedentes ||
+    response?.data?.antecedentes ||
+    response?.data?.data ||
+    response?.data ||
+    null;
+
   // Cargar datos del paciente y antecedentes existentes
   useEffect(() => {
     if (!tieneAcceso || !id) return;
@@ -70,63 +89,163 @@ export default function PacienteAntecedentesPage() {
         setError(null);
 
         // Cargar datos básicos del paciente
-        const pacienteData = await pacientesAPI.getPaciente(id);
-        setPaciente(pacienteData.data);
+        const pacienteRes = await pacientesAPI.getPaciente(id);
+        const pacienteData = extractPaciente(pacienteRes);
+        setPaciente(pacienteData);
 
         // Cargar antecedentes existentes
         try {
-          const antecedentesData = await pacientesAPI.getExpedienteCompleto(id);
-          setAntecedentesExistentes(antecedentesData.data.antecedentes);
+          const antecedentesRes = await pacientesAPI.getExpedienteCompleto(id);
+          const ant = extractAntecedentes(antecedentesRes);
 
-          // Pre-cargar formularios con datos existentes
-          if (antecedentesData.data.antecedentes) {
-            const ant = antecedentesData.data.antecedentes;
+          console.log('📦 Antecedentes crudos:', ant);
 
-            // Heredofamiliares
-            if (ant.heredofamiliares) {
+          setAntecedentesExistentes(ant);
+
+          if (ant) {
+            // HEREDOFAMILIARES
+            // Esperado por BD: lista de registros
+            const heredos = Array.isArray(ant.heredofamiliares)
+              ? ant.heredofamiliares
+              : ant.heredofamiliares
+                ? [ant.heredofamiliares]
+                : [];
+
+            if (heredos.length > 0) {
+              const detallesHeredo = [];
+              let diabetes = false;
+              let hipertension = false;
+              let cardiopatia = false;
+              let neoplasia = false;
+
+              heredos.forEach((item) => {
+                const familiar = normalizarTexto(item.familiar);
+                const descripcion = normalizarTexto(
+                  item.descripcion_patologia || item.descripcion || item.detalles || ""
+                );
+                const combinado = `${familiar} ${descripcion}`;
+
+                if (combinado.includes('diabetes')) diabetes = true;
+                if (combinado.includes('hipertension')) hipertension = true;
+                if (combinado.includes('cardiopatia') || combinado.includes('cardiopatia') || combinado.includes('cardiaca')) cardiopatia = true;
+                if (combinado.includes('neoplasia') || combinado.includes('cancer') || combinado.includes('tumor')) neoplasia = true;
+
+                if (item.descripcion_patologia || item.descripcion || item.detalles) {
+                  detallesHeredo.push(
+                    [item.familiar, item.descripcion_patologia || item.descripcion || item.detalles]
+                      .filter(Boolean)
+                      .join(': ')
+                  );
+                }
+              });
+
               setHeredofamiliares({
-                diabetes: ant.heredofamiliares.diabetes || false,
-                hipertension: ant.heredofamiliares.hipertension || false,
-                cardiopatia: ant.heredofamiliares.cardiopatia || false,
-                neoplasia: ant.heredofamiliares.neoplasia || false,
-                detalles: ant.heredofamiliares.detalles || ""
+                diabetes,
+                hipertension,
+                cardiopatia,
+                neoplasia,
+                detalles: detallesHeredo.join('\n')
               });
             }
 
-            // Patológicos
-            if (ant.patologicos && ant.patologicos.length > 0) {
-              setPatologicos(ant.patologicos);
+            // PATOLÓGICOS
+            const pats = Array.isArray(ant.patologicos)
+              ? ant.patologicos
+              : Array.isArray(ant.antecedentes_patologicos)
+                ? ant.antecedentes_patologicos
+                : ant.patologicos
+                  ? [ant.patologicos]
+                  : [];
+
+            if (pats.length > 0) {
+              setPatologicos(
+                pats.map((item) => ({
+                  enfermedad:
+                    item.enfermedad ||
+                    item.descripcion ||
+                    item.tipo_patologia ||
+                    "",
+                  fecha_diagnostico:
+                    item.fecha_diagnostico ||
+                    item.fecha_aproximada ||
+                    "",
+                  tratamiento_actual:
+                    item.tratamiento_actual ||
+                    item.tratamiento ||
+                    ""
+                }))
+              );
             }
 
-            // No patológicos
-            if (ant.no_patologicos) {
+            // NO PATOLÓGICOS
+            const noPats = Array.isArray(ant.no_patologicos)
+              ? ant.no_patologicos
+              : Array.isArray(ant.antecedentes_no_patologicos)
+                ? ant.antecedentes_no_patologicos
+                : ant.no_patologicos
+                  ? [ant.no_patologicos]
+                  : [];
+
+            if (noPats.length > 0) {
+              let tabaquismo = false;
+              let alcoholismo = false;
+              let drogas = false;
+              const detallesNoPats = [];
+
+              noPats.forEach((item) => {
+                const categoria = normalizarTexto(item.categoria);
+                const descripcion = normalizarTexto(item.descripcion || item.detalles || "");
+                const combinado = `${categoria} ${descripcion}`;
+
+                if (combinado.includes('tabaco') || combinado.includes('tabaquismo') || combinado.includes('fuma')) {
+                  tabaquismo = true;
+                }
+                if (combinado.includes('alcohol') || combinado.includes('alcoholismo') || combinado.includes('bebe')) {
+                  alcoholismo = true;
+                }
+                if (combinado.includes('droga') || combinado.includes('drogas') || combinado.includes('sustancia') || combinado.includes('toxicomania')) {
+                  drogas = true;
+                }
+
+                if (item.descripcion || item.detalles) {
+                  detallesNoPats.push(
+                    [item.categoria, item.descripcion || item.detalles]
+                      .filter(Boolean)
+                      .join(': ')
+                  );
+                }
+              });
+
               setNoPatologicos({
-                tabaquismo: ant.no_patologicos.tabaquismo || false,
-                alcoholismo: ant.no_patologicos.alcoholismo || false,
-                drogas: ant.no_patologicos.drogas || false,
-                detalles: ant.no_patologicos.detalles || ""
+                tabaquismo,
+                alcoholismo,
+                drogas,
+                detalles: detallesNoPats.join('\n')
               });
             }
 
-            // Ginecoobstétricos
-            if (ant.ginecoobstetricos) {
+            // GINECOOBSTÉTRICOS
+            const gine = Array.isArray(ant.ginecoobstetricos)
+              ? ant.ginecoobstetricos[0]
+              : ant.ginecoobstetricos || null;
+
+            if (gine) {
               setGinecoobstetricos({
-                menarca: ant.ginecoobstetricos.menarca || "",
-                ritmo_menstrual: ant.ginecoobstetricos.ritmo_menstrual || "",
-                gestas: ant.ginecoobstetricos.gestas || 0,
-                partos: ant.ginecoobstetricos.partos || 0,
-                abortos: ant.ginecoobstetricos.abortos || 0,
-                cesareas: ant.ginecoobstetricos.cesareas || 0,
-                ultimo_papanicolaou: ant.ginecoobstetricos.ultimo_papanicolaou || "",
-                ultimo_mamograma: ant.ginecoobstetricos.ultimo_mamograma || "",
-                anticonceptivos: ant.ginecoobstetricos.anticonceptivos || "",
-                detalles: ant.ginecoobstetricos.detalles || ""
+                menarca: gine.menarca || "",
+                ritmo_menstrual: gine.ritmo_menstrual || "",
+                gestas: gine.gestas || 0,
+                partos: gine.partos || 0,
+                abortos: gine.abortos || 0,
+                cesareas: gine.cesareas || 0,
+                ultimo_papanicolaou: gine.ultimo_papanicolaou || "",
+                ultimo_mamograma: gine.ultimo_mamograma || "",
+                anticonceptivos: gine.anticonceptivos || gine.metodo_anticonceptivo || "",
+                detalles: gine.detalles || ""
               });
             }
           }
         } catch (antError) {
-          // Si no hay antecedentes, continuar normalmente
-          console.log("No hay antecedentes existentes");
+          console.log("No hay antecedentes existentes o no se pudieron parsear:", antError);
         }
 
       } catch (err) {
@@ -182,15 +301,16 @@ export default function PacienteAntecedentesPage() {
       await pacientesAPI.addAntecedenteNoPatologico(id, noPatologicos);
 
       // Guardar antecedentes ginecoobstétricos (solo si es mujer)
-      if (paciente && paciente.sexo === 'F') {
+      const sexoPaciente = paciente?.persona?.sexo || paciente?.sexo;
+      if (sexoPaciente === 'F') {
         await pacientesAPI.addAntecedenteGinecoobstetrico(id, ginecoobstetricos);
       }
 
       setSuccessMsg("Antecedentes guardados exitosamente");
 
-      // Redirigir después de 2 segundos
+      // Redirigir a la lista de pacientes después de 2 segundos
       setTimeout(() => {
-        navigate(`/pacientes/${id}`);
+        navigate('/pacientes');
       }, 2000);
 
     } catch (err) {
@@ -229,7 +349,7 @@ export default function PacienteAntecedentesPage() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center gap-4">
               <button
-                onClick={() => navigate(`/pacientes/${id}`)}
+                onClick={() => navigate('/pacientes')}
                 className="flex items-center gap-2 px-3 py-2 text-sm text-text-secondary hover:text-text-primary hover:bg-surface/50 rounded-lg transition-colors"
               >
                 <ChevronLeft size={16} />
@@ -241,7 +361,7 @@ export default function PacienteAntecedentesPage() {
                 </h1>
                 {paciente && (
                   <p className="text-sm text-text-secondary">
-                    {paciente.nombre} {paciente.primer_apellido} {paciente.segundo_apellido}
+                    {paciente?.persona?.nombre || paciente?.nombre || ''} {paciente?.persona?.primer_apellido || paciente?.primer_apellido || ''} {paciente?.persona?.segundo_apellido || paciente?.segundo_apellido || ''}
                   </p>
                 )}
               </div>
@@ -264,7 +384,7 @@ export default function PacienteAntecedentesPage() {
           <div className="mb-6 p-4 bg-semantic-error/10 border border-semantic-error/20 rounded-lg">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-5 w-5 text-semantic-error" />
-              <span className="text-sm text-semantic-error">{error}</span>
+              <span className="text-sm text-semantic-error">{typeof error === 'string' ? error : JSON.stringify(error)}</span>
             </div>
           </div>
         )}
@@ -291,7 +411,7 @@ export default function PacienteAntecedentesPage() {
                   <input
                     type="checkbox"
                     checked={heredofamiliares.diabetes}
-                    onChange={(e) => setHeredofamiliares({...heredofamiliares, diabetes: e.target.checked})}
+                    onChange={(e) => setHeredofamiliares({ ...heredofamiliares, diabetes: e.target.checked })}
                     className="rounded border-border text-primary focus:ring-primary"
                   />
                   <span className="text-sm text-text-primary">Diabetes</span>
@@ -301,7 +421,7 @@ export default function PacienteAntecedentesPage() {
                   <input
                     type="checkbox"
                     checked={heredofamiliares.hipertension}
-                    onChange={(e) => setHeredofamiliares({...heredofamiliares, hipertension: e.target.checked})}
+                    onChange={(e) => setHeredofamiliares({ ...heredofamiliares, hipertension: e.target.checked })}
                     className="rounded border-border text-primary focus:ring-primary"
                   />
                   <span className="text-sm text-text-primary">Hipertensión</span>
@@ -311,7 +431,7 @@ export default function PacienteAntecedentesPage() {
                   <input
                     type="checkbox"
                     checked={heredofamiliares.cardiopatia}
-                    onChange={(e) => setHeredofamiliares({...heredofamiliares, cardiopatia: e.target.checked})}
+                    onChange={(e) => setHeredofamiliares({ ...heredofamiliares, cardiopatia: e.target.checked })}
                     className="rounded border-border text-primary focus:ring-primary"
                   />
                   <span className="text-sm text-text-primary">Cardiopatía</span>
@@ -321,7 +441,7 @@ export default function PacienteAntecedentesPage() {
                   <input
                     type="checkbox"
                     checked={heredofamiliares.neoplasia}
-                    onChange={(e) => setHeredofamiliares({...heredofamiliares, neoplasia: e.target.checked})}
+                    onChange={(e) => setHeredofamiliares({ ...heredofamiliares, neoplasia: e.target.checked })}
                     className="rounded border-border text-primary focus:ring-primary"
                   />
                   <span className="text-sm text-text-primary">Neoplasia</span>
@@ -334,7 +454,7 @@ export default function PacienteAntecedentesPage() {
                 </label>
                 <textarea
                   value={heredofamiliares.detalles}
-                  onChange={(e) => setHeredofamiliares({...heredofamiliares, detalles: e.target.value})}
+                  onChange={(e) => setHeredofamiliares({ ...heredofamiliares, detalles: e.target.value })}
                   placeholder="Otros antecedentes familiares..."
                   rows={3}
                   className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
@@ -436,7 +556,7 @@ export default function PacienteAntecedentesPage() {
                   <input
                     type="checkbox"
                     checked={noPatologicos.tabaquismo}
-                    onChange={(e) => setNoPatologicos({...noPatologicos, tabaquismo: e.target.checked})}
+                    onChange={(e) => setNoPatologicos({ ...noPatologicos, tabaquismo: e.target.checked })}
                     className="rounded border-border text-primary focus:ring-primary"
                   />
                   <span className="text-sm text-text-primary">Tabaquismo</span>
@@ -446,7 +566,7 @@ export default function PacienteAntecedentesPage() {
                   <input
                     type="checkbox"
                     checked={noPatologicos.alcoholismo}
-                    onChange={(e) => setNoPatologicos({...noPatologicos, alcoholismo: e.target.checked})}
+                    onChange={(e) => setNoPatologicos({ ...noPatologicos, alcoholismo: e.target.checked })}
                     className="rounded border-border text-primary focus:ring-primary"
                   />
                   <span className="text-sm text-text-primary">Alcoholismo</span>
@@ -456,7 +576,7 @@ export default function PacienteAntecedentesPage() {
                   <input
                     type="checkbox"
                     checked={noPatologicos.drogas}
-                    onChange={(e) => setNoPatologicos({...noPatologicos, drogas: e.target.checked})}
+                    onChange={(e) => setNoPatologicos({ ...noPatologicos, drogas: e.target.checked })}
                     className="rounded border-border text-primary focus:ring-primary"
                   />
                   <span className="text-sm text-text-primary">Uso de drogas</span>
@@ -469,7 +589,7 @@ export default function PacienteAntecedentesPage() {
                 </label>
                 <textarea
                   value={noPatologicos.detalles}
-                  onChange={(e) => setNoPatologicos({...noPatologicos, detalles: e.target.value})}
+                  onChange={(e) => setNoPatologicos({ ...noPatologicos, detalles: e.target.value })}
                   placeholder="Otros determinantes sociales de la salud..."
                   rows={3}
                   className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
@@ -479,7 +599,7 @@ export default function PacienteAntecedentesPage() {
           </div>
 
           {/* Antecedentes Ginecoobstétricos */}
-          {paciente && paciente.sexo === 'F' && (
+          {(paciente?.persona?.sexo === 'F' || paciente?.sexo === 'F') && (
             <div className="bg-surface rounded-lg border border-border p-6">
               <div className="flex items-center gap-2 mb-4">
                 <Baby className="h-5 w-5 text-primary" />
@@ -497,7 +617,7 @@ export default function PacienteAntecedentesPage() {
                       min="8"
                       max="18"
                       value={ginecoobstetricos.menarca}
-                      onChange={(e) => setGinecoobstetricos({...ginecoobstetricos, menarca: e.target.value})}
+                      onChange={(e) => setGinecoobstetricos({ ...ginecoobstetricos, menarca: e.target.value })}
                       placeholder="12"
                       className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                     />
@@ -510,7 +630,7 @@ export default function PacienteAntecedentesPage() {
                     <input
                       type="text"
                       value={ginecoobstetricos.ritmo_menstrual}
-                      onChange={(e) => setGinecoobstetricos({...ginecoobstetricos, ritmo_menstrual: e.target.value})}
+                      onChange={(e) => setGinecoobstetricos({ ...ginecoobstetricos, ritmo_menstrual: e.target.value })}
                       placeholder="Regular 28 días"
                       className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                     />
@@ -526,7 +646,7 @@ export default function PacienteAntecedentesPage() {
                       type="number"
                       min="0"
                       value={ginecoobstetricos.gestas}
-                      onChange={(e) => setGinecoobstetricos({...ginecoobstetricos, gestas: parseInt(e.target.value) || 0})}
+                      onChange={(e) => setGinecoobstetricos({ ...ginecoobstetricos, gestas: parseInt(e.target.value) || 0 })}
                       className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                     />
                   </div>
@@ -539,7 +659,7 @@ export default function PacienteAntecedentesPage() {
                       type="number"
                       min="0"
                       value={ginecoobstetricos.partos}
-                      onChange={(e) => setGinecoobstetricos({...ginecoobstetricos, partos: parseInt(e.target.value) || 0})}
+                      onChange={(e) => setGinecoobstetricos({ ...ginecoobstetricos, partos: parseInt(e.target.value) || 0 })}
                       className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                     />
                   </div>
@@ -552,7 +672,7 @@ export default function PacienteAntecedentesPage() {
                       type="number"
                       min="0"
                       value={ginecoobstetricos.abortos}
-                      onChange={(e) => setGinecoobstetricos({...ginecoobstetricos, abortos: parseInt(e.target.value) || 0})}
+                      onChange={(e) => setGinecoobstetricos({ ...ginecoobstetricos, abortos: parseInt(e.target.value) || 0 })}
                       className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                     />
                   </div>
@@ -565,7 +685,7 @@ export default function PacienteAntecedentesPage() {
                       type="number"
                       min="0"
                       value={ginecoobstetricos.cesareas}
-                      onChange={(e) => setGinecoobstetricos({...ginecoobstetricos, cesareas: parseInt(e.target.value) || 0})}
+                      onChange={(e) => setGinecoobstetricos({ ...ginecoobstetricos, cesareas: parseInt(e.target.value) || 0 })}
                       className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                     />
                   </div>
@@ -579,7 +699,7 @@ export default function PacienteAntecedentesPage() {
                     <input
                       type="date"
                       value={ginecoobstetricos.ultimo_papanicolaou}
-                      onChange={(e) => setGinecoobstetricos({...ginecoobstetricos, ultimo_papanicolaou: e.target.value})}
+                      onChange={(e) => setGinecoobstetricos({ ...ginecoobstetricos, ultimo_papanicolaou: e.target.value })}
                       className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                     />
                   </div>
@@ -591,7 +711,7 @@ export default function PacienteAntecedentesPage() {
                     <input
                       type="date"
                       value={ginecoobstetricos.ultimo_mamograma}
-                      onChange={(e) => setGinecoobstetricos({...ginecoobstetricos, ultimo_mamograma: e.target.value})}
+                      onChange={(e) => setGinecoobstetricos({ ...ginecoobstetricos, ultimo_mamograma: e.target.value })}
                       className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                     />
                   </div>
@@ -604,7 +724,7 @@ export default function PacienteAntecedentesPage() {
                   <input
                     type="text"
                     value={ginecoobstetricos.anticonceptivos}
-                    onChange={(e) => setGinecoobstetricos({...ginecoobstetricos, anticonceptivos: e.target.value})}
+                    onChange={(e) => setGinecoobstetricos({ ...ginecoobstetricos, anticonceptivos: e.target.value })}
                     placeholder="Tipo de anticonceptivo"
                     className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent"
                   />
@@ -616,7 +736,7 @@ export default function PacienteAntecedentesPage() {
                   </label>
                   <textarea
                     value={ginecoobstetricos.detalles}
-                    onChange={(e) => setGinecoobstetricos({...ginecoobstetricos, detalles: e.target.value})}
+                    onChange={(e) => setGinecoobstetricos({ ...ginecoobstetricos, detalles: e.target.value })}
                     placeholder="Otros detalles ginecoobstétricos..."
                     rows={3}
                     className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary focus:border-transparent resize-none"

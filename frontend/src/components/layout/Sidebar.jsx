@@ -16,16 +16,17 @@ import { useAuth } from '../../context/AuthContext'
 import apiClient from '../../api/client'
 
 const NAV_ITEMS = [
-  { id: 'dashboard', icon: Home, label: 'Dashboard', group: 'CLÍNICA', href: '/dashboard', roles: ['*'] },
-  { id: 'pacientes', icon: Users, label: 'Pacientes', group: 'CLÍNICA', href: '/pacientes', roles: ['SUPERADMIN', 'OMNIADMIN', 'RECEPCIONISTA', 'MEDICO_GENERAL', 'ESPECIALISTA', 'ENFERMERIA', 'ESTADISTICA'] },
-
-  { id: 'expediente', icon: FileText, label: 'Expediente', group: 'CLÍNICA', href: '/expediente', roles: ['SUPERADMIN', 'OMNIADMIN', 'MEDICO_GENERAL', 'ESPECIALISTA'], requiresPatientFlow: true },
-  { id: 'consulta', icon: ClipboardList, label: 'Consulta', group: 'CLÍNICA', href: '/consulta/nueva', roles: ['SUPERADMIN', 'OMNIADMIN', 'MEDICO_GENERAL', 'ESPECIALISTA', 'ENFERMERIA'], requiresPatientFlow: true },
-  { id: 'referencias', icon: Send, label: 'Referencias', group: 'CLÍNICA', href: '/referencias', roles: ['SUPERADMIN', 'OMNIADMIN', 'MEDICO_GENERAL', 'ESPECIALISTA'], requiresPatientFlow: true },
-  { id: 'documentos', icon: FileBox, label: 'Documentos', group: 'CLÍNICA', href: '/documentos', roles: ['SUPERADMIN', 'OMNIADMIN', 'MEDICO_GENERAL', 'ESPECIALISTA'], requiresPatientFlow: true },
-
-  { id: 'auditoria', icon: ShieldAlert, label: 'Auditoría', group: 'SISTEMA', href: '/audit/logs', roles: ['SUPERADMIN', 'OMNIADMIN', 'AUDITOR_SEGURIDAD'] },
-  { id: 'admin', icon: Settings, label: 'Administración', group: 'SISTEMA', href: '/admin', roles: ['SUPERADMIN', 'OMNIADMIN', 'ADMINISTRADOR'] },
+    { id: 'dashboard', icon: Home, label: 'Dashboard', group: 'CLÍNICA', href: '/dashboard', public: true },
+    { id: 'pacientes', icon: Users, label: 'Pacientes', group: 'CLÍNICA', href: '/pacientes', moduleCode: 'PACIENTES' },
+    
+    // Rutas que requieren flujo de paciente marcadas con requiresPatientFlow
+    { id: 'expediente', icon: FileText, label: 'Expediente', group: 'CLÍNICA', href: '/expediente', moduleCode: 'EXPEDIENTE', requiresPatientFlow: true },
+    { id: 'consulta', icon: ClipboardList, label: 'Consulta', group: 'CLÍNICA', href: '/consulta', moduleCode: 'ENCUENTROS', requiresPatientFlow: true },
+    { id: 'referencias', icon: Send, label: 'Referencias', group: 'CLÍNICA', href: '/referencias', moduleCode: 'ENCUENTROS', requiresPatientFlow: false },
+    { id: 'documentos', icon: FileBox, label: 'Documentos', group: 'CLÍNICA', href: '/documentos', moduleCode: 'ESTUDIOS', requiresPatientFlow: true },
+    
+    { id: 'auditoria', icon: ShieldAlert, label: 'Auditoría', group: 'SISTEMA', href: '/audit/logs', moduleCode: 'AUDITORIA' },
+    { id: 'admin', icon: Settings, label: 'Administración', group: 'SISTEMA', href: '/admin', moduleCode: 'ADMIN' },
 ]
 
 export default function Sidebar() {
@@ -36,8 +37,8 @@ export default function Sidebar() {
 
   useEffect(() => {
     const checkCritical = async () => {
-      const rolesAutorizados = ['SUPERADMIN', 'OMNIADMIN', 'AUDITOR_SEGURIDAD']
-      if (!user || !rolesAutorizados.includes(user.rol)) return
+      // Usar permisos en lugar de roles fijos
+      if (!user || !user.permisos?.AUDITORIA?.puede_leer) return
 
       try {
         const res = await apiClient.get('/auditoria/stats')
@@ -57,9 +58,15 @@ export default function Sidebar() {
   const filterItems = (group) => {
     return NAV_ITEMS.filter((item) => {
       if (item.group !== group) return false
-      if (user?.rol === 'OMNIADMIN' || user?.rol === 'SUPERADMIN') return true
-      if (item.roles.includes('*')) return true
-      return item.roles.includes(user?.rol)
+      
+      // El Dashboard es público para cualquier usuario autenticado
+      if (item.public) return true
+
+      // Lógica de privilegios mínimos: Consultar matriz de permisos cargada en AuthContext
+      if (!user || !user.permisos) return false
+      
+      const modulePerms = user.permisos[item.moduleCode]
+      return modulePerms?.puede_leer === true
     })
   }
 

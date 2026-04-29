@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { canAccess } from '../utils/permissions';
 import { Spinner } from './ui/Spinner';
 
-export default function ProtectedRoute({ module = null, action = 'VER' }) {
+export default function ProtectedRoute({ module = null, action = 'puede_leer' }) {
     const { isAuthenticated, user, loading } = useAuth();
 
     if (loading) {
@@ -19,15 +19,13 @@ export default function ProtectedRoute({ module = null, action = 'VER' }) {
         return <Navigate to="/login" replace />;
     }
 
-    // Verificación RBAC fina por módulo
+    // Verificación RBAC fina por módulo usando la matriz dinámica del backend
     if (module && user) {
-        const hasPermission = canAccess(user.rol, module, action);
+        const hasPermission = canAccess(user.permisos, module, action);
+        
         if (!hasPermission) {
-            // OMNIADMIN y SUPERADMIN siempre pasan en DEV
-            const bypassRoles = ['SUPERADMIN', 'OMNIADMIN'];
-            if (!bypassRoles.includes(user.rol)) {
-                return <Navigate to="/403" replace />;
-            }
+            console.warn(`[BROKEN_ACCESS_CONTROL_MITIGATION] Intento de acceso no autorizado a módulo: ${module}`);
+            return <Navigate to="/403" replace />;
         }
     }
 

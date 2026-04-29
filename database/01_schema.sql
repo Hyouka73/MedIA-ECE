@@ -368,7 +368,8 @@ CREATE TABLE auditoria_accesos (
 CREATE TABLE incidentes_seguridad (
     id_incidente UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     id_auditoria BIGINT REFERENCES auditoria_accesos(id_auditoria) ON DELETE RESTRICT,
-    estado VARCHAR(20) DEFAULT 'NUEVO' CHECK (estado IN ('NUEVO', 'EN_INVESTIGACION', 'RESUELTO', 'FALSO_POSITIVO')),
+    vulnerabilidad_explotada VARCHAR(50), -- Inteligencia de amenazas
+    estado VARCHAR(20) DEFAULT 'ABIERTO' CHECK (estado IN ('ABIERTO', 'EN_INVESTIGACION', 'RESUELTO', 'FALSO_POSITIVO')),
     asignado_a UUID REFERENCES usuarios_sistema(id_usuario),
     notas_investigacion TEXT,
     fecha_creacion TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
@@ -409,6 +410,10 @@ CREATE TABLE bitacora_recuperacion (
     id_recuperacion SERIAL PRIMARY KEY,
     fecha_evento TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     tipo_evento VARCHAR(50) NOT NULL, -- BACKUP, RESTORE, PITR
+    punto_restauracion TIMESTAMPTZ, -- Verificación de RPO
+    responsable_id UUID REFERENCES usuarios_sistema(id_usuario), -- Cadena de custodia
+    registros_validados INTEGER,
+    notas_tecnicas TEXT,
     detalles TEXT
 );
 

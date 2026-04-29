@@ -249,7 +249,82 @@ async def search_cie10(
 
 
 
+# ── GET /medicamentos — Búsqueda de medicamentos SSA ──────────────────────
 @router.get("/medicamentos", response_model=dict)
-async def search_medicamentos(q: str = "", current_user: dict = Depends(get_current_user)):
-    """GET /catalogos/medicamentos?q= — TODO Persona 5"""
-    return {"data": [], "message": "TODO: búsqueda de medicamentos SSA"}
+async def search_medicamentos(
+    q: str = Query("", description="Buscar por nombre genérico o código SSA. Mín. 3 caracteres."),
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """GET /catalogos/medicamentos?q= — Búsqueda en catálogo de medicamentos SSA (Cuadro Básico)
+    
+    Busca por:
+    - nombre_generico (ej: 'paracetamol')
+    - codigo_medicamento_ssa (ej: '010101')
+    
+    Returns:
+        Lista de medicamentos con id, código SSA y nombre genérico
+    """
+    # Validar mínimo de caracteres
+    if len(q.strip()) < 3:
+        return {
+            "data": [], 
+            "message": "Mínimo 3 caracteres para buscar",
+            "cache": {"ttl": 86400}
+        }
+    
+    try:
+        # Usar SQL text para búsqueda en cat_medicamentos
+        stmt = text("""
+            SELECT 
+                id_medicamento,
+                codigo_medicamento_ssa,
+                nombre_generico
+            FROM cat_medicamentos
+            WHERE 
+                nombre_generico ILIKE :termino
+                OR codigo_medicamento_ssa ILIKE :codigo
+            ORDER BY 
+                CASE 
+                    WHEN codigo_medicamento_ssa ILIKE :codigo_exacto THEN 0 
+                    ELSE 1 
+                END,
+                nombre_generico
+            LIMIT 20
+        """)
+        
+        termino = f"%{q.strip()}%"
+        codigo_exacto = f"{q.strip()}%"
+        
+        result = await db.execute(stmt, {
+            "termino": termino,
+            "codigo": termino,
+            "codigo_exacto": codigo_exacto
+        })
+        
+        rows = result.mappings().all()
+        
+        data = [
+            {
+                "id": str(row["id_medicamento"]),  # UUID a string para JSON
+                "codigo_ssa": row["codigo_medicamento_ssa"],
+                "nombre_generico": row["nombre_generico"]
+            }
+            for row in rows
+        ]
+        
+        return {
+            "data": data,
+            "message": f"{len(data)} resultados encontrados para '{q}'",
+            "cache": {
+                "ttl": 86400,  # 24 horas - los medicamentos cambian poco
+                "cdn": True
+            }
+        }
+        
+    except Exception as e:
+        logger.error(f"Error en búsqueda de medicamentos: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Error interno al buscar medicamentos"
+        )

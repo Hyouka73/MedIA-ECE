@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database.session import get_db
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_role
 from app.services.notas_soap import NotaSOAPService, CatalogoService
 from app.schemas.notas_soap import (
     NotaSOAPCreateIn,
@@ -24,7 +24,7 @@ async def crear_nota(
     id_encuentro: UUID,
     data: NotaSOAPCreateIn,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA"])),
 ):
     """Crea una nota SOAP en borrador para un encuentro específico"""
     return await NotaSOAPService.crear_nota_soap(
@@ -40,7 +40,7 @@ async def actualizar_nota(
     id_nota: UUID,
     data: NotaSOAPUpdateIn,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA"])),
 ):
     """Actualiza una nota (solo si esta_firmada = FALSE)"""
     return await NotaSOAPService.actualizar_nota_soap(
@@ -55,7 +55,7 @@ async def actualizar_nota(
 async def firmar_nota(
     id_nota: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA"])),
 ):
     """Firma digitalmente la nota y activa inmutabilidad (SHA-256)"""
     return await NotaSOAPService.firmar_nota_soap(
@@ -72,7 +72,7 @@ async def crear_enmienda(
     id_nota: UUID,
     data: NotaEnmiendaCreateIn,
     db: AsyncSession = Depends(get_db),
-    current_user=Depends(get_current_user),
+    current_user=Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA"])),
 ):
     """Crea una corrección (Addendum) para una nota ya firmada"""
     return await NotaSOAPService.crear_enmienda(

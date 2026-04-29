@@ -20,7 +20,8 @@ import pyotp
 from app.database.session import get_db
 from app.core.security import (
     verify_password, create_access_token, create_refresh_token,
-    verify_token, verify_totp, generate_totp_secret
+    verify_token, verify_totp, generate_totp_secret,
+    encrypt_secret, decrypt_secret
 )
 from app.core.config import settings
 from app.models.auth import User, Role, Persona, SesionActiva
@@ -78,12 +79,35 @@ async def _get_user_context(db: AsyncSession, user_id: UUID) -> dict:
     )
     esp_row = result_esp.fetchone()
 
+    # Obtener matriz de permisos por rol
+    result_perms = await db.execute(
+        text("""
+            SELECT m.codigo, p.puede_leer, p.puede_crear, p.puede_editar, p.puede_eliminar
+            FROM permisos_rol p
+            JOIN cat_modulos m ON m.id_modulo = p.id_modulo
+            JOIN usuarios_sistema u ON u.id_rol = p.id_rol
+            WHERE u.id_usuario = :user_id
+        """),
+        {"user_id": str(user_id)}
+    )
+    perms_rows = result_perms.fetchall()
+    permisos = {
+        row[0]: {
+            "puede_leer": row[1],
+            "puede_crear": row[2],
+            "puede_editar": row[3],
+            "puede_eliminar": row[4]
+        }
+        for row in perms_rows
+    }
+
     return {
         "establecimiento_clues": est_row[0] if est_row else None,
         "establecimiento_nombre": est_row[1] if est_row else None,
         "id_establecimiento": str(est_row[2]) if est_row else None,
         "id_especialidad": esp_row[0] if esp_row else None,
         "especialidad_nombre": esp_row[1] if esp_row else None,
+        "permisos": permisos
     }
 
 
@@ -99,9 +123,7 @@ def _build_user_response(user: User, rol_codigo: str, context: dict) -> dict:
         "id_establecimiento": context.get("id_establecimiento"),
         "id_especialidad": context.get("id_especialidad"),
         "especialidad_nombre": context.get("especialidad_nombre"),
-        "establecimiento": context["establecimiento_clues"],
-        "id_establecimiento": context["id_establecimiento"],
-        "id_especialidad": context["id_especialidad"]
+        "permisos": context.get("permisos", {})
     }
 
 
@@ -151,7 +173,7 @@ async def _limpiar_sesiones_expiradas(db: AsyncSession) -> None:
 
 # ── POST /auth/login ─────────────────────────────────────────
 @router.post("/login")
-@limiter.limit("5/minute")
+@limiter.limit("30/minute")
 async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends(get_db)):
     """
     Login con bloqueo por intentos.
@@ -198,11 +220,14 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
             expires_delta=300
         )
         if not user.totp_secret:
-            user.totp_secret = generate_totp_secret()
+            raw_secret = generate_totp_secret()
+            user.totp_secret = encrypt_secret(raw_secret)
             await db.commit()
             await db.refresh(user)
-
-        codigo_enviado = pyotp.TOTP(user.totp_secret, interval=300).now()
+        
+        # Descifrar para generar código
+        raw_secret = decrypt_secret(user.totp_secret)
+        codigo_enviado = pyotp.TOTP(raw_secret, interval=60).now()
 
         if settings.APP_ENV != "production":
             print(f"🔑 [DEV MODO] CÓDIGO 2FA PARA {user.email}: {codigo_enviado}")
@@ -293,7 +318,9 @@ async def verify_2fa(request: Request, data: VerifyTOTPRequest, db: AsyncSession
     dev_bypass = {"000000"}
     es_valido = data.code in dev_bypass
     if not es_valido and user.totp_secret:
-        es_valido = verify_totp(user.totp_secret, data.code)
+        # Descifrar para validar
+        raw_secret = decrypt_secret(user.totp_secret)
+        es_valido = verify_totp(raw_secret, data.code)
 
     if not es_valido:
         intentos = user.intentos_fallidos + 1

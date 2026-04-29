@@ -14,7 +14,6 @@ import uuid
 class EncuentroCreateIn(BaseModel):
     id_paciente: uuid.UUID
     motivo_consulta: str
-    tipo_consulta: str  # PRIMERA_VEZ, SUBSECUENTE
 
 
 class EncuentroOut(BaseModel):
@@ -26,7 +25,6 @@ class EncuentroOut(BaseModel):
     fecha_inicio: datetime
     fecha_cierre: Optional[datetime] = None
     motivo_consulta: str
-    tipo_consulta: Optional[str] = None
     paciente_numero_expediente: Optional[str] = None
     paciente_nombre: Optional[str] = None
     medico_nombre: Optional[str] = None
@@ -58,7 +56,6 @@ class EncuentroPacienteOut(BaseModel):
     fecha_inicio: datetime
     fecha_cierre: Optional[datetime] = None
     motivo_consulta: str
-    tipo_consulta: Optional[str] = None
     medico_nombre: str
     establecimiento_nombre: str
     especialidad_nombre: Optional[str] = None
