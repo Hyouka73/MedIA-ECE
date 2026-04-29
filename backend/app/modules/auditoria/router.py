@@ -37,7 +37,7 @@ def critico_activo_condition():
 @router.get("")
 async def get_logs(
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=1000),
+    limit: int = Query(20, ge=1, le=5000),
     solo_criticos: bool = Query(False),
     solo_criticos_activos: bool = Query(False),
     db: AsyncSession = Depends(get_db),
@@ -104,7 +104,7 @@ async def get_audit_stats(
 @router.get("/incidentes/criticos")
 async def get_incidentes_criticos(
     page: int = Query(1, ge=1),
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(50, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_role("SUPERADMIN", "OMNIADMIN", "AUDITOR_SEGURIDAD"))
 ):
