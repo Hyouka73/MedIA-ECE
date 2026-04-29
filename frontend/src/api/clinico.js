@@ -9,6 +9,9 @@ export const clinicoAPI = {
   // GET /encuentros — Lista de encuentros (propios o de un paciente)
   getEncuentros: (params) => api.get('/encuentros', { params }),
 
+  getEncuentrosPendientesSignos: () => api.get('/encuentros', { params: { pendientes_signos: true } }),
+  getEncuentrosConSignos: () => api.get('/encuentros', { params: { con_signos: true } }),
+
   // POST /encuentros — Crear nuevo encuentro
   createEncuentro: (data) => api.post('/encuentros', data),
 
@@ -25,6 +28,10 @@ export const clinicoAPI = {
     api.get(`/encuentros/${idEncuentro}/signos-vitales`),
 
   // ── Notas SOAP ─────────────────────────────────────────
+  // GET /encuentros/:id/notas — Obtener notas SOAP
+  getNotasEncuentro: (idEncuentro) =>
+    api.get(`/encuentros/${idEncuentro}/notas`),
+
   // POST /encuentros/:id/notas — Crear nota SOAP
   crearNota: (idEncuentro, data) =>
     api.post(`/encuentros/${idEncuentro}/notas`, data),
