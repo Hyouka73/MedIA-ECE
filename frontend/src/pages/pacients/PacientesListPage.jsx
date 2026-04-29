@@ -34,54 +34,54 @@ export default function PacientesListPage() {
 
   const tieneAcceso = user && rolesPermitidos.includes(user.rol);
 
-useEffect(() => {
-  if (!tieneAcceso) return;
+  useEffect(() => {
+    if (!tieneAcceso) return;
 
-  const loadPacientes = async () => {
-    try {
-      setLoading(true);
-      setError(null);
+    const loadPacientes = async () => {
+      try {
+        setLoading(true);
+        setError(null);
 
-      const params = {
-        page: page,
-        limit: 10,
-        search: searchQuery || undefined,
-      };
+        const params = {
+          page: page,
+          limit: 10,
+          search: searchQuery || undefined,
+        };
 
-      const response = await pacientesAPI.getPacientes(params);
-      
-      const responseData = response.data;
-      
-      if (responseData && responseData.data) {
-        setPacientes(responseData.data.items || []);
-        setTotalPages(responseData.data.pages || 1);
-      } else {
-        // Si no hay datos, usar demo
+        const response = await pacientesAPI.getPacientes(params);
+        
+        const responseData = response.data;
+        
+        if (responseData && responseData.data) {
+          setPacientes(responseData.data.items || []);
+          setTotalPages(responseData.data.pages || 1);
+        } else {
+          // Si no hay datos, usar demo
+          setPacientes(generarPacientesDemo());
+          setTotalPages(1);
+        }
+        
+      } catch (err) {
+        console.error("Error cargando pacientes:", err);
+        setError(err.message);
+        // Usar datos demo como fallback
         setPacientes(generarPacientesDemo());
         setTotalPages(1);
+      } finally {
+        setLoading(false);
       }
-      
-    } catch (err) {
-      console.error("Error cargando pacientes:", err);
-      setError(err.message);
-      // Usar datos demo como fallback
-      setPacientes(generarPacientesDemo());
-      setTotalPages(1);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  loadPacientes();
-}, [page, searchQuery, tieneAcceso]);
+    loadPacientes();
+  }, [page, searchQuery, tieneAcceso]);
 
   // Datos de demostración
   const generarPacientesDemo = () => [
     {
-      id: 1,
+      id_paciente: 1,
       nombre: "García Hernández, Rosa M.",
       edad: 47,
-      tipoSangre: "O+",
+      grupo_sanguineo: "O+",
       telefono: "55 1234-5678",
       ultimaConsulta: "28 May 2025",
       alergias: [
@@ -90,19 +90,19 @@ useEffect(() => {
       ],
     },
     {
-      id: 2,
+      id_paciente: 2,
       nombre: "Martínez López, Juan C.",
       edad: 32,
-      tipoSangre: "A+",
+      grupo_sanguineo: "A+",
       telefono: "55 9876-5432",
       ultimaConsulta: "10 Abr 2025",
       alergias: [],
     },
     {
-      id: 3,
+      id_paciente: 3,
       nombre: "Ramos Torres, Elena",
       edad: 65,
-      tipoSangre: "B+",
+      grupo_sanguineo: "B+",
       telefono: "55 5566-7788",
       ultimaConsulta: "01 Jun 2025",
       alergias: [
@@ -111,28 +111,28 @@ useEffect(() => {
       ],
     },
     {
-      id: 4,
+      id_paciente: 4,
       nombre: "Jiménez Soto, Pedro A.",
       edad: 28,
-      tipoSangre: "AB−",
+      grupo_sanguineo: "AB−",
       telefono: "55 3344-2211",
       ultimaConsulta: "03 Jun 2025",
       alergias: [],
     },
     {
-      id: 5,
+      id_paciente: 5,
       nombre: "Vázquez Cruz, María F.",
       edad: 53,
-      tipoSangre: "O−",
+      grupo_sanguineo: "O−",
       telefono: "55 6677-8899",
       ultimaConsulta: "25 May 2025",
       alergias: [{ nombre: "Latex", severidad: "alta" }],
     },
     {
-      id: 6,
+      id_paciente: 6,
       nombre: "Pérez Domínguez, Luis A.",
       edad: 61,
-      tipoSangre: "B−",
+      grupo_sanguineo: "B−",
       telefono: "55 8899-0011",
       ultimaConsulta: "20 May 2025",
       alergias: [{ nombre: "Sulfas", severidad: "media" }],
@@ -301,8 +301,6 @@ useEffect(() => {
                           </button>
                           <button 
                             onClick={() => navigate(`/consulta/nueva?id_paciente=${paciente.id_paciente}`)}
-                            //`/consulta/nueva?id_paciente=${paciente.id_paciente}`
-                            //`/consulta?id_paciente=${paciente.id}`
                             className="px-3 py-1 text-xs bg-primary text-white rounded hover:bg-primary-dark transition-colors"
                           >
                             + Consulta

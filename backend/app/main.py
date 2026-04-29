@@ -3,17 +3,22 @@ MedIA ECE — FastAPI Backend
 Punto de entrada principal de la aplicación (Versión Unificada)
 """
 import os
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from sqlalchemy.exc import InternalError, IntegrityError
+import asyncpg
 
 from app.core.config import settings
 from app.middleware.audit import AuditMiddleware
 from app.middleware.auth import AuthMiddleware
 from app.middleware.sanitize import SanitizeMiddleware
+from app.core.deps import require_role, get_current_user
+from fastapi import Depends
 
 # Routers base
 from app.modules.auth.router import router as auth_router
@@ -43,6 +48,33 @@ app = FastAPI(
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+
+# ── Manejo Seguro de Errores (Capas de Protección) ──────────────────
+@app.exception_handler(InternalError)
+async def internal_error_handler(request: Request, exc: InternalError):
+    """Captura errores de triggers de BD (Inmutabilidad, Bloqueos)"""
+    error_msg = str(exc.orig)
+    
+    # Si es una violación de inmutabilidad (NOM-004 o Forense)
+    if any(keyword in error_msg for keyword in ["Violación Forense", "Cumplimiento NOM-004", "inmutable"]):
+        return JSONResponse(
+            status_code=403,
+            content={"detail": "Acción denegada: El registro es inmutable o está protegido por leyes de salud.", "code": "FORBIDDEN_IMMUTABLE"}
+        )
+    
+    # Otros errores de BD se ocultan por seguridad
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Error interno del servidor. El incidente ha sido registrado."}
+    )
+
+@app.exception_handler(IntegrityError)
+async def integrity_error_handler(request: Request, exc: IntegrityError):
+    """Captura errores de integridad (FKs, Uniques)"""
+    return JSONResponse(
+        status_code=400,
+        content={"detail": "Error de integridad en los datos. Verifique que no existan duplicados."}
+    )
 
 # MEMORIA FORENSE
 app.state.blacklist_tokens = set()
@@ -80,7 +112,7 @@ app.include_router(auditoria_router,   prefix="/api/auditoria",   tags=["Auditor
 
 # SEGURIDAD
 @app.get("/api/seguridad/logs-forenses", tags=["Auditoría"])
-async def get_forensic_logs():
+async def get_forensic_logs(current_user: dict = Depends(require_role(["AUDITOR_SEGURIDAD", "OMNIADMIN"]))):
     log_path = os.path.join(os.getcwd(), "logs", "auditoria_forense.log")
     if not os.path.exists(log_path):
         return {"content": ["> SISTEMA: Archivo de auditoría forense no encontrado."]}
@@ -88,7 +120,7 @@ async def get_forensic_logs():
         return {"content": f.readlines()[-50:]}
 
 @app.get("/api/seguridad/sessions-blacklist", tags=["Auditoría"])
-async def get_blacklist(request: Request):
+async def get_blacklist(request: Request, current_user: dict = Depends(require_role(["AUDITOR_SEGURIDAD", "OMNIADMIN"]))):
     return request.app.state.blacklist_detalles
 
 if settings.APP_ENV != "production":

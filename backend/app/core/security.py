@@ -6,6 +6,7 @@ from typing import Optional, Union
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from cryptography.fernet import Fernet
 import pyotp
 
 from app.core.config import settings
@@ -45,6 +46,54 @@ def verify_token(token: str) -> Optional[dict]:
         return None
 
 
+def get_fernet() -> Optional[Fernet]:
+    """
+    Obtiene la instancia de Fernet para cifrado/descifrado.
+    La clave DEBE ser la misma siempre, definida en settings.
+    """
+    try:
+        encryption_key = getattr(settings, 'TOTP_ENCRYPTION_KEY', None)
+        
+        if not encryption_key:
+            print("ERROR: TOTP_ENCRYPTION_KEY no está configurada")
+            return None
+        
+        return Fernet(encryption_key.encode())
+    except Exception as e:
+        print(f"Error al inicializar Fernet: {e}")
+        return None
+
+
+def encrypt_secret(secret: str) -> str:
+    """Cifra la semilla TOTP antes de guardarla en DB."""
+    fernet = get_fernet()
+    if not fernet:
+        raise ValueError("TOTP encryption not properly configured")
+    
+    return fernet.encrypt(secret.encode()).decode()
+
+
+def decrypt_secret(encrypted_secret: str) -> str:
+    """Descifra la semilla TOTP para validación."""
+    if not encrypted_secret:
+        return ""
+    
+    fernet = get_fernet()
+    if not fernet:
+        raise ValueError("TOTP encryption not properly configured")
+    
+    try:
+        decrypted = fernet.decrypt(encrypted_secret.encode()).decode()
+        return decrypted
+    except Exception as e:
+        # Si hay error, podría ser que el dato no esté cifrado o la clave cambió
+        print(f"Error decrypting secret: {e}")
+        # Si no parece un token de Fernet (no empieza con gAAAAA), asumir que está en texto plano
+        if not encrypted_secret.startswith('gAAAAA'):
+            return encrypted_secret
+        raise
+
+
 def generate_totp_secret() -> str:
     return pyotp.random_base32()
 
@@ -62,7 +111,7 @@ def create_refresh_token(data: dict) -> str:
 
 
 def verify_totp(secret: str, code: str) -> bool:
-    # Usamos interval=300 (5 minutos de validez) porque el correo tarda más que un Google Authenticator
-    totp = pyotp.TOTP(secret, interval=300)
-    # valid_window=1 permite un margen extra de ±5 mins por si el servidor y el cliente están desincronizados
+    # Reducción de ventana de tiempo de 300s a 60s para cumplimiento de estándares de seguridad
+    totp = pyotp.TOTP(secret, interval=60)
+    # valid_window=1 permite un margen extra de ±60s por desincronización
     return totp.verify(code, valid_window=1)

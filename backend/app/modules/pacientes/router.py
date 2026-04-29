@@ -2,23 +2,33 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text
-from app.core.deps import get_current_user
+from app.core.deps import get_current_user, require_role
 from app.database.session import get_db
 from app.models.auth import Paciente, Persona, Lengua
-from app.schemas.pacientes import PacienteOut, PacienteCreateIn, PersonaOut
+from app.schemas.pacientes import (
+    PacienteOut, PacienteCreateIn, PersonaOut, 
+    PacienteCreateWithPersonaIn, PacienteUpdateIn
+)
 from uuid import UUID, uuid4
 from datetime import datetime, timezone, date
 from sqlalchemy import update
-from typing import Optional
-from pydantic import BaseModel as PydanticBaseModel
 import uuid
+from pydantic import BaseModel as PydanticBaseModel
+from typing import Optional
 import logging
+import re
+from app.core.utils import sanitize_input
 from sqlalchemy.orm import joinedload, selectinload
 from app.services.acceso import check_regla_1
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
+
+def clean_phone(phone: Optional[str]) -> Optional[str]:
+    if not phone:
+        return None
+    return re.sub(r"\D", "", phone)
 
 
 # ── Schemas Adicionales ─────────────────────────────────────────
@@ -167,7 +177,7 @@ async def list_pacientes(
 @router.post("", response_model=dict, status_code=201)
 async def create_paciente(
     paciente_in: PacienteCreateWithPersonaIn,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -209,18 +219,18 @@ async def create_paciente(
             id_persona = uuid.uuid4()
             nueva_persona = Persona(
                 id_persona=id_persona,
-                nombre=persona_data.nombre,
-                primer_apellido=persona_data.primer_apellido,
-                segundo_apellido=persona_data.segundo_apellido,
+                nombre=sanitize_input(persona_data.nombre),
+                primer_apellido=sanitize_input(persona_data.primer_apellido),
+                segundo_apellido=sanitize_input(persona_data.segundo_apellido),
                 #curp=Optional[persona_data.curp] if persona_data.curp else None,
                 curp = persona_data.curp if persona_data.curp else None, #Vamo a probar así
                 fecha_nacimiento=persona_data.fecha_nacimiento,
                 sexo=persona_data.sexo,
                 id_localidad=persona_data.id_localidad,
-                calle_numero=persona_data.calle_numero,
-                referencia_geografica=persona_data.referencia_geografica,
+                calle_numero=sanitize_input(persona_data.calle_numero),
+                referencia_geografica=sanitize_input(persona_data.referencia_geografica),
                 id_lengua_materna=persona_data.id_lengua_materna,
-                telefono=persona_data.telefono,
+                telefono=clean_phone(persona_data.telefono),
                 url_foto=None,
                 fecha_registro=datetime.now(timezone.utc)
             )
@@ -498,7 +508,7 @@ async def get_expediente(
 async def update_paciente(
     id_paciente: UUID,
     paciente_update: PacienteUpdateIn,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """PUT /pacientes/{id} — Actualiza datos clínicos del paciente"""
@@ -535,7 +545,7 @@ async def update_paciente(
 @router.delete("/{id_paciente}", response_model=dict, status_code=200)
 async def delete_paciente(
     id_paciente: UUID,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """DELETE /pacientes/{id} — Soft delete del paciente (requiere aprobación)"""
@@ -627,7 +637,7 @@ async def get_alergias(
 async def add_alergia(
     id_paciente: UUID,
     alergia_in: dict,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["MEDICO_GENERAL", "RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """POST /pacientes/{id}/alergias — Registra nueva alergia. Audita creación en historial_cambios."""
@@ -662,7 +672,7 @@ async def add_alergia(
         await db.execute(query_insert, {
             "id_alergia": id_alergia,
             "id_paciente": str(id_paciente),
-            "alergia": alergia_texto,
+            "alergia": sanitize_input(alergia_texto),
             "severidad": severidad,
             "registrado_por": current_user["sub"],
             "fecha_registro": datetime.now(timezone.utc)
@@ -789,7 +799,7 @@ async def delete_alergia(
             "id_alergia": str(id_alergia),
             "eliminado_en": datetime.now(timezone.utc),
             "eliminado_por": current_user["sub"],
-            "motivo_baja": motivo_baja.strip()
+            "motivo_baja": sanitize_input(motivo_baja.strip())
         })
 
         await db.commit()
@@ -923,7 +933,7 @@ async def get_antecedentes(
 async def add_antecedente_heredofamiliar(
     id_paciente: UUID,
     antecedente_in: dict,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """POST /pacientes/{id}/antecedentes/heredofamiliares — Registra antecedente hereditario"""
@@ -946,27 +956,46 @@ async def add_antecedente_heredofamiliar(
         detalles = antecedente_in.get("detalles", "").strip()
 
         # Insertar o actualizar (solo uno por paciente)
-        query_upsert = text("""
-            INSERT INTO antecedentes_heredofamiliares (id_ahf, id_paciente, diabetes, hipertension, cardiopatia, neoplasia, detalles)
-            VALUES (:id_ahf, :id_paciente, :diabetes, :hipertension, :cardiopatia, :neoplasia, :detalles)
-            ON CONFLICT (id_paciente) WHERE eliminado_en IS NULL
-            DO UPDATE SET
-                diabetes = EXCLUDED.diabetes,
-                hipertension = EXCLUDED.hipertension,
-                cardiopatia = EXCLUDED.cardiopatia,
-                neoplasia = EXCLUDED.neoplasia,
-                detalles = EXCLUDED.detalles
-        """)
-
-        await db.execute(query_upsert, {
-            "id_ahf": str(uuid4()),
-            "id_paciente": str(id_paciente),
-            "diabetes": diabetes,
-            "hipertension": hipertension,
-            "cardiopatia": cardiopatia,
-            "neoplasia": neoplasia,
-            "detalles": detalles
-        })
+        # Primero verificar si ya existe
+        existing = await db.scalar(text("""
+            SELECT id_ahf FROM antecedentes_heredofamiliares 
+            WHERE id_paciente = :id_paciente AND eliminado_en IS NULL
+        """), {"id_paciente": str(id_paciente)})
+        
+        if existing:
+            # Actualizar
+            query_update = text("""
+                UPDATE antecedentes_heredofamiliares SET
+                    diabetes = :diabetes,
+                    hipertension = :hipertension,
+                    cardiopatia = :cardiopatia,
+                    neoplasia = :neoplasia,
+                    detalles = :detalles
+                WHERE id_ahf = :id_ahf
+            """)
+            await db.execute(query_update, {
+                "id_ahf": str(existing),
+                "diabetes": diabetes,
+                "hipertension": hipertension,
+                "cardiopatia": cardiopatia,
+                "neoplasia": neoplasia,
+                "detalles": detalles
+            })
+        else:
+            # Insertar
+            query_insert = text("""
+                INSERT INTO antecedentes_heredofamiliares (id_ahf, id_paciente, diabetes, hipertension, cardiopatia, neoplasia, detalles)
+                VALUES (:id_ahf, :id_paciente, :diabetes, :hipertension, :cardiopatia, :neoplasia, :detalles)
+            """)
+            await db.execute(query_insert, {
+                "id_ahf": str(uuid4()),
+                "id_paciente": str(id_paciente),
+                "diabetes": diabetes,
+                "hipertension": hipertension,
+                "cardiopatia": cardiopatia,
+                "neoplasia": neoplasia,
+                "detalles": detalles
+            })
 
         await db.commit()
 
@@ -993,7 +1022,7 @@ async def add_antecedente_heredofamiliar(
 async def add_antecedente_patologico(
     id_paciente: UUID,
     antecedente_in: dict,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """POST /pacientes/{id}/antecedentes/patologicos — Registra antecedente patológico personal"""
@@ -1010,12 +1039,20 @@ async def add_antecedente_patologico(
 
         # Validar campos
         enfermedad = antecedente_in.get("enfermedad", "").strip()
-        fecha_diagnostico = antecedente_in.get("fecha_diagnostico")
+        fecha_diagnostico_str = antecedente_in.get("fecha_diagnostico")
         tratamiento_actual = antecedente_in.get("tratamiento_actual", "").strip()
 
         if not enfermedad:
             raise HTTPException(status_code=422, detail="Campo 'enfermedad' requerido")
-
+        
+        from datetime import date as data_type
+        fecha_diagnostico = None
+        if fecha_diagnostico_str:
+            try:
+                fecha_diagnostico = data_type.fromisoformat(fecha_diagnostico_str)
+            except ValueError:
+                raise HTTPException(status_code=422, detail="Formato de fecha inválido. Use YYYY-MM-DD")
+            
         # Insertar
         query_insert = text("""
             INSERT INTO antecedentes_patologicos (id_ap, id_paciente, enfermedad, fecha_diagnostico, tratamiento_actual)
@@ -1049,7 +1086,7 @@ async def add_antecedente_patologico(
 async def add_antecedente_no_patologico(
     id_paciente: UUID,
     antecedente_in: dict,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """POST /pacientes/{id}/antecedentes/no-patologicos — Registra determinante social de la salud"""
@@ -1071,25 +1108,43 @@ async def add_antecedente_no_patologico(
         detalles = antecedente_in.get("detalles", "").strip()
 
         # Insertar o actualizar (solo uno por paciente)
-        query_upsert = text("""
-            INSERT INTO antecedentes_no_patologicos (id_anp, id_paciente, tabaquismo, alcoholismo, drogas, detalles)
-            VALUES (:id_anp, :id_paciente, :tabaquismo, :alcoholismo, :drogas, :detalles)
-            ON CONFLICT (id_paciente) WHERE eliminado_en IS NULL
-            DO UPDATE SET
-                tabaquismo = EXCLUDED.tabaquismo,
-                alcoholismo = EXCLUDED.alcoholismo,
-                drogas = EXCLUDED.drogas,
-                detalles = EXCLUDED.detalles
-        """)
-
-        await db.execute(query_upsert, {
-            "id_anp": str(uuid4()),
-            "id_paciente": str(id_paciente),
-            "tabaquismo": tabaquismo,
-            "alcoholismo": alcoholismo,
-            "drogas": drogas,
-            "detalles": detalles
-        })
+        # Primero verificar si ya existe
+        existing = await db.scalar(text("""
+            SELECT id_anp FROM antecedentes_no_patologicos 
+            WHERE id_paciente = :id_paciente AND eliminado_en IS NULL
+        """), {"id_paciente": str(id_paciente)})
+        
+        if existing:
+            # Actualizar
+            query_update = text("""
+                UPDATE antecedentes_no_patologicos SET
+                    tabaquismo = :tabaquismo,
+                    alcoholismo = :alcoholismo,
+                    drogas = :drogas,
+                    detalles = :detalles
+                WHERE id_anp = :id_anp
+            """)
+            await db.execute(query_update, {
+                "id_anp": str(existing),
+                "tabaquismo": tabaquismo,
+                "alcoholismo": alcoholismo,
+                "drogas": drogas,
+                "detalles": detalles
+            })
+        else:
+            # Insertar
+            query_insert = text("""
+                INSERT INTO antecedentes_no_patologicos (id_anp, id_paciente, tabaquismo, alcoholismo, drogas, detalles)
+                VALUES (:id_anp, :id_paciente, :tabaquismo, :alcoholismo, :drogas, :detalles)
+            """)
+            await db.execute(query_insert, {
+                "id_anp": str(uuid4()),
+                "id_paciente": str(id_paciente),
+                "tabaquismo": tabaquismo,
+                "alcoholismo": alcoholismo,
+                "drogas": drogas,
+                "detalles": detalles
+            })
 
         await db.commit()
 
@@ -1115,7 +1170,7 @@ async def add_antecedente_no_patologico(
 async def add_antecedente_ginecoobstetrico(
     id_paciente: UUID,
     antecedente_in: dict,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """POST /pacientes/{id}/antecedentes/ginecoobstetricos — Solo pacientes con sexo='F'. Registra datos reproductivos"""
@@ -1126,7 +1181,7 @@ async def add_antecedente_ginecoobstetrico(
             raise HTTPException(status_code=403, detail="Acceso denegado")
 
         # Verificar paciente existe y es mujer
-        paciente = await db.scalar(select(Paciente).where(Paciente.id_paciente == id_paciente, Paciente.eliminado_en == None))
+        paciente = await db.scalar(select(Paciente).options(joinedload(Paciente.persona)).where(Paciente.id_paciente == id_paciente, Paciente.eliminado_en == None))
         if not paciente:
             raise HTTPException(status_code=404, detail="Paciente no encontrado")
 
@@ -1147,37 +1202,61 @@ async def add_antecedente_ginecoobstetrico(
         detalles = antecedente_in.get("detalles", "").strip()
 
         # Insertar o actualizar (solo uno por paciente)
-        query_upsert = text("""
-            INSERT INTO antecedentes_ginecoobstetricos (id_ago, id_paciente, menarca, ritmo_menstrual, gestas, partos, abortos, cesareas, ultimo_papanicolaou, ultimo_mamograma, anticonceptivos, detalles)
-            VALUES (:id_ago, :id_paciente, :menarca, :ritmo_menstrual, :gestas, :partos, :abortos, :cesareas, :ultimo_papanicolaou, :ultimo_mamograma, :anticonceptivos, :detalles)
-            ON CONFLICT (id_paciente) WHERE eliminado_en IS NULL
-            DO UPDATE SET
-                menarca = EXCLUDED.menarca,
-                ritmo_menstrual = EXCLUDED.ritmo_menstrual,
-                gestas = EXCLUDED.gestas,
-                partos = EXCLUDED.partos,
-                abortos = EXCLUDED.abortos,
-                cesareas = EXCLUDED.cesareas,
-                ultimo_papanicolaou = EXCLUDED.ultimo_papanicolaou,
-                ultimo_mamograma = EXCLUDED.ultimo_mamograma,
-                anticonceptivos = EXCLUDED.anticonceptivos,
-                detalles = EXCLUDED.detalles
-        """)
-
-        await db.execute(query_upsert, {
-            "id_ago": str(uuid4()),
-            "id_paciente": str(id_paciente),
-            "menarca": menarca,
-            "ritmo_menstrual": ritmo_menstrual,
-            "gestas": gestas,
-            "partos": partos,
-            "abortos": abortos,
-            "cesareas": cesareas,
-            "ultimo_papanicolaou": ultimo_papanicolaou,
-            "ultimo_mamograma": ultimo_mamograma,
-            "anticonceptivos": anticonceptivos,
-            "detalles": detalles
-        })
+        # Primero verificar si ya existe
+        existing = await db.scalar(text("""
+            SELECT id_ago FROM antecedentes_ginecoobstetricos 
+            WHERE id_paciente = :id_paciente AND eliminado_en IS NULL
+        """), {"id_paciente": str(id_paciente)})
+        
+        if existing:
+            # Actualizar
+            query_update = text("""
+                UPDATE antecedentes_ginecoobstetricos SET
+                    menarca = :menarca,
+                    ritmo_menstrual = :ritmo_menstrual,
+                    gestas = :gestas,
+                    partos = :partos,
+                    abortos = :abortos,
+                    cesareas = :cesareas,
+                    ultimo_papanicolaou = :ultimo_papanicolaou,
+                    ultimo_mamograma = :ultimo_mamograma,
+                    anticonceptivos = :anticonceptivos,
+                    detalles = :detalles
+                WHERE id_ago = :id_ago
+            """)
+            await db.execute(query_update, {
+                "id_ago": str(existing),
+                "menarca": menarca,
+                "ritmo_menstrual": ritmo_menstrual,
+                "gestas": gestas,
+                "partos": partos,
+                "abortos": abortos,
+                "cesareas": cesareas,
+                "ultimo_papanicolaou": ultimo_papanicolaou,
+                "ultimo_mamograma": ultimo_mamograma,
+                "anticonceptivos": anticonceptivos,
+                "detalles": detalles
+            })
+        else:
+            # Insertar
+            query_insert = text("""
+                INSERT INTO antecedentes_ginecoobstetricos (id_ago, id_paciente, menarca, ritmo_menstrual, gestas, partos, abortos, cesareas, ultimo_papanicolaou, ultimo_mamograma, anticonceptivos, detalles)
+                VALUES (:id_ago, :id_paciente, :menarca, :ritmo_menstrual, :gestas, :partos, :abortos, :cesareas, :ultimo_papanicolaou, :ultimo_mamograma, :anticonceptivos, :detalles)
+            """)
+            await db.execute(query_insert, {
+                "id_ago": str(uuid4()),
+                "id_paciente": str(id_paciente),
+                "menarca": menarca,
+                "ritmo_menstrual": ritmo_menstrual,
+                "gestas": gestas,
+                "partos": partos,
+                "abortos": abortos,
+                "cesareas": cesareas,
+                "ultimo_papanicolaou": ultimo_papanicolaou,
+                "ultimo_mamograma": ultimo_mamograma,
+                "anticonceptivos": anticonceptivos,
+                "detalles": detalles
+            })
 
         await db.commit()
 
@@ -1329,7 +1408,7 @@ async def get_inmunizaciones(
 async def add_inmunizacion(
     id_paciente: UUID,
     inmunizacion_in: dict,
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """POST /pacientes/{id}/inmunizaciones — Registra vacuna aplicada conforme al Esquema Nacional"""
@@ -1442,7 +1521,7 @@ async def delete_inmunizacion(
 async def add_tutor(
     id_paciente: UUID,
     tutor: dict = Body(...),
-    current_user: dict = Depends(get_current_user),
+    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """POST /pacientes/{id}/tutores — Agrega tutor (requiere documento_legal_url ya en Azure)"""

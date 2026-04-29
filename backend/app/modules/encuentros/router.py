@@ -22,7 +22,6 @@ from app.schemas.notas_soap import (
     NotaSOAPCreateIn, NotaSOAPUpdateIn, NotaSOAPOut,
     NotaEnmiendaCreateIn, NotaEnmiendaOut, CIE10ListOut
 )
-
 import logging
 from pydantic import BaseModel
 
@@ -278,22 +277,6 @@ async def create_encuentro(
                 detail="Error al guardar el diagnóstico CIE-10 del encuentro"
             )
 
-        # await db.execute(
-        #     text("""
-        #         INSERT INTO encuentros_clinicos 
-        #         (id_encuentro, id_paciente, id_medico, id_establecimiento, id_especialidad, fecha_inicio, motivo_consulta)
-        #         VALUES (:id, :pac, :med, :est, :esp, :fecha, :mot)
-        #     """),
-        #     {
-        #         "id": id_encuentro,
-        #         "pac": str(id_paciente),
-        #         "med": current_user["sub"],
-        #         "est": str(id_establecimiento),
-        #         "esp": id_especialidad,
-        #         "fecha": datetime.now(timezone.utc),
-        #         "mot": motivo_consulta
-        #     }
-        # )
         await db.commit()
 
         return {
@@ -387,7 +370,6 @@ async def crear_encuentro_bck(
         fecha_inicio=encuentro.fecha_inicio,
         fecha_cierre=encuentro.fecha_cierre,
         motivo_consulta=encuentro.motivo_consulta,
-        tipo_consulta=encuentro.tipo_consulta,
     )
 
 
@@ -420,7 +402,6 @@ async def listar_encuentros_activos(
             fecha_inicio=e.fecha_inicio,
             fecha_cierre=e.fecha_cierre,
             motivo_consulta=e.motivo_consulta,
-            tipo_consulta=e.tipo_consulta,
             paciente_numero_expediente=e.paciente.numero_expediente if e.paciente else None,
             paciente_nombre=f"{e.paciente.persona.nombre} {e.paciente.persona.primer_apellido}"
                            if e.paciente and e.paciente.persona else None,
@@ -449,6 +430,10 @@ async def obtener_encuentro(
         id_usuario=id_usuario,
     )
 
+    if not encuentro:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Encuentro no encontrado o acceso denegado")
+
     return EncuentroDetalleOut(
         id_encuentro=encuentro.id_encuentro,
         id_paciente=encuentro.id_paciente,
@@ -458,7 +443,6 @@ async def obtener_encuentro(
         fecha_inicio=encuentro.fecha_inicio,
         fecha_cierre=encuentro.fecha_cierre,
         motivo_consulta=encuentro.motivo_consulta,
-        tipo_consulta=encuentro.tipo_consulta,
         paciente_numero_expediente=encuentro.paciente.numero_expediente if encuentro.paciente else None,
         paciente_nombre=f"{encuentro.paciente.persona.nombre} {encuentro.paciente.persona.primer_apellido}"
                        if encuentro.paciente and encuentro.paciente.persona else None,

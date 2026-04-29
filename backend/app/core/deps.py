@@ -28,11 +28,16 @@ async def get_current_user(
 
 def require_role(*roles: str):
     """Dependencia que verifica que el usuario tenga uno de los roles requeridos."""
+    # Soporte para llamadas con lista: require_role(["ROL1", "ROL2"])
+    flat_roles = roles
+    if len(roles) == 1 and isinstance(roles[0], list):
+        flat_roles = roles[0]
+        
     async def inner(current_user: dict = Depends(get_current_user)):
-        if current_user.get("rol") not in roles:
+        if current_user.get("rol") not in flat_roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail=f"Acceso denegado. Roles permitidos: {', '.join(roles)}",
+                detail=f"Acceso denegado. Roles permitidos: {', '.join(flat_roles)}",
             )
         return current_user
     return inner

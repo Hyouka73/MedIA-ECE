@@ -90,7 +90,10 @@ class AuditMiddleware(BaseHTTPMiddleware):
         try:
             import uuid as uuid_mod
             from app.database.session import AsyncSessionLocal
-            uid_val = uuid_mod.UUID(user_id) if user_id else None
+            try:
+                uid_val = uuid_mod.UUID(user_id) if user_id else None
+            except (ValueError, TypeError):
+                uid_val = None
             async with AsyncSessionLocal() as audit_session:
                 await audit_session.execute(
                     text("""

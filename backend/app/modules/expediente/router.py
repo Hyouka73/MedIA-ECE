@@ -6,6 +6,7 @@ Aplica reglas de acceso (Regla 1 principalmente)
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
+from sqlalchemy.orm import joinedload
 from app.core.deps import get_current_user
 from app.database.session import get_db
 from app.models.auth import Paciente, Persona
@@ -53,7 +54,7 @@ async def get_expediente_completo(
 
         # Obtener paciente y persona
         paciente = await db.scalar(
-            select(Paciente).where(
+            select(Paciente).options(joinedload(Paciente.persona)).where(
                 Paciente.id_paciente == id_paciente,
                 Paciente.eliminado_en == None
             )

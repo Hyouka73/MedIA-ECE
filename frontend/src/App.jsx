@@ -23,11 +23,18 @@ import ExpedientePage from './pages/Pacients/ExpedientePage';
 import PacienteFichaPage from './pages/Pacients/PacienteFichaPage';
 import PacienteAntecedentesPage from './pages/Pacients/PacienteAntecedentesPage';
 
+// Auditoría
+import AuditoriaPage from './pages/audit/AuditoriaPage';
+
 // Consulta
 import NuevaConsultaPage from './pages/consulta/NuevaConsultaPage'
 
-// Auditoría
-import AuditoriaPage from './pages/audit/AuditoriaPage'
+// Referencias
+import ReferenciasListPage from './pages/references/ReferenciasListaPage';
+import ReferenciaDetallePage from './pages/references/ReferenciasDetallePage';
+import ReferenciasFichaPage from './pages/references/ReferenciasFichaPage'
+
+
 
 const Unauthorized = () => (
   <div className="p-6 flex items-center justify-center text-[#DC2626] font-bold">
@@ -50,23 +57,41 @@ function App() {
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="perfil" element={<ProfilePage />} />
 
-                {/* Clínica */}
-                <Route path="pacientes" element={<PacientesListPage />} />
-                <Route path="pacientes/nuevo" element={<PacienteFichaPage />} />
-                <Route path="pacientes/:id/editar" element={<PacienteFichaPage />} />
-                <Route path="pacientes/:id/antecedentes" element={<PacienteAntecedentesPage />} />
-                <Route path="expediente/:id" element={<ExpedientePage />} />
-                <Route path="consulta/nueva" element={<NuevaConsultaPage />} />
+                {/* Clínica (Protección por Módulo) */}
+                <Route element={<ProtectedRoute module="PACIENTES" />}>
+                  <Route path="pacientes" element={<PacientesListPage />} />
+                  <Route element={<ProtectedRoute module="PACIENTES" action="puede_crear" />}>
+                    <Route path="pacientes/nuevo" element={<PacienteFichaPage />} />
+                  </Route>
+                  <Route path="pacientes/:id/editar" element={<PacienteFichaPage />} />
+                  <Route path="pacientes/:id/antecedentes" element={<PacienteAntecedentesPage />} />
+                </Route>
 
-                {/* Admin */}
-                <Route path="admin" element={<AdminDashboardPage />} />
-                <Route path="admin/usuarios" element={<AdminUsuariosPage />} />
-                <Route path="admin/establecimientos" element={<AdminEstablecimientosPage />} />
-                <Route path="admin/especialidades" element={<AdminEspecialidadesPage />} />
-                <Route path="admin/roles" element={<AdminRolesPage />} />
+                <Route element={<ProtectedRoute module="EXPEDIENTE" />}>
+                  <Route path="expediente/:id" element={<ExpedientePage />} />
+                </Route>
 
-                {/* Auditoría */}
-                <Route path="audit/logs" element={<AuditoriaPage />} />
+                <Route element={<ProtectedRoute module="ENCUENTROS" />}>
+                  <Route path="consulta/nueva" element={<NuevaConsultaPage />} />
+                  <Route path="referencias" element={<ReferenciasListPage />} />
+                  <Route path="referencias/:id" element={<ReferenciaDetallePage />} />
+                  <Route path="referencias/nueva" element={<ReferenciasFichaPage />} />
+                  <Route path="referencias/:id/editar" element={<ReferenciasFichaPage />} />
+                </Route>
+
+                {/* Sistema (Protección por Módulo) */}
+                <Route element={<ProtectedRoute module="ADMIN" />}>
+                  <Route path="admin"                 element={<AdminDashboardPage />} />
+                  <Route path="admin/usuarios"         element={<AdminUsuariosPage />} />
+                  <Route path="admin/establecimientos" element={<AdminEstablecimientosPage />} />
+                  <Route path="admin/especialidades" element={<AdminEspecialidadesPage />} />
+                  <Route path="admin/roles" element={<AdminRolesPage />} />
+                </Route>
+
+                <Route element={<ProtectedRoute module="AUDITORIA" />}>
+                  <Route path="audit/logs" element={<AuditoriaPage />} />
+                </Route>
+
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Route>
             </Route>
