@@ -6,6 +6,10 @@ import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import { ToastProvider } from './components/ui/Alert'
 
+// Errors
+import UnauthorizedPage from './pages/errors/UnauthorizedPage'
+import ErrorPage from './pages/errors/ErrorPage'
+
 // Dashboard
 import DashboardPage from './pages/dashboard/DashboardPage'
 import ProfilePage from './pages/dashboard/ProfilePage'
@@ -35,13 +39,6 @@ import ReferenciaDetallePage from './pages/references/ReferenciasDetallePage';
 import ReferenciasFichaPage from './pages/references/ReferenciasFichaPage'
 
 
-
-const Unauthorized = () => (
-  <div className="p-6 flex items-center justify-center text-[#DC2626] font-bold">
-    403 — Acceso Denegado
-  </div>
-)
-
 function App() {
   return (
     <AuthProvider>
@@ -49,7 +46,8 @@ function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/403" element={<Unauthorized />} />
+            <Route path="/403" element={<UnauthorizedPage />} />
+            <Route path="/404" element={<ErrorPage code="404" title="Página no encontrada" />} />
 
             <Route path="/" element={<ProtectedRoute />}>
               <Route element={<MainLayout />}>
@@ -92,7 +90,7 @@ function App() {
                   <Route path="audit/logs" element={<AuditoriaPage />} />
                 </Route>
 
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                <Route path="*" element={<ErrorPage code="404" title="Recurso no encontrado" />} />
               </Route>
             </Route>
           </Routes>
@@ -102,4 +100,4 @@ function App() {
   )
 }
 
-export default App
+export default App
