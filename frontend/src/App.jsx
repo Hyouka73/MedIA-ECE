@@ -32,6 +32,7 @@ import AuditoriaPage from './pages/audit/AuditoriaPage';
 
 // Consulta
 import NuevaConsultaPage from './pages/consulta/NuevaConsultaPage'
+import TriajePage from './pages/consulta/TriajePage'
 
 // Referencias
 import ReferenciasListPage from './pages/references/ReferenciasListaPage';
@@ -79,6 +80,9 @@ function App() {
                   <Route path="referencias/nueva" element={<ReferenciasFichaPage />} />
                   <Route path="referencias/:id/editar" element={<ReferenciasFichaPage />} />
                 </Route>
+
+                {/* Accesible para enfermería sin módulo específico (o agregar módulo TRIAJE) */}
+                <Route path="consulta/triaje" element={<TriajePage />} />
 
                 <Route element={<ProtectedRoute module="ESTUDIOS" />}>
                   <Route path="documentos" element={<DocumentosPage />} />

@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { pacientesAPI } from '../../api/pacientes';
 import { AlertCircle, Plus } from 'lucide-react';
 import { Languages } from 'lucide-react';
+import { canAccess } from '../../utils/permissions';
 
 /**
  * PacientesListPage — Página de Listado de Pacientes
@@ -205,13 +206,15 @@ export default function PacientesListPage() {
           <option value="sin_alergias">Sin alergias</option>
         </select>
 
-        <button 
-          onClick={() => navigate('/pacientes/nuevo')}
-          className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark transition-colors flex items-center justify-center gap-2"
-        >
-          <Plus size={18} />
-          Nuevo Paciente
-        </button>
+        {canAccess(user.permisos, 'PACIENTES', 'puede_crear') && (
+          <button 
+            onClick={() => navigate('/pacientes/nuevo')}
+            className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark transition-colors flex items-center justify-center gap-2"
+          >
+            <Plus size={18} />
+            Nuevo Paciente
+          </button>
+        )}
       </div>
 
       {/* Tabla */}
@@ -293,18 +296,22 @@ export default function PacientesListPage() {
                       <td className="px-6 py-4 text-sm text-text-secondary">{paciente.ultimaConsulta}</td>
                       <td className="px-6 py-4 text-sm">
                         <div className="flex items-center justify-center gap-2">
-                          <button 
-                            onClick={() => navigate(`/expediente/${paciente.id_paciente}`)}
-                            className="px-3 py-1 text-xs bg-secondary text-text-primary rounded hover:bg-secondary/80 transition-colors"
-                          >
-                            📋 Ver
-                          </button>
-                          <button 
-                            onClick={() => navigate(`/consulta/nueva?id_paciente=${paciente.id_paciente}`)}
-                            className="px-3 py-1 text-xs bg-primary text-white rounded hover:bg-primary-dark transition-colors"
-                          >
-                            + Consulta
-                          </button>
+                          {canAccess(user.permisos, 'EXPEDIENTE', 'puede_leer') && (
+                            <button 
+                              onClick={() => navigate(`/expediente/${paciente.id_paciente}`)}
+                              className="px-3 py-1 text-xs bg-secondary text-text-primary rounded hover:bg-secondary/80 transition-colors"
+                            >
+                              📋 Ver
+                            </button>
+                          )}
+                          {['MEDICO_GENERAL', 'ESPECIALISTA', 'SUPERADMIN', 'OMNIADMIN'].includes(user.rol) && (
+                            <button 
+                              onClick={() => navigate(`/consulta/nueva?id_paciente=${paciente.id_paciente}`)}
+                              className="px-3 py-1 text-xs bg-primary text-white rounded hover:bg-primary-dark transition-colors"
+                            >
+                              + Consulta
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
