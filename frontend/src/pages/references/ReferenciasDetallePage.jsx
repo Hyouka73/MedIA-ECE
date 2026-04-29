@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { referenciasAPI } from '../../api/referencias';
-import { AlertCircle, ChevronLeft, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { AlertCircle, ChevronLeft, CheckCircle, XCircle, Stethoscope } from 'lucide-react';
 
 export default function ReferenciaDetallePage() {
   const { user } = useAuth();
@@ -12,8 +12,8 @@ export default function ReferenciaDetallePage() {
   const [referencia, setReferencia] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [respuesta, setRespuesta] = useState('');
   const [accion, setAccion] = useState('');
+  const [procesando, setProcesando] = useState(false);
 
   useEffect(() => {
     loadReferencia();
@@ -34,24 +34,52 @@ export default function ReferenciaDetallePage() {
 
   const handleResponder = async (estado) => {
     try {
-      await referenciasAPI.responderReferencia(id, { estado, respuesta });
+      setProcesando(true);
+      await referenciasAPI.responderReferencia(id, { estado });
       loadReferencia();
-      setRespuesta('');
       setAccion('');
     } catch (err) {
       console.error('Error al responder:', err);
-      alert('Error al procesar la respuesta');
+      alert(err.response?.data?.detail || 'Error al procesar la respuesta');
+    } finally {
+      setProcesando(false);
     }
   };
 
   const handleCancelar = async () => {
-    if (!confirm('¿Estás seguro de cancelar esta referencia?')) return;
+    if (!confirm('¿Estás seguro de cancelar esta referencia? Se marcará como RECHAZADA.')) return;
     try {
+      setProcesando(true);
       await referenciasAPI.cancelarReferencia(id);
       loadReferencia();
     } catch (err) {
       console.error('Error al cancelar:', err);
-      alert('Error al cancelar la referencia');
+      alert(err.response?.data?.detail || 'Error al cancelar la referencia');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const handleAtender = async () => {
+    try {
+      setProcesando(true);
+      await referenciasAPI.atenderReferencia(id);
+      loadReferencia();
+    } catch (err) {
+      console.error('Error al marcar como atendida:', err);
+      alert(err.response?.data?.detail || 'Error al actualizar la referencia');
+    } finally {
+      setProcesando(false);
+    }
+  };
+
+  const getEstadoStyle = (estado) => {
+    switch (estado) {
+      case 'EMITIDA': return { bg: '#FFF3E0', color: '#E8921F', label: '📤 Emitida' };
+      case 'ACEPTADA': return { bg: '#E3F2FD', color: '#2459A8', label: '✅ Aceptada' };
+      case 'ATENDIDA': return { bg: '#E8F5E9', color: '#237A4B', label: '🩺 Atendida' };
+      case 'RECHAZADA': return { bg: '#FFEBEE', color: '#BA2E45', label: '❌ Rechazada' };
+      default: return { bg: '#F5F5F5', color: '#5A5048', label: estado };
     }
   };
 
@@ -71,20 +99,25 @@ export default function ReferenciaDetallePage() {
     );
   }
 
+  const estadoStyle = getEstadoStyle(referencia.estado);
+
   return (
     <div style={{ flex: 1, overflowY: "auto", background: "#EDEBE6", minHeight: "100vh" }}>
       {/* TopBar */}
       <div style={{ padding: "16px 28px", background: "#FDFAF5", borderBottom: "1px solid #DAD4CC" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button onClick={() => navigate(-1)} style={{ border: "none", background: "transparent", cursor: "pointer" }}>
+          <button onClick={() => navigate('/referencias')} style={{ border: "none", background: "transparent", cursor: "pointer" }}>
             <ChevronLeft size={20} />
           </button>
-          <div>
+          <div style={{ flex: 1 }}>
             <h1 style={{ color: "#1A1510", fontSize: 18, fontWeight: 700, margin: 0 }}>Detalle de Referencia</h1>
             <p style={{ color: "#5A5048", fontSize: 12, margin: "4px 0 0 0" }}>
-              {referencia.tipo} · {referencia.estado}
+              ID: {referencia.id_referencia?.substring(0, 8)}...
             </p>
           </div>
+          <span style={{ padding: "4px 12px", borderRadius: 6, fontSize: 12, fontWeight: 700, background: estadoStyle.bg, color: estadoStyle.color }}>
+            {estadoStyle.label}
+          </span>
         </div>
       </div>
 
@@ -93,115 +126,81 @@ export default function ReferenciaDetallePage() {
         {/* Info principal */}
         <div style={{ background: "#FDFAF5", border: "1px solid #DAD4CC", borderRadius: 10, padding: 20, marginBottom: 16 }}>
           <h2 style={{ fontSize: 15, fontWeight: 700, color: "#1A1510", marginBottom: 16 }}>
-            {referencia.tipo === 'INTERCONSULTA' ? '🔬 Interconsulta' : referencia.tipo === 'DERIVACION' ? '🏥 Derivación' : '↩️ Contra-referencia'}
+            Información de la Referencia
           </h2>
           
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 16 }}>
             <div>
-              <label style={{ fontSize: 11, color: "#5A5048", textTransform: "uppercase" }}>Paciente</label>
-              <p style={{ fontSize: 13, color: "#1A1510", fontWeight: 500 }}>{referencia.paciente_nombre}</p>
-              <p style={{ fontSize: 11, color: "#5A5048" }}>Exp: {referencia.numero_expediente}</p>
+              <label style={{ fontSize: 11, color: "#5A5048", textTransform: "uppercase", fontWeight: 600 }}>Paciente</label>
+              <p style={{ fontSize: 14, color: "#1A1510", fontWeight: 500, margin: "4px 0 0 0" }}>{referencia.paciente_nombre}</p>
+              <p style={{ fontSize: 11, color: "#5A5048", margin: "2px 0 0 0" }}>Exp: {referencia.numero_expediente}</p>
             </div>
             <div>
-              <label style={{ fontSize: 11, color: "#5A5048", textTransform: "uppercase" }}>Médico Emisor</label>
-              <p style={{ fontSize: 13, color: "#1A1510" }}>{referencia.medico_emisor}</p>
+              <label style={{ fontSize: 11, color: "#5A5048", textTransform: "uppercase", fontWeight: 600 }}>Médico Emisor</label>
+              <p style={{ fontSize: 14, color: "#1A1510", margin: "4px 0 0 0" }}>{referencia.medico_emisor}</p>
             </div>
             <div>
-              <label style={{ fontSize: 11, color: "#5A5048", textTransform: "uppercase" }}>Urgencia</label>
-              <p style={{ fontSize: 13, color: "#1A1510", fontWeight: 600 }}>{referencia.urgencia}</p>
+              <label style={{ fontSize: 11, color: "#5A5048", textTransform: "uppercase", fontWeight: 600 }}>Establecimiento Destino</label>
+              <p style={{ fontSize: 14, color: "#1A1510", margin: "4px 0 0 0" }}>{referencia.establecimiento_destino || 'N/A'}</p>
+              {referencia.establecimiento_destino_clues && (
+                <p style={{ fontSize: 11, color: "#5A5048", margin: "2px 0 0 0" }}>CLUES: {referencia.establecimiento_destino_clues}</p>
+              )}
             </div>
             <div>
-              <label style={{ fontSize: 11, color: "#5A5048", textTransform: "uppercase" }}>Estado</label>
-              <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 12, fontWeight: 600, background: "#E3F2FD", color: "#2459A8" }}>
-                {referencia.estado}
-              </span>
+              <label style={{ fontSize: 11, color: "#5A5048", textTransform: "uppercase", fontWeight: 600 }}>Especialidad Destino</label>
+              <p style={{ fontSize: 14, color: "#1A1510", margin: "4px 0 0 0" }}>{referencia.especialidad_destino || 'N/A'}</p>
             </div>
-            {referencia.establecimiento_destino && (
+            {referencia.establecimiento_origen && (
               <div>
-                <label style={{ fontSize: 11, color: "#5A5048", textTransform: "uppercase" }}>Establecimiento Destino</label>
-                <p style={{ fontSize: 13, color: "#1A1510" }}>{referencia.establecimiento_destino}</p>
+                <label style={{ fontSize: 11, color: "#5A5048", textTransform: "uppercase", fontWeight: 600 }}>Establecimiento Origen</label>
+                <p style={{ fontSize: 14, color: "#1A1510", margin: "4px 0 0 0" }}>{referencia.establecimiento_origen}</p>
               </div>
             )}
             <div>
-              <label style={{ fontSize: 11, color: "#5A5048", textTransform: "uppercase" }}>Fecha Creación</label>
-              <p style={{ fontSize: 13, color: "#1A1510" }}>{new Date(referencia.fecha_creacion).toLocaleString('es-MX')}</p>
+              <label style={{ fontSize: 11, color: "#5A5048", textTransform: "uppercase", fontWeight: 600 }}>Fecha de Emisión</label>
+              <p style={{ fontSize: 14, color: "#1A1510", margin: "4px 0 0 0" }}>
+                {referencia.fecha_emision ? new Date(referencia.fecha_emision).toLocaleString('es-MX') : 'N/A'}
+              </p>
             </div>
           </div>
 
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 11, color: "#5A5048", textTransform: "uppercase" }}>Diagnóstico de Envío</label>
-            <p style={{ fontSize: 13, color: "#1A1510", background: "#F5F2EC", padding: 12, borderRadius: 6 }}>{referencia.diagnostico_envio}</p>
+          <div style={{ marginTop: 12 }}>
+            <label style={{ fontSize: 11, color: "#5A5048", textTransform: "uppercase", fontWeight: 600 }}>Motivo de Referencia</label>
+            <p style={{ fontSize: 13, color: "#1A1510", background: "#F5F2EC", padding: 12, borderRadius: 6, margin: "6px 0 0 0", lineHeight: "1.6" }}>
+              {referencia.motivo_referencia}
+            </p>
           </div>
-
-          <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 11, color: "#5A5048", textTransform: "uppercase" }}>Motivo de Referencia</label>
-            <p style={{ fontSize: 13, color: "#1A1510", background: "#F5F2EC", padding: 12, borderRadius: 6 }}>{referencia.motivo_referencia}</p>
-          </div>
-
-          {referencia.resumen_clinico && (
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 11, color: "#5A5048", textTransform: "uppercase" }}>Resumen Clínico</label>
-              <p style={{ fontSize: 13, color: "#1A1510", background: "#F5F2EC", padding: 12, borderRadius: 6 }}>{referencia.resumen_clinico}</p>
-            </div>
-          )}
-
-          {referencia.hallazgos_relevantes && (
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 11, color: "#5A5048", textTransform: "uppercase" }}>Hallazgos Relevantes</label>
-              <p style={{ fontSize: 13, color: "#1A1510", background: "#F5F2EC", padding: 12, borderRadius: 6 }}>{referencia.hallazgos_relevantes}</p>
-            </div>
-          )}
-
-          {referencia.tratamiento_actual && (
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 11, color: "#5A5048", textTransform: "uppercase" }}>Tratamiento Actual</label>
-              <p style={{ fontSize: 13, color: "#1A1510", background: "#F5F2EC", padding: 12, borderRadius: 6 }}>{referencia.tratamiento_actual}</p>
-            </div>
-          )}
-
-          {referencia.observaciones && (
-            <div style={{ marginBottom: 12 }}>
-              <label style={{ fontSize: 11, color: "#5A5048", textTransform: "uppercase" }}>Observaciones</label>
-              <p style={{ fontSize: 13, color: "#1A1510", background: "#F5F2EC", padding: 12, borderRadius: 6 }}>{referencia.observaciones}</p>
-            </div>
-          )}
         </div>
 
-        {/* Respuesta (si existe) */}
-        {referencia.respuesta && (
-          <div style={{ background: "#E8F5E9", border: "1.5px solid #237A4B", borderRadius: 10, padding: 20, marginBottom: 16 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#237A4B", marginBottom: 8 }}>✓ Respuesta Recibida</h3>
-            <p style={{ fontSize: 13, color: "#1A1510" }}>{referencia.respuesta}</p>
-            {referencia.medico_receptor && (
-              <p style={{ fontSize: 11, color: "#5A5048", marginTop: 8 }}>Respondido por: {referencia.medico_receptor}</p>
-            )}
-            {referencia.fecha_respuesta && (
-              <p style={{ fontSize: 11, color: "#5A5048" }}>Fecha: {new Date(referencia.fecha_respuesta).toLocaleString('es-MX')}</p>
-            )}
+        {/* Fecha de respuesta (si existe) */}
+        {referencia.fecha_respuesta && (
+          <div style={{ background: referencia.estado === 'RECHAZADA' ? "#FFEBEE" : "#E8F5E9", border: `1.5px solid ${referencia.estado === 'RECHAZADA' ? "#BA2E45" : "#237A4B"}`, borderRadius: 10, padding: 20, marginBottom: 16 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: referencia.estado === 'RECHAZADA' ? "#BA2E45" : "#237A4B", marginBottom: 8 }}>
+              {referencia.estado === 'RECHAZADA' ? '❌ Referencia Rechazada' : referencia.estado === 'ATENDIDA' ? '🩺 Referencia Atendida' : '✅ Referencia Aceptada'}
+            </h3>
+            <p style={{ fontSize: 12, color: "#5A5048" }}>
+              Fecha de respuesta: {new Date(referencia.fecha_respuesta).toLocaleString('es-MX')}
+            </p>
           </div>
         )}
 
-        {/* Acciones (solo si está pendiente) */}
-        {referencia.estado === 'PENDIENTE' && (
+        {/* Acciones según estado */}
+        {referencia.estado === 'EMITIDA' && (
           <div style={{ background: "#FDFAF5", border: "1px solid #DAD4CC", borderRadius: 10, padding: 20 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1A1510", marginBottom: 12 }}>Responder a esta Referencia</h3>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1A1510", marginBottom: 12 }}>Acciones</h3>
             
             {accion === 'responder' ? (
               <div>
-                <textarea
-                  value={respuesta}
-                  onChange={(e) => setRespuesta(e.target.value)}
-                  placeholder="Escribe tu respuesta..."
-                  rows={4}
-                  style={{ width: "100%", padding: 10, border: "1.5px solid #DAD4CC", borderRadius: 6, fontSize: 13, resize: "vertical", boxSizing: "border-box" }}
-                />
-                <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-                  <button onClick={() => handleResponder('ACEPTADA')}
-                    style={{ padding: "10px 20px", background: "#237A4B", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
+                <p style={{ fontSize: 12, color: "#5A5048", marginBottom: 12 }}>
+                  Seleccione la acción para esta referencia:
+                </p>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={() => handleResponder('ACEPTADA')} disabled={procesando}
+                    style={{ padding: "10px 20px", background: "#237A4B", color: "#fff", border: "none", borderRadius: 6, cursor: procesando ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 6, opacity: procesando ? 0.6 : 1 }}>
                     <CheckCircle size={16} /> Aceptar
                   </button>
-                  <button onClick={() => handleResponder('RECHAZADA')}
-                    style={{ padding: "10px 20px", background: "#BA2E45", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
+                  <button onClick={() => handleResponder('RECHAZADA')} disabled={procesando}
+                    style={{ padding: "10px 20px", background: "#BA2E45", color: "#fff", border: "none", borderRadius: 6, cursor: procesando ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 6, opacity: procesando ? 0.6 : 1 }}>
                     <XCircle size={16} /> Rechazar
                   </button>
                   <button onClick={() => setAccion('')}
@@ -214,14 +213,28 @@ export default function ReferenciaDetallePage() {
               <div style={{ display: "flex", gap: 8 }}>
                 <button onClick={() => setAccion('responder')}
                   style={{ padding: "10px 20px", background: "#2459A8", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 500 }}>
-                  Responder
+                  Responder Referencia
                 </button>
-                <button onClick={handleCancelar}
-                  style={{ padding: "10px 20px", background: "#BA2E45", color: "#fff", border: "none", borderRadius: 6, cursor: "pointer", fontSize: 13, fontWeight: 500 }}>
+                <button onClick={handleCancelar} disabled={procesando}
+                  style={{ padding: "10px 20px", background: "#BA2E45", color: "#fff", border: "none", borderRadius: 6, cursor: procesando ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 500, opacity: procesando ? 0.6 : 1 }}>
                   Cancelar Referencia
                 </button>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Acción: Marcar como atendida (solo si está ACEPTADA) */}
+        {referencia.estado === 'ACEPTADA' && (
+          <div style={{ background: "#FDFAF5", border: "1px solid #DAD4CC", borderRadius: 10, padding: 20 }}>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: "#1A1510", marginBottom: 12 }}>Acciones</h3>
+            <p style={{ fontSize: 12, color: "#5A5048", marginBottom: 12 }}>
+              El paciente fue atendido en este establecimiento. Marcar como atendida para completar el ciclo de referencia.
+            </p>
+            <button onClick={handleAtender} disabled={procesando}
+              style={{ padding: "10px 20px", background: "#237A4B", color: "#fff", border: "none", borderRadius: 6, cursor: procesando ? "not-allowed" : "pointer", fontSize: 13, fontWeight: 500, display: "flex", alignItems: "center", gap: 6, opacity: procesando ? 0.6 : 1 }}>
+              <Stethoscope size={16} /> Marcar como Atendida
+            </button>
           </div>
         )}
       </div>

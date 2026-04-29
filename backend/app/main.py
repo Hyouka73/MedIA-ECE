@@ -31,6 +31,7 @@ from app.modules.admin.router import router as admin_router
 from app.modules.auditoria.router import router as auditoria_router
 from app.modules.signosvitales.router import router as signos_router
 from app.modules.notas_soap.router import router as notas_router
+from app.modules.referencias.router import router as referencias_router
 
 # RUTEADOR DE NOTAS SOAP
 from app.modules.notas_soap.router import router as notas_router  # Import DIRECTO
@@ -109,6 +110,7 @@ app.include_router(signos_router,     prefix="/api/signos-vitales", tags=["Signo
 app.include_router(notas_router,      prefix="/api/notas_soap", tags=["Notas SOAP"])
 app.include_router(admin_router,       prefix="/api/admin",       tags=["Administración"])
 app.include_router(auditoria_router,   prefix="/api/auditoria",   tags=["Auditoría"])
+app.include_router(referencias_router, prefix="/api/referencias", tags=["Referencias"])
 
 # SEGURIDAD
 @app.get("/api/seguridad/logs-forenses", tags=["Auditoría"])
