@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { referenciasAPI } from '../../api/referencias';
-import { AlertCircle, ChevronLeft, Plus, Search, Filter } from 'lucide-react';
+import { AlertCircle, ChevronLeft, Plus, Filter } from 'lucide-react';
 
 export default function ReferenciasListPage() {
   const { user } = useAuth();
@@ -13,7 +13,6 @@ export default function ReferenciasListPage() {
   const [error, setError] = useState(null);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [filtroTipo, setFiltroTipo] = useState('');
   const [filtroEstado, setFiltroEstado] = useState('');
 
   const rolesPermitidos = [
@@ -26,13 +25,12 @@ export default function ReferenciasListPage() {
   useEffect(() => {
     if (!tieneAcceso) return;
     loadReferencias();
-  }, [page, filtroTipo, filtroEstado, tieneAcceso]);
+  }, [page, filtroEstado, tieneAcceso]);
 
   const loadReferencias = async () => {
     try {
       setLoading(true);
       const params = { page, limit: 10 };
-      if (filtroTipo) params.tipo = filtroTipo;
       if (filtroEstado) params.estado = filtroEstado;
       
       const data = await referenciasAPI.getReferencias(params);
@@ -46,22 +44,13 @@ export default function ReferenciasListPage() {
     }
   };
 
-  const getUrgenciaColor = (urgencia) => {
-    switch (urgencia) {
-      case 'EMERGENCIA': return { bg: '#FFEBEE', color: '#BA2E45', text: '🔴 Emergencia' };
-      case 'URGENTE': return { bg: '#FFF3E0', color: '#E8921F', text: '🟡 Urgente' };
-      default: return { bg: '#E8F5E9', color: '#237A4B', text: '🟢 Normal' };
-    }
-  };
-
-  const getEstadoColor = (estado) => {
+  const getEstadoStyle = (estado) => {
     switch (estado) {
-      case 'PENDIENTE': return { bg: '#FFF3E0', color: '#E8921F' };
-      case 'ACEPTADA': return { bg: '#E3F2FD', color: '#2459A8' };
-      case 'COMPLETADA': return { bg: '#E8F5E9', color: '#237A4B' };
-      case 'RECHAZADA': return { bg: '#FFEBEE', color: '#BA2E45' };
-      case 'CANCELADA': return { bg: '#F5F5F5', color: '#5A5048' };
-      default: return { bg: '#F5F5F5', color: '#5A5048' };
+      case 'EMITIDA': return { bg: '#FFF3E0', color: '#E8921F', label: '📤 Emitida' };
+      case 'ACEPTADA': return { bg: '#E3F2FD', color: '#2459A8', label: '✅ Aceptada' };
+      case 'ATENDIDA': return { bg: '#E8F5E9', color: '#237A4B', label: '🩺 Atendida' };
+      case 'RECHAZADA': return { bg: '#FFEBEE', color: '#BA2E45', label: '❌ Rechazada' };
+      default: return { bg: '#F5F5F5', color: '#5A5048', label: estado };
     }
   };
 
@@ -86,7 +75,7 @@ export default function ReferenciasListPage() {
             </button>
             <div>
               <h1 style={{ color: "#1A1510", fontSize: 18, fontWeight: 700, margin: 0 }}>Referencias Médicas</h1>
-              <p style={{ color: "#5A5048", fontSize: 12, margin: "4px 0 0 0" }}>Interconsultas, derivaciones y contra-referencias</p>
+              <p style={{ color: "#5A5048", fontSize: 12, margin: "4px 0 0 0" }}>Sistema de Referencia y Contrarreferencia (SRC)</p>
             </div>
           </div>
           <button
@@ -100,21 +89,13 @@ export default function ReferenciasListPage() {
 
       {/* Filtros */}
       <div style={{ padding: "16px 28px", background: "#FDFAF5", borderBottom: "1px solid #DAD4CC", display: "flex", gap: 12 }}>
-        <select value={filtroTipo} onChange={(e) => { setFiltroTipo(e.target.value); setPage(1); }}
-          style={{ padding: "8px 12px", border: "1.5px solid #DAD4CC", borderRadius: 6, fontSize: 13, backgroundColor: "#fff" }}>
-          <option value="">Todos los tipos</option>
-          <option value="INTERCONSULTA">Interconsulta</option>
-          <option value="DERIVACION">Derivación</option>
-          <option value="CONTRARREFERENCIA">Contra-referencia</option>
-        </select>
         <select value={filtroEstado} onChange={(e) => { setFiltroEstado(e.target.value); setPage(1); }}
           style={{ padding: "8px 12px", border: "1.5px solid #DAD4CC", borderRadius: 6, fontSize: 13, backgroundColor: "#fff" }}>
           <option value="">Todos los estados</option>
-          <option value="PENDIENTE">Pendiente</option>
-          <option value="ACEPTADA">Aceptada</option>
-          <option value="COMPLETADA">Completada</option>
-          <option value="RECHAZADA">Rechazada</option>
-          <option value="CANCELADA">Cancelada</option>
+          <option value="EMITIDA">📤 Emitida</option>
+          <option value="ACEPTADA">✅ Aceptada</option>
+          <option value="ATENDIDA">🩺 Atendida</option>
+          <option value="RECHAZADA">❌ Rechazada</option>
         </select>
       </div>
 
@@ -122,6 +103,11 @@ export default function ReferenciasListPage() {
       <div style={{ flex: 1, overflowY: "auto", padding: "28px" }}>
         {loading ? (
           <div style={{ textAlign: "center", padding: 40, color: "#5A5048" }}>⏳ Cargando referencias...</div>
+        ) : error ? (
+          <div style={{ textAlign: "center", padding: 40, color: "#BA2E45" }}>
+            <AlertCircle size={32} style={{ marginBottom: 8 }} />
+            <p>{error}</p>
+          </div>
         ) : referencias.length === 0 ? (
           <div style={{ textAlign: "center", padding: 60, color: "#5A5048" }}>
             <Filter size={48} style={{ opacity: 0.3, marginBottom: 16 }} />
@@ -130,36 +116,36 @@ export default function ReferenciasListPage() {
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             {referencias.map(ref => {
-              const urgenciaStyle = getUrgenciaColor(ref.urgencia);
-              const estadoStyle = getEstadoColor(ref.estado);
+              const estadoStyle = getEstadoStyle(ref.estado);
               
               return (
                 <div key={ref.id_referencia}
                   onClick={() => navigate(`/referencias/${ref.id_referencia}`)}
-                  style={{ padding: 16, background: "#FDFAF5", border: "1px solid #DAD4CC", borderRadius: 10, cursor: "pointer", transition: "all 0.2s" }}>
+                  style={{ padding: 16, background: "#FDFAF5", border: "1px solid #DAD4CC", borderRadius: 10, cursor: "pointer", transition: "all 0.2s" }}
+                  onMouseEnter={(e) => e.currentTarget.style.borderColor = "#2459A8"}
+                  onMouseLeave={(e) => e.currentTarget.style.borderColor = "#DAD4CC"}
+                >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
                     <div>
                       <h3 style={{ fontSize: 14, fontWeight: 600, color: "#1A1510", margin: "0 0 4px 0" }}>
-                        {ref.tipo === 'INTERCONSULTA' ? '🔬' : ref.tipo === 'DERIVACION' ? '🏥' : '↩️'} {ref.tipo}
+                        👤 {ref.paciente_nombre}
                       </h3>
-                      <p style={{ fontSize: 12, color: "#5A5048", margin: 0 }}>Paciente: {ref.paciente_nombre}</p>
+                      <p style={{ fontSize: 12, color: "#5A5048", margin: 0 }}>
+                        Exp: {ref.numero_expediente}
+                      </p>
                     </div>
-                    <div style={{ display: "flex", gap: 8 }}>
-                      <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600, background: urgenciaStyle.bg, color: urgenciaStyle.color }}>
-                        {urgenciaStyle.text}
-                      </span>
-                      <span style={{ padding: "2px 8px", borderRadius: 4, fontSize: 11, fontWeight: 600, background: estadoStyle.bg, color: estadoStyle.color }}>
-                        {ref.estado}
-                      </span>
-                    </div>
+                    <span style={{ padding: "2px 10px", borderRadius: 4, fontSize: 11, fontWeight: 600, background: estadoStyle.bg, color: estadoStyle.color }}>
+                      {estadoStyle.label}
+                    </span>
                   </div>
-                  <p style={{ fontSize: 12, color: "#2C2620", margin: "0 0 4px 0" }}>
-                    <strong>Motivo:</strong> {ref.motivo_referencia}
+                  <p style={{ fontSize: 12, color: "#2C2620", margin: "0 0 8px 0" }}>
+                    <strong>Motivo:</strong> {ref.motivo_referencia?.length > 120 ? ref.motivo_referencia.substring(0, 120) + '...' : ref.motivo_referencia}
                   </p>
-                  <div style={{ display: "flex", gap: 16, fontSize: 11, color: "#5A5048" }}>
+                  <div style={{ display: "flex", gap: 16, fontSize: 11, color: "#5A5048", flexWrap: "wrap" }}>
                     <span>👨‍⚕️ {ref.medico_emisor}</span>
-                    <span>📅 {new Date(ref.fecha_creacion).toLocaleDateString('es-MX')}</span>
-                    {ref.establecimiento_destino && <span>🏥 {ref.establecimiento_destino}</span>}
+                    {ref.especialidad_destino && <span>🏥 → {ref.especialidad_destino}</span>}
+                    {ref.establecimiento_destino && <span>📍 {ref.establecimiento_destino}</span>}
+                    <span>📅 {new Date(ref.fecha_emision).toLocaleDateString('es-MX')}</span>
                   </div>
                 </div>
               );
