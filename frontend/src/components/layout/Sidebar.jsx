@@ -93,23 +93,23 @@ export default function Sidebar() {
 
   const getAllowedFlowItems = () => {
     if (inReferencias) {
-      return new Set(['pacientes', 'consulta', 'referencias'])
+      return new Set(['pacientes', 'consulta', 'referencias', 'documentos'])
     }
 
     if (inConsulta) {
-      return new Set(['pacientes', 'expediente', 'consulta'])
+      return new Set(['pacientes', 'expediente', 'consulta', 'documentos'])
     }
 
     if (inExpediente) {
-      return new Set(['pacientes', 'expediente'])
+      return new Set(['pacientes', 'expediente', 'documentos'])
     }
 
     if (inDocumentos) {
-      return new Set(['pacientes'])
+      return new Set(['pacientes', 'documentos'])
     }
 
     if (inPacientes) {
-      return new Set(['pacientes'])
+      return new Set(['pacientes', 'documentos'])
     }
 
     return null
@@ -161,8 +161,6 @@ export default function Sidebar() {
     if (!activePatientId) return true
 
     if (!allowedFlowItems) return true
-
-    if (item.id === 'documentos') return true
 
     return !allowedFlowItems.has(item.id)
   }

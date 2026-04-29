@@ -38,6 +38,9 @@ import ReferenciasListPage from './pages/references/ReferenciasListaPage';
 import ReferenciaDetallePage from './pages/references/ReferenciasDetallePage';
 import ReferenciasFichaPage from './pages/references/ReferenciasFichaPage'
 
+// Documentos
+import DocumentosPage from './pages/documentos/DocumentosPage'
+
 
 function App() {
   return (
@@ -75,6 +78,10 @@ function App() {
                   <Route path="referencias/:id" element={<ReferenciaDetallePage />} />
                   <Route path="referencias/nueva" element={<ReferenciasFichaPage />} />
                   <Route path="referencias/:id/editar" element={<ReferenciasFichaPage />} />
+                </Route>
+
+                <Route element={<ProtectedRoute module="ESTUDIOS" />}>
+                  <Route path="documentos" element={<DocumentosPage />} />
                 </Route>
 
                 {/* Sistema (Protección por Módulo) */}
