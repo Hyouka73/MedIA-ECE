@@ -274,7 +274,7 @@ const AuditoriaPage = () => {
     setLoading(true);
     try {
       const res = await apiClient.get('/auditoria', {
-        params: { page: 1, limit: 1000 },
+        params: { page: 1, limit: 5000 },
         headers: { Authorization: `Bearer ${token}` }
       });
       setLogs(getItemsFromResponse(res?.data));
