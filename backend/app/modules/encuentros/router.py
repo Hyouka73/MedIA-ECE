@@ -22,7 +22,7 @@ from app.schemas.notas_soap import (
     NotaSOAPCreateIn, NotaSOAPUpdateIn, NotaSOAPOut,
     NotaEnmiendaCreateIn, NotaEnmiendaOut, CIE10ListOut
 )
-)
+
 import logging
 from pydantic import BaseModel
 
@@ -278,22 +278,22 @@ async def create_encuentro(
                 detail="Error al guardar el diagnóstico CIE-10 del encuentro"
             )
 
-        await db.execute(
-            text("""
-                INSERT INTO encuentros_clinicos 
-                (id_encuentro, id_paciente, id_medico, id_establecimiento, id_especialidad, fecha_inicio, motivo_consulta)
-                VALUES (:id, :pac, :med, :est, :esp, :fecha, :mot)
-            """),
-            {
-                "id": id_encuentro,
-                "pac": str(id_paciente),
-                "med": current_user["sub"],
-                "est": str(id_establecimiento),
-                "esp": id_especialidad,
-                "fecha": datetime.now(timezone.utc),
-                "mot": motivo_consulta
-            }
-        )
+        # await db.execute(
+        #     text("""
+        #         INSERT INTO encuentros_clinicos 
+        #         (id_encuentro, id_paciente, id_medico, id_establecimiento, id_especialidad, fecha_inicio, motivo_consulta)
+        #         VALUES (:id, :pac, :med, :est, :esp, :fecha, :mot)
+        #     """),
+        #     {
+        #         "id": id_encuentro,
+        #         "pac": str(id_paciente),
+        #         "med": current_user["sub"],
+        #         "est": str(id_establecimiento),
+        #         "esp": id_especialidad,
+        #         "fecha": datetime.now(timezone.utc),
+        #         "mot": motivo_consulta
+        #     }
+        # )
         await db.commit()
 
         return {

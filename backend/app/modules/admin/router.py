@@ -13,9 +13,11 @@ from app.schemas.admin_schemas import (
 )
 # Importamos desde el archivo central corregido
 from app.models.auth import User, Role, Establecimiento, Persona
+import logging  #Importacion de logging. A ver que pasa
 
 router = APIRouter()
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+logger = logging.getLogger(__name__)
 
 # ── GET /usuarios ──────────────────────────────────────────────────────
 @router.get("/usuarios", response_model=List[UsuarioOut])
@@ -97,7 +99,7 @@ async def update_usuario(
 
     except Exception as e:
         await db.rollback()
-        import traceback
+        import traceback 
         logger.error(f"Error en update_usuario: {traceback.format_exc()}")
         raise HTTPException(status_code=400, detail="Error al actualizar el usuario")
 
@@ -122,3 +124,60 @@ async def list_roles(
     """Lista de roles disponibles en el sistema"""
     res = await db.execute(select(Role))
     return res.scalars().all()
+
+
+# creacion de usuarios
+
+# @router.post("/usuarios", response_model=UsuarioOut, status_code=status.HTTP_201_CREATED)
+# async def create_usuario(
+#     data: UsuarioCreate,
+#     db: AsyncSession = Depends(get_db),
+#     current_user: dict = Depends(require_role("SUPERADMIN"))
+# ):
+#     """Crea un nuevo usuario con rol y persona"""
+    
+#     # 1. Validación de email único
+#     res = await db.execute(select(User).where(User.email == data.email))
+#     if res.scalar_one_or_none():
+#         raise HTTPException(status_code=400, detail="El email ya está registrado")
+
+#     # 2. Validación de rol existente
+#     rol_res = await db.execute(select(Role).where(Role.nombre == data.rol))
+#     rol_obj = rol_res.scalar_one_or_none()
+#     if not rol_obj:
+#         raise HTTPException(status_code=400, detail=f"El rol '{data.rol}' no existe")
+
+#     try:
+#         # 3. Creación de persona
+#         persona = Persona(
+#             nombre=data.nombre,
+#             primer_apellido=data.primer_apellido,
+#             segundo_apellido=data.segundo_apellido
+#         )
+#         db.add(persona)
+#         await db.flush()  # Obtenemos id_persona sin terminar la transacción
+
+#         # 4. Creación de usuario (Asegúrate de importar uuid)
+#         usuario = User(
+#             id_usuario=uuid.uuid4(),  # <--- Generamos el UUID manualmente
+#             email=data.email,
+#             password_hash=pwd_context.hash(data.password),
+#             id_rol=rol_obj.id_rol,
+#             id_persona=persona.id_persona,
+#             id_establecimiento=data.id_establecimiento, # <--- ¡No olvides este!
+#             cedula_profesional=data.cedula_profesional,
+#             activo=True
+#         )
+#         db.add(usuario)
+        
+#         # 5. Commit único para ambas tablas
+#         await db.commit()
+        
+#         # 6. Carga de relaciones para el response_model
+#         await db.refresh(usuario, attribute_names=["persona", "rol"]) 
+#         return UsuarioOut.model_validate(usuario)
+
+#     except Exception as e:
+#         await db.rollback()
+#         logger.error(f"Error al crear usuario: {str(e)}")
+#         raise HTTPException(status_code=500, detail="Error interno al procesar la creación")
