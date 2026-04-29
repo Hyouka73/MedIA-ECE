@@ -300,7 +300,9 @@ useEffect(() => {
                             📋 Ver
                           </button>
                           <button 
-                            onClick={() => navigate(`/consulta?id_paciente=${paciente.id}`)}
+                            onClick={() => navigate(`/consulta/nueva?id_paciente=${paciente.id_paciente}`)}
+                            //`/consulta/nueva?id_paciente=${paciente.id_paciente}`
+                            //`/consulta?id_paciente=${paciente.id}`
                             className="px-3 py-1 text-xs bg-primary text-white rounded hover:bg-primary-dark transition-colors"
                           >
                             + Consulta
