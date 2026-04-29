@@ -39,6 +39,12 @@ export const getResultado = (item) => {
   if (!raw) return 'ABIERTO';
   if (raw === 'EN_PROCESO') return 'ENINVESTIGACION';
   if (raw === 'RESUELTO') return 'CERRADO';
+  
+  // Si es un resultado técnico (EXITOSO, DENEGADO, etc) y no un estado de gestión,
+  // lo tratamos como ABIERTO para permitir la transición en el flujo de incidentes.
+  const estadosGestion = ['ABIERTO', 'ENINVESTIGACION', 'ERRADICADO', 'CERRADO'];
+  if (!estadosGestion.includes(raw)) return 'ABIERTO';
+  
   return raw;
 };
 
@@ -62,7 +68,7 @@ export const getSeveridad = (item) =>
 
 export const esCritico = (item) => {
   const sev = getSeveridad(item);
-  return sev === 'CRITICO' || sev === 'CRITICA';
+  return ['CRITICO', 'CRITICA', 'ALTO'].includes(sev);
 };
 
 export const isActivo = (item) => {

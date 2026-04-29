@@ -32,6 +32,8 @@ class AuditMiddleware(BaseHTTPMiddleware):
             return "VERIFICACION_2FA", "BAJO"
         if "/auth/2fa" in path and status == 401:
             return "2FA_FALLIDO", "MEDIO"
+        if "/auth/2fa" in path and status == 423:
+            return "CUENTA_BLOQUEADA", "ALTO"
         if "/auth/logout" in path:
             return "LOGOUT", "BAJO"
         # Sanitización bloqueó algo
