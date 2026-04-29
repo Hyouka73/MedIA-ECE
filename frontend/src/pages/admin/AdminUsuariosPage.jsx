@@ -11,7 +11,8 @@ import { Spinner } from '../../components/ui/Spinner'
 import { useAuth } from '../../context/AuthContext'
 import {
   fetchUsuarios, crearUsuario, editarUsuario,
-  cambiarEstadoUsuario, forzarPassword
+  cambiarEstadoUsuario, forzarPassword,
+  fetchEstablecimientos, fetchRoles
 } from '../../api/admin_service'
 
 const ROLES = ['MEDICO_GENERAL', 'ESPECIALISTA', 'ENFERMERIA', 'ADMINISTRADOR', 'AUDITOR_SEGURIDAD', 'SUPERADMIN']
@@ -31,10 +32,19 @@ function UsuarioModal({ usuario, token, onClose, onSaved }) {
     email: '',
     rol: '',
     password: '',
+    fecha_nacimiento: '',
+    sexo: '',
     id_establecimiento: '',
   })
+  const [establecimientos, setEstablecimientos] = useState([])
+  const [rolesDisponibles, setRolesDisponibles] = useState([])
   const [saving, setSaving] = useState(false)
   const [error, setError]   = useState('')
+
+  useEffect(() => {
+    fetchEstablecimientos(token).then(setEstablecimientos).catch(console.error)
+    fetchRoles(token).then(setRolesDisponibles).catch(console.error)
+  }, [token])
 
   // Sincronizar el formulario cuando se abre el modal para editar
   useEffect(() => {
@@ -46,6 +56,8 @@ function UsuarioModal({ usuario, token, onClose, onSaved }) {
         email: usuario.email || '',
         rol: usuario.rol || '',
         password: '', 
+        fecha_nacimiento: usuario.fecha_nacimiento || '',
+        sexo: usuario.sexo || '',
         id_establecimiento: usuario.id_establecimiento || '',
       })
     }
@@ -56,12 +68,23 @@ function UsuarioModal({ usuario, token, onClose, onSaved }) {
   async function handleSubmit(e) {
     e.preventDefault()
     setSaving(true); setError('')
+    
+    // Clean empty strings to null to prevent FastAPI 422 UUID parsing errors
+    const payload = { ...form }
+    if (!payload.id_establecimiento) payload.id_establecimiento = null
+    if (!payload.segundo_apellido) payload.segundo_apellido = null
+    
     try {
-      if (isEdit) await editarUsuario(usuario.id_usuario, form, token)
-      else         await crearUsuario(form, token)
+      if (isEdit) await editarUsuario(usuario.id_usuario, payload, token)
+      else         await crearUsuario(payload, token)
       onSaved()
     } catch (err) {
-      setError(err.response?.data?.detail || 'Error al guardar los cambios.')
+      const detail = err.response?.data?.detail;
+      if (Array.isArray(detail)) {
+        setError(detail[0].msg || 'Error de validación en los datos ingresados.')
+      } else {
+        setError(detail || 'Error al guardar los cambios.')
+      }
     } finally { setSaving(false) }
   }
 
@@ -82,8 +105,37 @@ function UsuarioModal({ usuario, token, onClose, onSaved }) {
           value={form.rol}
           onChange={set('rol')}
           required
-          options={ROLES.map(r => ({ value: r, label: r.replace(/_/g, ' ') }))}
+          options={rolesDisponibles.map(r => ({ value: r.codigo, label: r.nombre }))}
           placeholder="Seleccionar rol"
+        />
+
+        <Select
+          label="Establecimiento Asignado"
+          value={form.id_establecimiento}
+          onChange={set('id_establecimiento')}
+          options={establecimientos.map(e => ({ value: e.id_establecimiento, label: `${e.clues} - ${e.nombre}` }))}
+          placeholder="Sin establecimiento (Global)"
+        />
+
+        <Input 
+          label="Fecha de Nacimiento *" 
+          value={form.fecha_nacimiento} 
+          onChange={set('fecha_nacimiento')} 
+          required 
+          type="date" 
+        />
+
+        <Select
+          label="Sexo *"
+          value={form.sexo}
+          onChange={set('sexo')}
+          required
+          options={[
+            { value: 'M', label: 'Hombre (Masculino)' },
+            { value: 'F', label: 'Mujer (Femenino)' },
+            { value: 'X', label: 'No especificado' },
+          ]}
+          placeholder="Seleccionar sexo"
         />
 
         {!isEdit && (
@@ -178,8 +230,8 @@ export default function AdminUsuariosPage() {
           <thead>
             <tr className="border-b border-[#DAD4CC] bg-[#F5F2EC]/50">
               <th className="text-left px-6 py-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Nombre del Personal</th>
-              <th className="text-left px-6 py-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Contacto</th>
-              <th className="text-left px-6 py-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Rol</th>
+              <th className="text-left px-6 py-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Datos Civiles</th>
+              <th className="text-left px-6 py-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Contacto / Rol</th>
               <th className="text-left px-6 py-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Estatus</th>
               <th className="text-center px-6 py-4 text-[11px] font-bold text-[#64748B] uppercase tracking-wider">Acciones</th>
             </tr>
@@ -204,10 +256,18 @@ export default function AdminUsuariosPage() {
                     <div className="font-bold text-[#1E293B]">{displayNombre}</div>
                     {u.nombre && <div className="text-[10px] text-[#94A3B8] font-mono">UUID: {u.id_usuario?.substring(0,8)}</div>}
                   </td>
-                  <td className="px-6 py-4 text-[#64748B]">{u.email}</td>
                   <td className="px-6 py-4">
-                    <Badge variant={u.rol === 'SUPERADMIN' || u.rol === 'OMNIADMIN' ? 'error' : 'blue'}>
-                      {u.rol ? u.rol.replace(/_/g, ' ') : 'SIN ROL'}
+                    <div className="text-xs text-[#64748B]">
+                      <span className="font-bold">Sexo:</span> {u.sexo === 'M' ? 'Hombre' : u.sexo === 'F' ? 'Mujer' : 'N/E'}
+                    </div>
+                    <div className="text-xs text-[#64748B]">
+                      <span className="font-bold">Nac:</span> {u.fecha_nacimiento}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4">
+                    <div className="text-xs text-[#64748B] mb-1">{u.email}</div>
+                    <Badge variant={u.rol_nombre === 'Super Administrador' || u.rol_nombre === 'Omni Administrador' ? 'error' : 'blue'}>
+                      {u.rol_nombre || 'SIN ROL'}
                     </Badge>
                   </td>
                   <td className="px-6 py-4">
