@@ -156,32 +156,32 @@ export default function AdminDashboardPage() {
     {
       to: '/admin/usuarios',
       icon: Users,
-      label: 'Gestionar usuarios',
-      desc: 'Alta, edición, activación y control de cuentas'
+      label: 'Gestionar Personal',
+      desc: 'Alta, edición y control de cuentas institucionales'
     },
     {
       to: '/admin/establecimientos',
       icon: Building2,
-      label: 'Unidades médicas',
-      desc: 'Catálogo institucional de establecimientos'
+      label: 'Unidades Médicas',
+      desc: 'Catálogo de clínicas y niveles de atención'
+    },
+    {
+      to: '/admin/especialidades',
+      icon: Layers,
+      label: 'Oferta de Especialidades',
+      desc: 'Asignación de servicios médicos por unidad'
     },
     {
       to: '/admin/roles',
       icon: ShieldCheck,
-      label: 'Roles y permisos',
-      desc: 'Gobernanza de acceso y perfiles'
+      label: 'Matriz de Permisos',
+      desc: 'Gobernanza de acceso y perfiles forenses'
     },
     {
-      to: '/admin/catalogos',
-      icon: Layers,
-      label: 'Catálogos clínicos',
-      desc: 'INEGI, lenguas, CIE-10 y medicamentos'
-    },
-    {
-      to: '/admin/auditoria',
+      to: '/audit/logs',
       icon: FileSearch,
-      label: 'Auditoría forense',
-      desc: 'Bitácora, incidentes y trazabilidad legal'
+      label: 'Auditoría Forense',
+      desc: 'Bitácora e incidentes de seguridad'
     }
   ]
 
@@ -282,35 +282,35 @@ export default function AdminDashboardPage() {
               className="flex items-center justify-between rounded-lg border border-[#DAD4CC] bg-[#FDFAF5] px-4 py-3 hover:border-[#1B4F8A] transition-colors"
             >
               <div>
-                <p className="text-sm font-semibold text-[#1E293B]">Administrar usuarios</p>
+                <p className="text-sm font-semibold text-[#1E293B]">Registrar Nuevo Personal</p>
                 <p className="text-xs text-[#64748B]">
-                  Revisar altas, edición y restricciones
+                  Alta de médicos, enfermeras y administrativos
                 </p>
               </div>
               <ArrowRight size={16} className="text-[#64748B]" />
             </Link>
 
             <Link
-              to="/admin/catalogos"
+              to="/admin/especialidades"
               className="flex items-center justify-between rounded-lg border border-[#DAD4CC] bg-[#FDFAF5] px-4 py-3 hover:border-[#1B4F8A] transition-colors"
             >
               <div>
-                <p className="text-sm font-semibold text-[#1E293B]">Configurar catálogos</p>
+                <p className="text-sm font-semibold text-[#1E293B]">Oferta Médica</p>
                 <p className="text-xs text-[#64748B]">
-                  Estados, municipios, localidades, lenguas y catálogos clínicos
+                  Configurar especialidades disponibles por unidad
                 </p>
               </div>
               <ArrowRight size={16} className="text-[#64748B]" />
             </Link>
 
             <Link
-              to="/admin/auditoria"
+              to="/audit/logs"
               className="flex items-center justify-between rounded-lg border border-[#DAD4CC] bg-[#FDFAF5] px-4 py-3 hover:border-[#1B4F8A] transition-colors"
             >
               <div>
-                <p className="text-sm font-semibold text-[#1E293B]">Abrir auditoría forense</p>
+                <p className="text-sm font-semibold text-[#1E293B]">Abrir Auditoría Forense</p>
                 <p className="text-xs text-[#64748B]">
-                  Revisar bitácora, incidentes y trazabilidad legal
+                  Revisar bitácora e incidentes de seguridad
                 </p>
               </div>
               <ArrowRight size={16} className="text-[#64748B]" />
@@ -319,14 +319,7 @@ export default function AdminDashboardPage() {
         </div>
       </div>
 
-      <div>
-        <h2 className="text-base font-semibold text-[#1E293B] mb-3">Módulos de gestión</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          {quickLinks.map((item) => (
-            <QuickLink key={item.to} {...item} />
-          ))}
-        </div>
-      </div>
+      {/* Sección de Módulos eliminada por redundancia con QuickLinks y Sidebar */}
     </div>
   )
 }
