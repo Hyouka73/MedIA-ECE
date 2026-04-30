@@ -21,6 +21,11 @@ export default function ProtectedRoute({ module = null, action = 'puede_leer' })
 
     // Verificación RBAC fina por módulo usando la matriz dinámica del backend
     if (module && user) {
+        // Bypass para Roles Administrativos Globales
+        if (user.rol === 'SUPERADMIN' || user.rol === 'OMNIADMIN') {
+            return <Outlet />;
+        }
+
         const hasPermission = canAccess(user.permisos, module, action);
         
         if (!hasPermission) {

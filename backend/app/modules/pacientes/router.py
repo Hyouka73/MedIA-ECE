@@ -290,7 +290,10 @@ async def get_paciente(
     try:
         stmt = (
             select(Paciente)
-            .options(joinedload(Paciente.persona))  
+            .options(
+                joinedload(Paciente.persona),
+                selectinload(Paciente.persona, Persona.lengua)
+            )  
             .where(
                 Paciente.id_paciente == id_paciente,
                 Paciente.eliminado_en == None
@@ -319,10 +322,11 @@ async def get_paciente(
                 "calle_numero": persona.calle_numero,
                 "referencia_geografica": persona.referencia_geografica,
                 "id_lengua_materna": str(persona.id_lengua_materna) if persona.id_lengua_materna else None,
+                "nombre_lengua": persona.lengua.nombre if hasattr(persona, 'lengua') and persona.lengua else None,
                 "telefono": persona.telefono,
                 "url_foto": persona.url_foto,
                 "fecha_registro": persona.fecha_registro.isoformat() if persona.fecha_registro else None,
-                "alerta_barrera_linguistica": bool(persona.id_lengua_materna)
+                "alerta_barrera_linguistica": bool(persona.id_lengua_materna and persona.lengua and persona.lengua.nombre.lower() != 'español')
             }
         
         return {
@@ -359,7 +363,10 @@ async def get_expediente(
 
         stmt = (
             select(Paciente)
-            .options(joinedload(Paciente.persona))
+            .options(
+                joinedload(Paciente.persona),
+                selectinload(Paciente.persona, Persona.lengua)
+            )
             .where(
                 Paciente.id_paciente == id_paciente,
                 Paciente.eliminado_en == None
@@ -387,10 +394,11 @@ async def get_expediente(
                 "calle_numero": persona.calle_numero,
                 "referencia_geografica": persona.referencia_geografica,
                 "id_lengua_materna": persona.id_lengua_materna,
+                "nombre_lengua": persona.lengua.nombre if hasattr(persona, 'lengua') and persona.lengua else None,
                 "telefono": persona.telefono,
                 "url_foto": persona.url_foto,
                 "fecha_registro": persona.fecha_registro.isoformat() if persona.fecha_registro else None,
-                "alerta_barrera_linguistica": bool(persona.id_lengua_materna)
+                "alerta_barrera_linguistica": bool(persona.id_lengua_materna and persona.lengua and persona.lengua.nombre.lower() != 'español')
             }
 
         query_alergias = text("""
@@ -933,7 +941,7 @@ async def get_antecedentes(
 async def add_antecedente_heredofamiliar(
     id_paciente: UUID,
     antecedente_in: dict,
-    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
+    current_user: dict = Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA", "RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """POST /pacientes/{id}/antecedentes/heredofamiliares — Registra antecedente hereditario"""
@@ -1022,7 +1030,7 @@ async def add_antecedente_heredofamiliar(
 async def add_antecedente_patologico(
     id_paciente: UUID,
     antecedente_in: dict,
-    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
+    current_user: dict = Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA", "RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """POST /pacientes/{id}/antecedentes/patologicos — Registra antecedente patológico personal"""
@@ -1086,7 +1094,7 @@ async def add_antecedente_patologico(
 async def add_antecedente_no_patologico(
     id_paciente: UUID,
     antecedente_in: dict,
-    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
+    current_user: dict = Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA", "RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """POST /pacientes/{id}/antecedentes/no-patologicos — Registra determinante social de la salud"""
@@ -1170,7 +1178,7 @@ async def add_antecedente_no_patologico(
 async def add_antecedente_ginecoobstetrico(
     id_paciente: UUID,
     antecedente_in: dict,
-    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
+    current_user: dict = Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA", "RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """POST /pacientes/{id}/antecedentes/ginecoobstetricos — Solo pacientes con sexo='F'. Registra datos reproductivos"""
@@ -1408,7 +1416,7 @@ async def get_inmunizaciones(
 async def add_inmunizacion(
     id_paciente: UUID,
     inmunizacion_in: dict,
-    current_user: dict = Depends(require_role(["RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
+    current_user: dict = Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA", "RECEPCIONISTA", "ADMINISTRADOR", "SUPERADMIN", "OMNIADMIN"])),
     db: AsyncSession = Depends(get_db)
 ):
     """POST /pacientes/{id}/inmunizaciones — Registra vacuna aplicada conforme al Esquema Nacional"""

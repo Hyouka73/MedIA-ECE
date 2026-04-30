@@ -9,63 +9,85 @@ import {
   ShieldAlert,
   Settings,
   AlertCircle,
+  X,
+  User,
 } from 'lucide-react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { Avatar } from '../ui/Avatar'
 import { useAuth } from '../../context/AuthContext'
 import apiClient from '../../api/client'
 
 const NAV_ITEMS = [
-    { id: 'dashboard', icon: Home, label: 'Dashboard', group: 'CLÍNICA', href: '/dashboard', public: true },
-    { id: 'pacientes', icon: Users, label: 'Pacientes', group: 'CLÍNICA', href: '/pacientes', moduleCode: 'PACIENTES' },
+    { id: 'dashboard', icon: Home, label: 'Dashboard', group: 'GLOBAL', href: '/dashboard', public: true },
+    { id: 'pacientes', icon: Users, label: 'Pacientes', group: 'GLOBAL', href: '/pacientes', moduleCode: 'PACIENTES', hideForRoles: ['AUDITOR_SEGURIDAD'] },
+    { id: 'referencias', icon: Send, label: 'Referencias', group: 'GLOBAL', href: '/referencias', moduleCode: 'ENCUENTROS', hideForRoles: ['ENFERMERIA', 'RECEPCIONISTA', 'ADMINISTRADOR', 'AUDITOR_SEGURIDAD'] },
     
-    // Rutas que requieren flujo de paciente marcadas con requiresPatientFlow
-    { id: 'expediente', icon: FileText, label: 'Expediente', group: 'CLÍNICA', href: '/expediente', moduleCode: 'EXPEDIENTE', requiresPatientFlow: true },
-    { id: 'consulta', icon: ClipboardList, label: 'Consulta', group: 'CLÍNICA', href: '/consulta', moduleCode: 'ENCUENTROS', requiresPatientFlow: true, hideForRoles: ['ENFERMERIA'] },
-    { id: 'referencias', icon: Send, label: 'Referencias', group: 'CLÍNICA', href: '/referencias', moduleCode: 'ENCUENTROS', requiresPatientFlow: false },
-    { id: 'documentos', icon: FileBox, label: 'Documentos', group: 'CLÍNICA', href: '/documentos', moduleCode: 'ESTUDIOS', requiresPatientFlow: true },
+    // Rutas de Contexto de Paciente
+    { id: 'expediente', icon: FileText, label: 'Expediente', group: 'PACIENTE', href: '/expediente', moduleCode: 'EXPEDIENTE', requiresPatientFlow: true },
+    { id: 'consulta', icon: ClipboardList, label: 'Consulta', group: 'PACIENTE', href: '/consulta', moduleCode: 'ENCUENTROS', requiresPatientFlow: true, hideForRoles: ['ENFERMERIA', 'RECEPCIONISTA', 'ADMINISTRADOR', 'AUDITOR_SEGURIDAD'] },
+    { id: 'documentos', icon: FileBox, label: 'Estudios/Docs', group: 'PACIENTE', href: '/documentos', moduleCode: 'ESTUDIOS', requiresPatientFlow: true, hideForRoles: ['RECEPCIONISTA', 'ADMINISTRADOR', 'AUDITOR_SEGURIDAD'] },
     
-    { id: 'auditoria', icon: ShieldAlert, label: 'Auditoría', group: 'SISTEMA', href: '/audit/logs', moduleCode: 'AUDITORIA' },
-    { id: 'admin', icon: Settings, label: 'Administración', group: 'SISTEMA', href: '/admin', moduleCode: 'ADMIN' },
+    { id: 'auditoria', icon: ShieldAlert, label: 'Auditoría', group: 'SISTEMA', href: '/audit/logs', moduleCode: 'AUDITORIA', hideForRoles: ['MEDICO_GENERAL', 'ESPECIALISTA', 'ENFERMERIA', 'RECEPCIONISTA', 'ADMINISTRADOR'] },
+    { id: 'admin', icon: Settings, label: 'Administración', group: 'SISTEMA', href: '/admin', moduleCode: 'ADMIN', hideForRoles: ['MEDICO_GENERAL', 'ESPECIALISTA', 'ENFERMERIA', 'RECEPCIONISTA', 'AUDITOR_SEGURIDAD'] },
 ]
 
 export default function Sidebar() {
   const location = useLocation()
+  const navigate = useNavigate()
   const { pathname, search } = location
   const { user } = useAuth()
   const [hasCritical, setHasCritical] = useState(false)
+  const [activePatientData, setActivePatientData] = useState(null)
+
+  // Extraer ID de paciente de la URL
+  const query = new URLSearchParams(search)
+  const queryPacienteId = query.get('id_paciente')
+  const expedienteMatch = pathname.match(/^\/expediente\/([^/]+)/)
+  const editarPacienteMatch = pathname.match(/^\/pacientes\/([^/]+)\/editar$/)
+
+  const activePatientId = queryPacienteId || expedienteMatch?.[1] || editarPacienteMatch?.[1] || null
 
   useEffect(() => {
     const checkCritical = async () => {
-      // Usar permisos en lugar de roles fijos
       if (!user || !user.permisos?.AUDITORIA?.puede_leer) return
-
       try {
         const res = await apiClient.get('/auditoria/stats')
         setHasCritical(res.data.criticos > 0)
       } catch (e) {
-        if (e.response?.status !== 401) {
-          console.error('Error en polling de seguridad:', e)
-        }
+        if (e.response?.status !== 401) console.error('Error en polling de seguridad:', e)
       }
     }
-
     checkCritical()
     const timer = setInterval(checkCritical, 60000)
     return () => clearInterval(timer)
   }, [user])
 
+  useEffect(() => {
+    if (activePatientId) {
+      apiClient.get(`/pacientes/${activePatientId}`)
+        .then(res => {
+          const p = res.data.data
+          setActivePatientData({
+            id: p.id_paciente,
+            nombre: `${p.persona.nombre} ${p.persona.primer_apellido}`,
+            foto: p.persona.url_foto
+          })
+        })
+        .catch(() => setActivePatientData({ id: activePatientId, nombre: 'Paciente' }))
+    } else {
+      setActivePatientData(null)
+    }
+  }, [activePatientId])
+
   const filterItems = (group) => {
     return NAV_ITEMS.filter((item) => {
       if (item.group !== group) return false
       
-      // El Dashboard es público para cualquier usuario autenticado
+      // SUPERADMIN y OMNIADMIN tienen acceso total por definición
+      if (user?.rol === 'SUPERADMIN' || user?.rol === 'OMNIADMIN') return true
+
       if (item.public) return true
-
-      // Ocultar elementos específicos por rol si es necesario
       if (item.hideForRoles && user && item.hideForRoles.includes(user.rol)) return false
-
-      // Lógica de privilegios mínimos: Consultar matriz de permisos cargada en AuthContext
       if (!user || !user.permisos) return false
       
       const modulePerms = user.permisos[item.moduleCode]
@@ -73,229 +95,152 @@ export default function Sidebar() {
     })
   }
 
-  const itemsClinica = filterItems('CLÍNICA')
-  const itemsSistema = filterItems('SISTEMA')
-
-  const query = new URLSearchParams(search)
-  const queryPacienteId = query.get('id_paciente')
-
-  const expedienteMatch = pathname.match(/^\/expediente\/([^/]+)/)
-  const editarPacienteMatch = pathname.match(/^\/pacientes\/([^/]+)\/editar$/)
-
-  const activePatientId =
-    queryPacienteId ||
-    expedienteMatch?.[1] ||
-    editarPacienteMatch?.[1] ||
-    null
-
-  const inPacientes = pathname.startsWith('/pacientes')
-  const inExpediente = /^\/expediente\/[^/]+/.test(pathname)
-  const inConsulta = pathname.startsWith('/consulta/nueva')
-  const inReferencias = pathname.startsWith('/referencias')
-  const inDocumentos = pathname.startsWith('/documentos')
-
-  const getAllowedFlowItems = () => {
-    if (inReferencias) {
-      return new Set(['pacientes', 'consulta', 'referencias', 'documentos'])
-    }
-
-    if (inConsulta) {
-      return new Set(['pacientes', 'expediente', 'consulta', 'documentos'])
-    }
-
-    if (inExpediente) {
-      return new Set(['pacientes', 'expediente', 'documentos'])
-    }
-
-    if (inDocumentos) {
-      return new Set(['pacientes', 'documentos'])
-    }
-
-    if (inPacientes) {
-      return new Set(['pacientes', 'documentos'])
-    }
-
-    return null
-  }
-
-  const allowedFlowItems = getAllowedFlowItems()
-
   const buildHref = (item) => {
     if (!item.requiresPatientFlow) return item.href
-
     switch (item.id) {
-      case 'expediente':
-        return activePatientId ? `/expediente/${activePatientId}` : '/expediente'
-
-      case 'consulta':
-        return activePatientId ? `/consulta/nueva?id_paciente=${activePatientId}` : '/consulta/nueva'
-
-      case 'referencias':
-        return activePatientId ? `/referencias?id_paciente=${activePatientId}` : '/referencias'
-
-      case 'documentos':
-        return activePatientId ? `/documentos?id_paciente=${activePatientId}` : '/documentos'
-
-      default:
-        return item.href
+      case 'expediente': return `/expediente/${activePatientId}`
+      case 'consulta': return `/consulta/nueva?id_paciente=${activePatientId}`
+      case 'documentos': return `/documentos?id_paciente=${activePatientId}`
+      default: return item.href
     }
   }
 
   const isItemActive = (item) => {
-    switch (item.id) {
-      case 'pacientes':
-        return pathname.startsWith('/pacientes')
-      case 'expediente':
-        return /^\/expediente\/[^/]+/.test(pathname)
-      case 'consulta':
-        return pathname.startsWith('/consulta/nueva')
-      case 'referencias':
-        return pathname.startsWith('/referencias')
-      case 'documentos':
-        return pathname.startsWith('/documentos')
-      default:
-        return pathname.startsWith(item.href)
-    }
-  }
-
-  const isItemDisabled = (item) => {
-    if (!item.requiresPatientFlow) return false
-
-    if (!activePatientId) return true
-
-    if (!allowedFlowItems) return true
-
-    return !allowedFlowItems.has(item.id)
+    if (item.id === 'pacientes') return pathname.startsWith('/pacientes') && !activePatientId
+    if (item.id === 'expediente') return pathname.startsWith('/expediente')
+    if (item.id === 'consulta') return pathname.startsWith('/consulta')
+    return pathname.startsWith(item.href)
   }
 
   return (
-    <aside className="w-[220px] bg-sidebar text-white flex-shrink-0 flex flex-col h-full transition-all border-r border-sidebar-hover hidden md:flex">
+    <aside className="w-[230px] bg-sidebar text-white flex-shrink-0 flex flex-col h-full transition-all border-r border-sidebar-hover hidden md:flex">
+      {/* Header Logo */}
       <div className="h-14 flex items-center px-4 font-bold text-lg border-b border-sidebar-hover">
         <span className="text-white">
           Med<span className="text-primary-300">IA</span>
         </span>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-4">
-        {itemsClinica.length > 0 && (
-          <>
-            <div className="px-3 mb-2 text-xs font-semibold text-gray-400 tracking-wider uppercase">
-              Clínica
+      <nav className="flex-1 overflow-y-auto py-4 scrollbar-hide">
+        {/* GLOBAL SECTION */}
+        <div className="px-3 mb-6">
+          <div className="px-2 mb-2 text-xs font-semibold text-gray-400 tracking-wider uppercase">
+            Navegación
+          </div>
+          <ul className="space-y-1">
+            {filterItems('GLOBAL').map((item) => (
+              <li key={item.id}>
+                <Link
+                  to={item.href}
+                  className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                    isItemActive(item)
+                      ? 'bg-sidebar-hover text-white border-l-4 border-primary'
+                      : 'text-gray-300 hover:bg-sidebar-hover hover:text-white'
+                  }`}
+                >
+                  <item.icon size={18} />
+                  <span className="text-sm font-medium">{item.label}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* PATIENT CONTEXT SECTION */}
+        {activePatientData && (
+          <div className="px-3 mb-6 animate-in fade-in slide-in-from-left-2 duration-300">
+            <div className="px-2 mb-2 flex justify-between items-center">
+              <span className="text-[10px] font-bold text-primary-300 tracking-wider uppercase">
+                Paciente Activo
+              </span>
+              <button 
+                onClick={() => navigate('/pacientes')}
+                className="text-gray-500 hover:text-white transition-colors"
+                title="Cerrar contexto"
+              >
+                <X size={12} />
+              </button>
+            </div>
+            
+            {/* Patient Badge */}
+            <div className="mx-1 mb-3 p-2 bg-sidebar-hover/40 border border-sidebar-hover rounded-lg flex items-center gap-2">
+              <Avatar
+                nombre={activePatientData.nombre}
+                url_foto={activePatientData.foto}
+                className="w-8 h-8 ring-1 ring-primary-300/30"
+              />
+              <div className="min-w-0">
+                <p className="text-[11px] font-bold text-white truncate">{activePatientData.nombre}</p>
+                <p className="text-[9px] text-primary-300 uppercase font-medium">En Atención</p>
+              </div>
             </div>
 
-            <ul className="space-y-1 px-2 mb-6">
-              {itemsClinica.map((item) => {
-                const isActive = isItemActive(item)
-                const isDisabled = isItemDisabled(item)
-                const href = buildHref(item)
-
-                if (isDisabled) {
-                  return (
-                    <li key={item.id}>
-                      <div
-                        className="flex items-center gap-3 px-3 py-2 rounded-md text-gray-500 opacity-50 cursor-not-allowed select-none"
-                        title="Este módulo no está disponible en la etapa actual del flujo"
-                      >
-                        <item.icon size={18} />
-                        <span className="text-sm font-medium">{item.label}</span>
-                      </div>
-                    </li>
-                  )
-                }
-
-                return (
-                  <li key={item.id}>
-                    <Link
-                      to={href}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
-                        isActive
-                          ? 'bg-sidebar-hover text-white border-l-4 border-primary'
-                          : 'text-gray-300 hover:bg-sidebar-hover hover:text-white'
-                      }`}
-                    >
-                      <item.icon size={18} />
-                      <span className="text-sm font-medium">{item.label}</span>
-                    </Link>
-                  </li>
-                )
-              })}
+            <ul className="space-y-1">
+              {filterItems('PACIENTE').map((item) => (
+                <li key={item.id}>
+                  <Link
+                    to={buildHref(item)}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors border-l-4 ${
+                      isItemActive(item)
+                        ? 'bg-sidebar-hover border-primary text-white'
+                        : 'border-transparent text-gray-300 hover:bg-sidebar-hover hover:text-white'
+                    }`}
+                  >
+                    <item.icon size={18} />
+                    <span className="text-sm font-medium">{item.label}</span>
+                  </Link>
+                </li>
+              ))}
             </ul>
-          </>
+          </div>
         )}
 
-        {itemsSistema.length > 0 && (
-          <>
-            <div className="px-3 mb-2 text-xs font-semibold text-gray-400 tracking-wider uppercase">
-              Sistema
-            </div>
+        {/* SYSTEM SECTION */}
+        <div className="px-3 mt-auto">
+          <div className="px-2 mb-2 text-xs font-semibold text-gray-400 tracking-wider uppercase">
+            Sistema
+          </div>
+          <ul className="space-y-1">
+            {filterItems('SISTEMA').map((item) => {
+              const isActive = pathname.startsWith(item.href)
+              const isCriticalAlert = (item.id === 'auditoria') && hasCritical
 
-            <ul className="space-y-1 px-2">
-              {itemsSistema.map((item) => {
-                const isActive = pathname.startsWith(item.href)
-                const isCriticalAlert =
-                  (item.id === 'auditoria' || item.id === 'seguridad') && hasCritical
-
-                return (
-                  <li key={item.id}>
-                    <Link
-                      to={item.href}
-                      className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
-                        isActive
-                          ? 'bg-sidebar-hover text-white border-l-4 border-primary'
-                          : 'text-gray-300 hover:bg-sidebar-hover hover:text-white'
-                      }`}
-                    >
-                      <item.icon
-                        size={18}
-                        className={isCriticalAlert ? 'text-[#DC2626] animate-pulse' : ''}
-                      />
-                      <span
-                        className={`text-sm font-medium ${
-                          isCriticalAlert ? 'text-[#DC2626] font-bold' : ''
-                        }`}
-                      >
-                        {item.label}
-                      </span>
-                    </Link>
-                  </li>
-                )
-              })}
-            </ul>
-          </>
-        )}
+              return (
+                <li key={item.id}>
+                  <Link
+                    to={item.href}
+                    className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                      isActive ? 'bg-sidebar-hover text-white border-l-4 border-primary' : 'text-gray-300 hover:bg-sidebar-hover hover:text-white'
+                    }`}
+                  >
+                    <item.icon size={18} className={isCriticalAlert ? 'text-red-500 animate-pulse' : ''} />
+                    <span className={`text-sm font-medium ${isCriticalAlert ? 'text-red-500 font-bold' : ''}`}>
+                      {item.label}
+                    </span>
+                  </Link>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
       </nav>
 
-      {hasCritical && (
-        <div className="px-4 mb-4">
-          <Link
-            to="/audit/logs"
-            className="bg-[#DC2626] text-white text-[10px] font-black p-2 rounded flex items-center gap-2 animate-pulse uppercase cursor-pointer hover:bg-red-700 transition-colors"
-          >
-            <AlertCircle size={14} />
-            Incidente Crítico Pendiente
-          </Link>
-        </div>
-      )}
-
+      {/* User Footer */}
       <div className="border-t border-sidebar-hover text-white">
         <Link
           to="/perfil"
-          className="p-4 flex flex-col gap-3 hover:bg-sidebar-hover transition-colors block cursor-pointer"
+          className="p-4 flex items-center gap-3 hover:bg-sidebar-hover transition-colors group"
         >
-          <div className="flex items-center gap-3">
-            <Avatar
-              nombre={user?.nombre}
-              url_foto={user?.url_foto}
-              className="w-8 h-8 bg-primary text-xs flex-shrink-0"
-            />
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium truncate text-white">
-                {user?.nombre || 'Usuario'}
-              </p>
-              <p className="text-[10px] text-gray-400 truncate uppercase font-bold tracking-tight">
-                {user?.rol?.replace('_', ' ') || 'INVITADO'}
-              </p>
-            </div>
+          <Avatar
+            nombre={user?.nombre}
+            url_foto={user?.url_foto}
+            className="w-9 h-9 bg-primary"
+          />
+          <div className="min-w-0">
+            <p className="text-sm font-medium truncate text-white">{user?.nombre || 'Usuario'}</p>
+            <p className="text-[10px] text-gray-400 truncate uppercase font-bold tracking-tight">
+              {user?.rol?.replace('_', ' ')}
+            </p>
           </div>
         </Link>
       </div>
