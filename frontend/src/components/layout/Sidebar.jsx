@@ -21,7 +21,7 @@ const NAV_ITEMS = [
     
     // Rutas que requieren flujo de paciente marcadas con requiresPatientFlow
     { id: 'expediente', icon: FileText, label: 'Expediente', group: 'CLÍNICA', href: '/expediente', moduleCode: 'EXPEDIENTE', requiresPatientFlow: true },
-    { id: 'consulta', icon: ClipboardList, label: 'Consulta', group: 'CLÍNICA', href: '/consulta', moduleCode: 'ENCUENTROS', requiresPatientFlow: true },
+    { id: 'consulta', icon: ClipboardList, label: 'Consulta', group: 'CLÍNICA', href: '/consulta', moduleCode: 'ENCUENTROS', requiresPatientFlow: true, hideForRoles: ['ENFERMERIA'] },
     { id: 'referencias', icon: Send, label: 'Referencias', group: 'CLÍNICA', href: '/referencias', moduleCode: 'ENCUENTROS', requiresPatientFlow: false },
     { id: 'documentos', icon: FileBox, label: 'Documentos', group: 'CLÍNICA', href: '/documentos', moduleCode: 'ESTUDIOS', requiresPatientFlow: true },
     
@@ -62,6 +62,9 @@ export default function Sidebar() {
       // El Dashboard es público para cualquier usuario autenticado
       if (item.public) return true
 
+      // Ocultar elementos específicos por rol si es necesario
+      if (item.hideForRoles && user && item.hideForRoles.includes(user.rol)) return false
+
       // Lógica de privilegios mínimos: Consultar matriz de permisos cargada en AuthContext
       if (!user || !user.permisos) return false
       
@@ -93,23 +96,23 @@ export default function Sidebar() {
 
   const getAllowedFlowItems = () => {
     if (inReferencias) {
-      return new Set(['pacientes', 'consulta', 'referencias'])
+      return new Set(['pacientes', 'consulta', 'referencias', 'documentos'])
     }
 
     if (inConsulta) {
-      return new Set(['pacientes', 'expediente', 'consulta'])
+      return new Set(['pacientes', 'expediente', 'consulta', 'documentos'])
     }
 
     if (inExpediente) {
-      return new Set(['pacientes', 'expediente'])
+      return new Set(['pacientes', 'expediente', 'documentos'])
     }
 
     if (inDocumentos) {
-      return new Set(['pacientes'])
+      return new Set(['pacientes', 'documentos'])
     }
 
     if (inPacientes) {
-      return new Set(['pacientes'])
+      return new Set(['pacientes', 'documentos'])
     }
 
     return null
@@ -161,8 +164,6 @@ export default function Sidebar() {
     if (!activePatientId) return true
 
     if (!allowedFlowItems) return true
-
-    if (item.id === 'documentos') return true
 
     return !allowedFlowItems.has(item.id)
   }

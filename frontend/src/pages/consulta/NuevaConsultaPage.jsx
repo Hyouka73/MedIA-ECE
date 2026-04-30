@@ -12,9 +12,10 @@ import {
   Stethoscope,
   UserCircle,
   X,
+  Play
 } from 'lucide-react'
 import { clinicoAPI } from '../../api/clinico'
-
+import { useAuth } from '../../context/AuthContext'
 
 const Field = ({ label, children, error, hint }) => (
   <div>
@@ -33,7 +34,7 @@ const inputCls =
 const textareaCls =
   'w-full px-3 py-2 border border-[#DAD4CC] rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1B4F8A] bg-white resize-none'
 
-const NavButtons = ({ onPrev, onNext, loadingNext, labelNext = 'Continuar', disabledNext = false }) => (
+const NavButtons = ({ onPrev, onNext, loadingNext, labelNext = 'Continuar', disabledNext = false, isSubmit = false }) => (
   <div className="flex justify-between pt-6 border-t border-[#DAD4CC]">
     {onPrev ? (
       <button type="button" onClick={onPrev}
@@ -42,9 +43,10 @@ const NavButtons = ({ onPrev, onNext, loadingNext, labelNext = 'Continuar', disa
       </button>
     ) : <span />}
     <button type="button" onClick={onNext} disabled={loadingNext || disabledNext}
-      className="bg-[#1B4F8A] text-white px-6 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-[#153d6b] disabled:opacity-50 disabled:cursor-not-allowed transition-colors">
+      className={`${isSubmit ? 'bg-[#2D8653] hover:bg-[#236b41]' : 'bg-[#1B4F8A] hover:bg-[#153d6b]'} text-white px-6 py-2 rounded-lg text-sm font-bold flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors`}>
       {loadingNext ? 'Guardando...' : labelNext}
-      {!loadingNext && <ChevronRight size={16} />}
+      {!loadingNext && !isSubmit && <ChevronRight size={16} />}
+      {!loadingNext && isSubmit && <CheckCircle2 size={16} />}
     </button>
   </div>
 )
@@ -52,42 +54,41 @@ const NavButtons = ({ onPrev, onNext, loadingNext, labelNext = 'Continuar', disa
 export default function NuevaConsultaPage() {
   const [searchParams] = useSearchParams()
   const idPaciente = searchParams.get('id_paciente')
+  const paramIdEncuentro = searchParams.get('id_encuentro')
   const navigate = useNavigate()
+  const { user } = useAuth()
 
-  const [encuentroId, setEncuentroId]       = useState(null)
-  const [currentStep, setCurrentStep]       = useState(1)
+  const [encuentroId, setEncuentroId] = useState(paramIdEncuentro || null)
+  const [currentStep, setCurrentStep] = useState(paramIdEncuentro ? 2 : 0) // 0 = Iniciar
   const [pasosCompletados, setPasosCompletados] = useState([])
-  const [loading, setLoading]               = useState(false)
-  const [errorGlobal, setErrorGlobal]       = useState('')
-  const [cieQuery, setCieQuery]             = useState('')
-  const [cieResultados, setCieResultados]   = useState([])
-  const [cieLoading, setCieLoading]         = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [errorGlobal, setErrorGlobal] = useState('')
+  const [cieQuery, setCieQuery] = useState('')
+  const [cieResultados, setCieResultados] = useState([])
+  const [cieLoading, setCieLoading] = useState(false)
+
+  const [signosReadOnly, setSignosReadOnly] = useState(false)
 
   const [formData, setFormData] = useState({
-    motivo_consulta:    '',
-    sintomas:           '',
-    peso:               '',
-    talla:              '',
-    tension_sistolica:  '',
-    tension_diastolica: '',
-    fc:                 '',
-    temp:               '',
-    spo2:               '',
-    exploracion_general:'',
-    cabeza_cuello:      '',
-    torax:              '',
-    abdomen:            '',
-    extremidades:       '',
-    diagnosticos:       [],
-    plan_terapeutico:   '',
-    prescripciones:     '',
+    motivo_consulta: '',
+    // Signos
+    peso: '', talla: '', tension_sistolica: '', tension_diastolica: '', fc: '', temp: '', spo2: '',
+    // Subjetivo
+    sintomas: '',
+    // Objetivo
+    exploracion_general: '', cabeza_cuello: '', torax: '', abdomen: '', extremidades: '',
+    // Análisis
+    diagnosticos: [],
+    // Plan
+    plan_terapeutico: '', prescripciones: '',
   })
 
   const pasos = useMemo(() => [
-    { id: 1, nombre: 'Subjetivo + Signos', icon: <UserCircle size={18} /> },
-    { id: 2, nombre: 'Diagnóstico',        icon: <Search size={18} /> },
-    { id: 3, nombre: 'Exploración',        icon: <Stethoscope size={18} /> },
-    { id: 4, nombre: 'Plan',               icon: <ClipboardList size={18} /> },
+    { id: 1, nombre: 'Signos Vitales', icon: <Activity size={18} /> },
+    { id: 2, nombre: 'Subjetivo', icon: <UserCircle size={18} /> },
+    { id: 3, nombre: 'Objetivo', icon: <Stethoscope size={18} /> },
+    { id: 4, nombre: 'Análisis', icon: <Search size={18} /> },
+    { id: 5, nombre: 'Plan y Cierre', icon: <ClipboardList size={18} /> },
   ], [])
 
   const set = (key, value) => {
@@ -95,37 +96,35 @@ export default function NuevaConsultaPage() {
     setFormData((prev) => ({ ...prev, [key]: value }))
   }
 
-  const marcarPasoCompletado = (stepId) =>
-    setPasosCompletados((prev) => prev.includes(stepId) ? prev : [...prev, stepId])
-
   const getNumericOrNull = (value, parser = parseFloat) => {
     if (value === '' || value === null || value === undefined) return null
     const parsed = parser(value)
     return Number.isNaN(parsed) ? null : parsed
   }
 
-  const extraerMensajeError = (error) => {
-    if (error?.response?.data?.detail && Array.isArray(error.response.data.detail)) {
-      return error.response.data.detail
-        .map((e) => `${e.loc?.join('.') || 'campo'}: ${e.msg}`)
-        .join(' | ')
+  useEffect(() => {
+    if (paramIdEncuentro) {
+      // Cargar signos vitales si estamos retomando
+      clinicoAPI.getSignos(paramIdEncuentro).then((res) => {
+        if (res.data?.data) {
+          const s = res.data.data
+          setFormData(prev => ({
+            ...prev,
+            peso: s.peso_kg || '',
+            talla: s.talla_cm || '',
+            tension_sistolica: s.presion_sistolica || '',
+            tension_diastolica: s.presion_diastolica || '',
+            fc: s.frecuencia_cardiaca || '',
+            temp: s.temperatura_c || '',
+            spo2: s.saturacion_oxigeno || '',
+            motivo_consulta: s.motivo_consulta || prev.motivo_consulta
+          }))
+          setSignosReadOnly(true)
+          setPasosCompletados([1])
+        }
+      }).catch(err => console.error("Error cargando signos", err))
     }
-    if (typeof error?.response?.data?.detail === 'string') return error.response.data.detail
-    if (error?.response?.data?.message) return error.response.data.message
-    return error?.message || 'Error desconocido'
-  }
-
-  const extraerIdEncuentro = (resp) => {
-    const data = resp?.data || resp
-    return data?.id_encuentro || data?.data?.id_encuentro || data?.id || data?.data?.id || null
-  }
-
-  const canGoStep2      = formData.motivo_consulta.trim().length > 0
-  const canGoStep3      = canGoStep2 && formData.diagnosticos.length > 0
-  const canCloseEncounter =
-    formData.motivo_consulta.trim().length > 0 &&
-    formData.diagnosticos.length > 0 &&
-    formData.plan_terapeutico.trim().length > 0
+  }, [paramIdEncuentro])
 
   useEffect(() => {
     let active = true
@@ -134,7 +133,7 @@ export default function NuevaConsultaPage() {
       setCieLoading(true)
       try {
         const resp = await clinicoAPI.buscarCIE10(cieQuery.trim())
-        const raw  = resp?.data?.data || resp?.data || resp || []
+        const raw = resp?.data?.data || resp?.data || resp || []
         const lista = Array.isArray(raw) ? raw : []
         if (active) setCieResultados(lista.slice(0, 10))
       } catch {
@@ -152,152 +151,139 @@ export default function NuevaConsultaPage() {
     if (formData.diagnosticos.some((d) => d.id === item.id)) return
     setFormData((prev) => ({
       ...prev,
-      diagnosticos: [
-        ...prev.diagnosticos,
-        {
-          id:          item.id,
-          codigo:      item.codigo,
-          descripcion: item.descripcion,
-          tipo:        prev.diagnosticos.length === 0 ? 'PRINCIPAL' : 'SECUNDARIO',
-        },
-      ],
+      diagnosticos: [...prev.diagnosticos, { id: item.id, codigo: item.codigo, descripcion: item.descripcion, tipo: prev.diagnosticos.length === 0 ? 'PRINCIPAL' : 'SECUNDARIO' }],
     }))
-    setCieQuery('')
-    setCieResultados([])
-    setErrorGlobal('')
+    setCieQuery(''); setCieResultados([]); setErrorGlobal('')
   }
 
   const eliminarDiagnostico = (id) => {
     setFormData((prev) => {
-      const next = prev.diagnosticos
-        .filter((d) => d.id !== id)
-        .map((d, i) => ({ ...d, tipo: i === 0 ? 'PRINCIPAL' : 'SECUNDARIO' }))
+      const next = prev.diagnosticos.filter((d) => d.id !== id).map((d, i) => ({ ...d, tipo: i === 0 ? 'PRINCIPAL' : 'SECUNDARIO' }))
       return { ...prev, diagnosticos: next }
     })
   }
 
-  const manejarPaso1 = () => {
+  // --- HANDLERS PASOS ---
+
+  const crearEncuentroInicial = async () => {
     if (!formData.motivo_consulta.trim()) {
-      setErrorGlobal('El motivo de consulta es obligatorio.')
+      setErrorGlobal('El motivo de consulta es obligatorio para iniciar.')
       return
     }
-    setErrorGlobal('')
-    marcarPasoCompletado(1)
-    setCurrentStep(2)
-  }
-
-  const manejarPaso2 = () => {
-    if (formData.diagnosticos.length === 0) {
-      setErrorGlobal('Debes seleccionar al menos un diagnóstico.')
-      return
-    }
-    setErrorGlobal('')
-    marcarPasoCompletado(2)
-    setCurrentStep(3)
-  }
-
-  const manejarPaso3 = async () => {
-    setErrorGlobal('')
     setLoading(true)
-
-    const principal = formData.diagnosticos[0]
-
+    setErrorGlobal('')
     try {
-      // 1. Crear encuentro
       const resp = await clinicoAPI.createEncuentro({
-        id_paciente:     idPaciente,
+        id_paciente: idPaciente,
         motivo_consulta: formData.motivo_consulta.trim(),
-        diagnostico:     principal.descripcion,
-        id_diagnostico:  principal.codigo,
-        tipo_consulta:   'SUBSECUENTE',
+        tipo_consulta: 'SUBSECUENTE'
       })
-
-      const nuevoId = extraerIdEncuentro(resp)
+      const data = resp?.data || resp
+      const nuevoId = data?.id_encuentro || data?.data?.id_encuentro || data?.id
       if (!nuevoId) throw new Error('La API no devolvió el id del encuentro.')
-      
       setEncuentroId(nuevoId)
-
-      // 2. Signos vitales — solo si están todos presentes y en rango
-      const sistolica = getNumericOrNull(formData.tension_sistolica, parseInt)
-      const diastolica = getNumericOrNull(formData.tension_diastolica, parseInt)
-      const temp = getNumericOrNull(formData.temp, parseFloat)
-      const spo2Raw = getNumericOrNull(formData.spo2, parseFloat)
-      const spo2 = spo2Raw !== null ? Math.round(spo2Raw) : null
-      const fc = getNumericOrNull(formData.fc, parseInt)
-
-      const todosPresentes = sistolica !== null && diastolica !== null && 
-                             temp !== null && spo2 !== null && fc !== null
-
-      const enRango = todosPresentes &&
-        sistolica >= 60 && sistolica <= 250 &&
-        diastolica >= 40 && diastolica <= 150 &&
-        temp >= 34.0 && temp <= 42.0 &&
-        spo2 >= 70 && spo2 <= 100 &&
-        fc >= 30 && fc <= 220
-
-      if (enRango) {
-        const payloadSignos = {
-          presion_sistolica: sistolica,
-          presion_diastolica: diastolica,
-          temperatura_c: temp,
-          saturacion_oxigeno: spo2,
-          frecuencia_cardiaca: fc,
-        }
-        
-        const peso = getNumericOrNull(formData.peso, parseFloat)
-        const talla = getNumericOrNull(formData.talla, parseFloat)
-        
-        if (peso !== null) payloadSignos.peso_kg = peso
-        if (talla !== null) payloadSignos.talla_cm = talla
-        
-        await clinicoAPI.registrarSignos(nuevoId, payloadSignos)
-      }
-
-      marcarPasoCompletado(3)
-      setCurrentStep(4)
+      setCurrentStep(1)
     } catch (error) {
-      setErrorGlobal(extraerMensajeError(error))
+      setErrorGlobal(error.response?.data?.detail || error.message || 'Error al crear encuentro')
     } finally {
       setLoading(false)
     }
   }
 
-  const manejarPaso4 = async () => {
-    if (!encuentroId) {
-      setErrorGlobal('No se encontró el encuentro creado. Intenta nuevamente.')
+  const manejarPaso1 = async () => {
+    if (signosReadOnly) {
+      setCurrentStep(2)
       return
     }
+    const sistolica = getNumericOrNull(formData.tension_sistolica, parseInt)
+    const diastolica = getNumericOrNull(formData.tension_diastolica, parseInt)
+    const temp = getNumericOrNull(formData.temp, parseFloat)
+    const spo2 = getNumericOrNull(formData.spo2, parseFloat)
+    const fc = getNumericOrNull(formData.fc, parseInt)
     
-    if (!canCloseEncounter) {
-      setErrorGlobal('Motivo, Diagnóstico y Plan terapéutico son obligatorios para cerrar.')
+    const todosPresentes = sistolica !== null && diastolica !== null && temp !== null && spo2 !== null && fc !== null
+    
+    if (todosPresentes) {
+      setLoading(true)
+      try {
+        await clinicoAPI.registrarSignos(encuentroId, {
+          presion_sistolica: sistolica, presion_diastolica: diastolica, temperatura_c: temp,
+          saturacion_oxigeno: Math.round(spo2), frecuencia_cardiaca: fc,
+          peso_kg: getNumericOrNull(formData.peso, parseFloat), talla_cm: getNumericOrNull(formData.talla, parseFloat)
+        })
+        setPasosCompletados(prev => [...prev, 1])
+      } catch (err) {
+        setErrorGlobal('Error al guardar signos. Puede continuar sin ellos si lo desea.')
+      } finally {
+        setLoading(false)
+      }
+    }
+    setCurrentStep(2)
+  }
+
+  const manejarPaso2 = () => {
+    if (!formData.sintomas.trim()) {
+      setErrorGlobal('Describa los síntomas en el apartado subjetivo.')
       return
     }
     setErrorGlobal('')
-    setLoading(true)
-    try {
-      // Guardar plan terapéutico como nota
-      await clinicoAPI.crearNota(encuentroId, {
-        tipo_nota: 'PLAN_TERAPEUTICO',
-        nota: formData.plan_terapeutico.trim(),
-      })
+    setPasosCompletados(prev => [...prev, 2])
+    setCurrentStep(3)
+  }
 
-      // Agregar prescripción si hay
+  const manejarPaso3 = () => {
+    setPasosCompletados(prev => [...prev, 3])
+    setCurrentStep(4)
+  }
+
+  const manejarPaso4 = async () => {
+    if (formData.diagnosticos.length === 0) {
+      setErrorGlobal('Seleccione al menos un diagnóstico CIE-10.')
+      return
+    }
+    setLoading(true)
+    setErrorGlobal('')
+    try {
+      const principal = formData.diagnosticos[0]
+      await clinicoAPI.addDiagnostico(encuentroId, {
+        codigo_cie: principal.codigo, tipo: 'DEFINITIVO', observaciones: 'Diagnóstico principal'
+      })
+      setPasosCompletados(prev => [...prev, 4])
+      setCurrentStep(5)
+    } catch (err) {
+      setErrorGlobal('Error al guardar diagnóstico')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const manejarPaso5 = async () => {
+    if (!formData.plan_terapeutico.trim()) {
+      setErrorGlobal('El plan terapéutico es obligatorio para cerrar.')
+      return
+    }
+    setLoading(true)
+    setErrorGlobal('')
+    try {
+      // 1. Guardar Notas SOAP
+      const notaObj = {
+        S: formData.sintomas,
+        O: [formData.exploracion_general, formData.cabeza_cuello, formData.torax, formData.abdomen, formData.extremidades].filter(Boolean).join('\n'),
+        A: formData.diagnosticos.map(d => d.descripcion).join(', '),
+        P: formData.plan_terapeutico
+      }
+      await clinicoAPI.crearNota(encuentroId, { tipo_nota: 'EVOLUCION', nota: JSON.stringify(notaObj) })
+
+      // 2. Prescripciones
       if (formData.prescripciones.trim()) {
-        try {
-          await clinicoAPI.addPrescripcion(encuentroId, {
-            texto: formData.prescripciones.trim(),
-          })
-        } catch (error) {
-          console.error('Error al agregar prescripción:', error)
-        }
+        try { await clinicoAPI.addPrescripcion(encuentroId, { texto: formData.prescripciones.trim() }) } catch (e) {}
       }
 
-      // Cerrar encuentro
+      // 3. Cerrar
       await clinicoAPI.cerrarEncuentro(encuentroId)
-      marcarPasoCompletado(4)
       navigate(`/expediente/${idPaciente}`)
     } catch (error) {
-      setErrorGlobal(extraerMensajeError(error))
+      setErrorGlobal('Error al cerrar el encuentro')
     } finally {
       setLoading(false)
     }
@@ -309,9 +295,23 @@ export default function NuevaConsultaPage() {
         <div className="text-center p-10">
           <AlertTriangle size={40} className="text-amber-500 mx-auto mb-4" />
           <p className="text-[#1A1510] font-bold">No se especificó un paciente.</p>
-          <button onClick={() => navigate(-1)} className="mt-4 text-[#1B4F8A] underline text-sm">
-            Regresar
-          </button>
+          <button onClick={() => navigate(-1)} className="mt-4 text-[#1B4F8A] underline text-sm">Regresar</button>
+        </div>
+      </div>
+    )
+  }
+
+  if (user?.rol === 'ENFERMERIA') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F8F7F4]">
+        <div className="text-center p-10">
+          <AlertTriangle size={40} className="text-red-500 mx-auto mb-4" />
+          <p className="text-[#1A1510] font-bold">Acceso Denegado</p>
+          <p className="text-sm text-[#5A5048] max-w-sm mt-2">
+            El personal de enfermería no tiene permisos para crear o completar encuentros clínicos completos.
+            Para registrar signos vitales de un paciente, utilice el módulo de Triaje desde su Dashboard.
+          </p>
+          <button onClick={() => navigate('/dashboard')} className="mt-6 bg-[#2D8653] text-white px-4 py-2 rounded font-bold">Ir al Dashboard</button>
         </div>
       </div>
     )
@@ -319,8 +319,6 @@ export default function NuevaConsultaPage() {
 
   return (
     <div className="min-h-screen bg-[#F8F7F4] flex flex-col font-sans">
-
-      {/* ── Header stepper ────────────────────────────────────────── */}
       <header className="bg-white border-b border-[#DAD4CC] px-8 py-4 flex justify-between items-center sticky top-0 z-10 shadow-sm">
         <div className="flex items-center gap-4">
           <button type="button" onClick={() => navigate(`/expediente/${idPaciente}`)}
@@ -331,41 +329,47 @@ export default function NuevaConsultaPage() {
           <div>
             <h1 className="text-lg font-bold text-[#1A1510]">Nueva Consulta Médica</h1>
             <p className="text-xs text-[#5A5048]">Paciente ID: {idPaciente}</p>
+            {formData.motivo_consulta && (
+              <p className="text-xs text-[#1B4F8A] font-semibold mt-0.5 max-w-md truncate">
+                Motivo: {formData.motivo_consulta}
+              </p>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-1">
-          {pasos.map((step, idx) => {
-            const isCompleted = pasosCompletados.includes(step.id)
-            const isActive    = currentStep === step.id
-            return (
-              <React.Fragment key={step.id}>
-                <div className="flex flex-col items-center min-w-[68px]">
-                  <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
-                    isActive      ? 'bg-[#1B4F8A] text-white ring-4 ring-blue-100'
-                    : isCompleted ? 'bg-[#2D8653] text-white'
-                    : 'bg-[#DAD4CC] text-gray-500'
-                  }`}>
-                    {isCompleted ? <CheckCircle2 size={15} /> : step.id}
+        {currentStep > 0 && (
+          <div className="flex items-center gap-1">
+            {pasos.map((step, idx) => {
+              const isCompleted = pasosCompletados.includes(step.id)
+              const isActive = currentStep === step.id
+              return (
+                <React.Fragment key={step.id}>
+                  <div className="flex flex-col items-center min-w-[68px]">
+                    <div 
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold transition-all ${
+                        isActive ? 'bg-[#1B4F8A] text-white ring-4 ring-blue-100' : isCompleted || step.id < currentStep ? 'bg-[#2D8653] text-white cursor-pointer hover:bg-[#236b41]' : 'bg-[#DAD4CC] text-gray-500'
+                      }`}
+                      onClick={() => { if(isCompleted || step.id < currentStep) setCurrentStep(step.id) }}
+                    >
+                      {isCompleted ? <CheckCircle2 size={15} /> : step.id}
+                    </div>
+                    <span 
+                      className={`text-[9px] mt-0.5 font-medium uppercase tracking-wide ${isActive ? 'text-[#1B4F8A]' : isCompleted || step.id < currentStep ? 'text-[#2D8653] cursor-pointer hover:text-[#236b41]' : 'text-gray-400'}`}
+                      onClick={() => { if(isCompleted || step.id < currentStep) setCurrentStep(step.id) }}
+                    >
+                      {step.nombre}
+                    </span>
                   </div>
-                  <span className={`text-[9px] mt-0.5 font-medium uppercase tracking-wide ${
-                    isActive ? 'text-[#1B4F8A]' : isCompleted ? 'text-[#2D8653]' : 'text-gray-400'
-                  }`}>
-                    {step.nombre}
-                  </span>
-                </div>
-                {idx < pasos.length - 1 && (
-                  <div className={`w-8 h-[2px] mb-3 flex-shrink-0 ${
-                    pasosCompletados.includes(step.id) ? 'bg-[#2D8653]' : 'bg-[#DAD4CC]'
-                  }`} />
-                )}
-              </React.Fragment>
-            )
-          })}
-        </div>
+                  {idx < pasos.length - 1 && (
+                    <div className={`w-8 h-[2px] mb-3 flex-shrink-0 ${isCompleted ? 'bg-[#2D8653]' : 'bg-[#DAD4CC]'}`} />
+                  )}
+                </React.Fragment>
+              )
+            })}
+          </div>
+        )}
       </header>
 
-      {/* ── Error global ────────────────────────────────────────────── */}
       {errorGlobal && (
         <div className="mx-8 mt-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg flex items-start gap-2">
           <AlertTriangle size={16} className="text-red-500 flex-shrink-0 mt-0.5" />
@@ -376,259 +380,156 @@ export default function NuevaConsultaPage() {
       <main className="flex-1 p-8 max-w-4xl mx-auto w-full">
         <div className="bg-white rounded-xl border border-[#DAD4CC] shadow-sm p-8 space-y-6">
 
-          {/* ── PASO 1 ────────────────────────────────────────────── */}
-          {currentStep === 1 && (
-            <div className="space-y-5">
-              <h2 className="text-[#1B4F8A] font-bold flex items-center gap-2 text-base">
-                <Activity size={20} /> Subjetivo y Signos Vitales
-              </h2>
-
-              <Field label="Motivo de consulta *">
-                <textarea className={textareaCls} rows={3}
-                  placeholder="Describa el motivo principal de consulta..."
-                  value={formData.motivo_consulta}
-                  onChange={(e) => set('motivo_consulta', e.target.value)}
-                  maxLength={500} />
-              </Field>
-
-              <Field label="Síntomas adicionales">
-                <textarea className={textareaCls} rows={3}
-                  placeholder="Síntomas, evolución, tiempo de inicio, características..."
-                  value={formData.sintomas}
-                  onChange={(e) => set('sintomas', e.target.value)}
-                  maxLength={1000} />
-              </Field>
-
-              <div className="grid grid-cols-2 gap-4">
-                <Field label="Peso (kg)">
-                  <input type="number" className={inputCls} placeholder="70.5"
-                    value={formData.peso} onChange={(e) => set('peso', e.target.value)}
-                    min="0" max="300" step="0.1" />
+          {/* PASO 0: Crear Encuentro */}
+          {currentStep === 0 && (
+            <div className="space-y-5 text-center">
+              <h2 className="text-[#1B4F8A] font-bold text-xl mb-4">Iniciar Consulta</h2>
+              <p className="text-sm text-[#5A5048] max-w-md mx-auto mb-6">
+                Ingrese el motivo de consulta. Al iniciar, el encuentro se registrará en el sistema y podrá ser derivado a enfermería para la toma de signos vitales.
+              </p>
+              <div className="text-left max-w-lg mx-auto">
+                <Field label="Motivo de consulta (En palabras del paciente) *">
+                  <textarea className={textareaCls} rows={3}
+                    placeholder="Ej: Dolor de cabeza intenso desde hace 3 días..."
+                    value={formData.motivo_consulta}
+                    onChange={(e) => set('motivo_consulta', e.target.value)} />
                 </Field>
-                <Field label="Talla (cm)">
-                  <input type="number" className={inputCls} placeholder="165"
-                    value={formData.talla} onChange={(e) => set('talla', e.target.value)}
-                    min="0" max="250" step="0.1" />
-                </Field>
-              </div>
-
-              {formData.peso && formData.talla && Number(formData.talla) > 0 && (
-                <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 text-sm text-blue-800">
-                  <strong>IMC: </strong>
-                  {(parseFloat(formData.peso) / Math.pow(parseFloat(formData.talla) / 100, 2)).toFixed(1)} kg/m²
-                </div>
-              )}
-
-              <div>
-                <label className="block text-[11px] font-semibold text-[#5A5048] uppercase mb-2 tracking-wide">
-                  Tensión arterial (mmHg)
-                </label>
-                <div className="flex items-center gap-3">
-                  <input type="number" className={`${inputCls} text-center`} placeholder="Sistólica"
-                    value={formData.tension_sistolica}
-                    onChange={(e) => set('tension_sistolica', e.target.value)} />
-                  <span className="text-gray-400 font-bold text-lg">/</span>
-                  <input type="number" className={`${inputCls} text-center`} placeholder="Diastólica"
-                    value={formData.tension_diastolica}
-                    onChange={(e) => set('tension_diastolica', e.target.value)} />
+                <div className="mt-6 flex justify-end">
+                  <button onClick={crearEncuentroInicial} disabled={loading}
+                    className="bg-[#1B4F8A] text-white px-6 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-[#153d6b] transition-colors">
+                    {loading ? 'Iniciando...' : 'Iniciar Encuentro Médico'} <Play size={16} />
+                  </button>
                 </div>
               </div>
-
-              <div className="grid grid-cols-3 gap-4">
-                <Field label="FC (lpm)">
-                  <input type="number" className={inputCls} placeholder="80"
-                    value={formData.fc} onChange={(e) => set('fc', e.target.value)} />
-                </Field>
-                <Field label="Temp (°C)">
-                  <input type="number" className={inputCls} placeholder="36.5" step="0.1"
-                    value={formData.temp} onChange={(e) => set('temp', e.target.value)} />
-                </Field>
-                <Field label="SpO2 (%)">
-                  <input type="number" className={inputCls} placeholder="98" step="0.1"
-                    value={formData.spo2} onChange={(e) => set('spo2', e.target.value)} />
-                </Field>
-              </div>
-
-              <NavButtons
-                onPrev={() => navigate(`/expediente/${idPaciente}`)}
-                onNext={manejarPaso1}
-                loadingNext={loading}
-                labelNext="Continuar a Diagnóstico"
-                disabledNext={!canGoStep2}
-              />
             </div>
           )}
 
-          {/* ── PASO 2 ────────────────────────────────────────────── */}
-          {currentStep === 2 && (
+          {/* PASO 1: Signos */}
+          {currentStep === 1 && (
             <div className="space-y-5">
-              <h2 className="text-[#1B4F8A] font-bold flex items-center gap-2 text-base">
-                <Search size={20} /> Diagnóstico CIE-10
-              </h2>
-              <p className="text-xs text-[#5A5048] -mt-3">
-                Selecciona al menos un diagnóstico para continuar.
-              </p>
-
-              <div className="relative">
-                <Search className="absolute left-3 top-3 text-gray-400" size={18} />
-                <input type="text"
-                  className="w-full pl-10 pr-4 py-2 border border-[#DAD4CC] rounded-lg focus:ring-2 focus:ring-[#1B4F8A] outline-none text-sm"
-                  placeholder="Buscar diagnóstico (ej: E11 o Diabetes)"
-                  value={cieQuery}
-                  onChange={(e) => setCieQuery(e.target.value)}
-                  disabled={formData.diagnosticos.length >= 5} />
-                {cieLoading && (
-                  <span className="absolute right-3 top-2.5 text-xs text-gray-400">Buscando...</span>
-                )}
-                {cieResultados.length > 0 && (
-                  <div className="absolute z-20 w-full bg-white border border-[#DAD4CC] rounded-lg shadow-lg mt-1 max-h-64 overflow-y-auto">
-                    {cieResultados.map((item) => {
-                      const yaSeleccionado = formData.diagnosticos.some((d) => d.id === item.id)
-                      return (
-                        <div key={item.id}
-                          className={`p-3 flex justify-between items-center border-b last:border-0 transition-colors ${
-                            yaSeleccionado ? 'bg-gray-50 cursor-not-allowed opacity-60' : 'hover:bg-blue-50 cursor-pointer'
-                          }`}
-                          onClick={() => !yaSeleccionado && agregarDiagnostico(item)}>
-                          <div>
-                            <span className="font-bold text-[#1B4F8A] text-sm">{item.codigo}</span>
-                            <p className="text-sm text-gray-600">{item.descripcion}</p>
-                          </div>
-                          {yaSeleccionado
-                            ? <span className="text-xs text-gray-400">Agregado</span>
-                            : <span className="text-gray-400">+</span>}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
+              <div className="flex justify-between items-center">
+                <h2 className="text-[#1B4F8A] font-bold flex items-center gap-2 text-base">
+                  <Activity size={20} /> Signos Vitales
+                </h2>
+                {signosReadOnly && <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded">Tomados por Enfermería ✓</span>}
               </div>
-
-              <div className="flex flex-wrap gap-2">
-                {formData.diagnosticos.map((d, index) => (
-                  <div key={d.id} className="bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg flex items-center gap-2">
-                    <span className="text-xs font-black bg-[#1B4F8A] text-white px-1.5 py-0.5 rounded">
-                      {d.codigo}
-                    </span>
-                    <span className="text-xs text-blue-900 font-medium max-w-[220px] truncate">
-                      {d.descripcion}
-                    </span>
-                    {index === 0 && (
-                      <span className="text-[10px] font-bold text-blue-600 uppercase">(Principal)</span>
-                    )}
-                    <button type="button" onClick={() => eliminarDiagnostico(d.id)}
-                      className="text-blue-300 hover:text-red-500 transition-colors ml-1">
-                      <X size={13} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-
-              {formData.diagnosticos.length === 0 && (
-                <p className="text-xs text-gray-400 italic">
-                  Busca y agrega hasta 5 diagnósticos. El primero será el Principal.
+              
+              {!signosReadOnly && (
+                <p className="text-xs text-[#5A5048] -mt-2">
+                  Puede registrarlos usted mismo, o dejar la consulta abierta para que Enfermería los tome.
                 </p>
               )}
 
-              <NavButtons
-                onPrev={() => setCurrentStep(1)}
-                onNext={manejarPaso2}
-                loadingNext={false}
-                labelNext="Continuar a Exploración"
-                disabledNext={!canGoStep3}
-              />
-            </div>
-          )}
-
-          {/* ── PASO 3 ────────────────────────────────────────────── */}
-          {currentStep === 3 && (
-            <div className="space-y-5">
-              <h2 className="text-[#1B4F8A] font-bold flex items-center gap-2 text-base">
-                <Stethoscope size={20} /> Exploración Física
-              </h2>
-              <p className="text-xs text-[#5A5048] -mt-3">
-                Al presionar <strong>Iniciar Consulta</strong> se registrará el encuentro en el sistema.
-              </p>
-
-              <Field label="Exploración general">
-                <textarea className={textareaCls} rows={2}
-                  placeholder="Paciente consciente, orientado, hidratado..."
-                  value={formData.exploracion_general}
-                  onChange={(e) => set('exploracion_general', e.target.value)} />
-              </Field>
-
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Cabeza y cuello">
-                  <textarea className={textareaCls} rows={2}
-                    value={formData.cabeza_cuello}
-                    onChange={(e) => set('cabeza_cuello', e.target.value)} />
+                <Field label="Peso (kg)">
+                  <input type="number" className={inputCls} value={formData.peso} onChange={(e) => set('peso', e.target.value)} disabled={signosReadOnly} />
                 </Field>
-                <Field label="Tórax y cardiopulmonar">
-                  <textarea className={textareaCls} rows={2}
-                    value={formData.torax}
-                    onChange={(e) => set('torax', e.target.value)} />
-                </Field>
-                <Field label="Abdomen">
-                  <textarea className={textareaCls} rows={2}
-                    value={formData.abdomen}
-                    onChange={(e) => set('abdomen', e.target.value)} />
-                </Field>
-                <Field label="Extremidades">
-                  <textarea className={textareaCls} rows={2}
-                    value={formData.extremidades}
-                    onChange={(e) => set('extremidades', e.target.value)} />
+                <Field label="Talla (cm)">
+                  <input type="number" className={inputCls} value={formData.talla} onChange={(e) => set('talla', e.target.value)} disabled={signosReadOnly} />
                 </Field>
               </div>
+              <div>
+                <label className="block text-[11px] font-semibold text-[#5A5048] uppercase mb-2 tracking-wide">Tensión arterial (mmHg)</label>
+                <div className="flex items-center gap-3">
+                  <input type="number" className={`${inputCls} text-center`} placeholder="Sistólica" value={formData.tension_sistolica} onChange={(e) => set('tension_sistolica', e.target.value)} disabled={signosReadOnly} />
+                  <span className="text-gray-400 font-bold text-lg">/</span>
+                  <input type="number" className={`${inputCls} text-center`} placeholder="Diastólica" value={formData.tension_diastolica} onChange={(e) => set('tension_diastolica', e.target.value)} disabled={signosReadOnly} />
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <Field label="FC (lpm)"><input type="number" className={inputCls} value={formData.fc} onChange={(e) => set('fc', e.target.value)} disabled={signosReadOnly} /></Field>
+                <Field label="Temp (°C)"><input type="number" className={inputCls} value={formData.temp} onChange={(e) => set('temp', e.target.value)} disabled={signosReadOnly} /></Field>
+                <Field label="SpO2 (%)"><input type="number" className={inputCls} value={formData.spo2} onChange={(e) => set('spo2', e.target.value)} disabled={signosReadOnly} /></Field>
+              </div>
 
-              <NavButtons
-                onPrev={() => setCurrentStep(2)}
-                onNext={manejarPaso3}
-                loadingNext={loading}
-                labelNext="Iniciar Consulta"
-                disabledNext={loading}
-              />
+              {!signosReadOnly && (
+                <div className="bg-orange-50 border border-orange-200 p-4 rounded-lg mt-4 flex items-start gap-3">
+                  <Activity className="text-orange-500 mt-0.5" size={18} />
+                  <div className="text-sm text-orange-800">
+                    <strong>¿Desea que enfermería tome los signos?</strong>
+                    <p className="mt-1">Puede regresar al dashboard. El encuentro quedará abierto en el panel de Enfermería.</p>
+                  </div>
+                </div>
+              )}
+
+              <NavButtons onNext={manejarPaso1} loadingNext={loading} labelNext={signosReadOnly ? "Continuar" : "Guardar y Continuar"} />
             </div>
           )}
 
-          {/* ── PASO 4 ────────────────────────────────────────────── */}
-          {currentStep === 4 && (
+          {/* PASO 2: Subjetivo */}
+          {currentStep === 2 && (
             <div className="space-y-5">
-              <h2 className="text-[#1B4F8A] font-bold flex items-center gap-2 text-base">
-                <FileSignature size={20} /> Plan Terapéutico y Cierre
-              </h2>
-
-              <Field label="Plan terapéutico *">
-                <textarea className={textareaCls} rows={4}
-                  placeholder="Tratamiento, indicaciones, seguimiento, recomendaciones..."
-                  value={formData.plan_terapeutico}
-                  onChange={(e) => set('plan_terapeutico', e.target.value)}
-                  maxLength={2000} />
+              <h2 className="text-[#1B4F8A] font-bold flex items-center gap-2 text-base"><UserCircle size={20} /> Subjetivo (SOAP)</h2>
+              <Field label="Motivo de Consulta (Registrado)">
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-700">{formData.motivo_consulta || 'Sin motivo inicial'}</div>
               </Field>
-
-              <Field label="Prescripciones">
-                <textarea className={textareaCls} rows={3}
-                  placeholder="Ej. Paracetamol 500 mg cada 8 horas por 5 días..."
-                  value={formData.prescripciones}
-                  onChange={(e) => set('prescripciones', e.target.value)}
-                  maxLength={1000} />
+              <Field label="Síntomas y Evolución *">
+                <textarea className={textareaCls} rows={5} placeholder="Describa síntomas, tiempo de evolución, características..." value={formData.sintomas} onChange={(e) => set('sintomas', e.target.value)} />
               </Field>
+              <NavButtons onPrev={() => setCurrentStep(1)} onNext={manejarPaso2} loadingNext={false} />
+            </div>
+          )}
 
-              <NavButtons
-                onPrev={() => setCurrentStep(3)}
-                onNext={manejarPaso4}
-                loadingNext={loading}
-                labelNext="Cerrar Encuentro"
-                disabledNext={!canCloseEncounter}
-              />
+          {/* PASO 3: Objetivo */}
+          {currentStep === 3 && (
+            <div className="space-y-5">
+              <h2 className="text-[#1B4F8A] font-bold flex items-center gap-2 text-base"><Stethoscope size={20} /> Objetivo (Exploración)</h2>
+              <Field label="Exploración general"><textarea className={textareaCls} rows={2} value={formData.exploracion_general} onChange={(e) => set('exploracion_general', e.target.value)} /></Field>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Cabeza y cuello"><textarea className={textareaCls} rows={2} value={formData.cabeza_cuello} onChange={(e) => set('cabeza_cuello', e.target.value)} /></Field>
+                <Field label="Tórax y cardiopulmonar"><textarea className={textareaCls} rows={2} value={formData.torax} onChange={(e) => set('torax', e.target.value)} /></Field>
+                <Field label="Abdomen"><textarea className={textareaCls} rows={2} value={formData.abdomen} onChange={(e) => set('abdomen', e.target.value)} /></Field>
+                <Field label="Extremidades"><textarea className={textareaCls} rows={2} value={formData.extremidades} onChange={(e) => set('extremidades', e.target.value)} /></Field>
+              </div>
+              <NavButtons onPrev={() => setCurrentStep(2)} onNext={manejarPaso3} loadingNext={false} />
+            </div>
+          )}
+
+          {/* PASO 4: Diagnóstico */}
+          {currentStep === 4 && (
+             <div className="space-y-5">
+             <h2 className="text-[#1B4F8A] font-bold flex items-center gap-2 text-base">
+               <Search size={20} /> Diagnóstico CIE-10
+             </h2>
+             <div className="relative">
+               <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+               <input type="text" className="w-full pl-10 pr-4 py-2 border border-[#DAD4CC] rounded-lg focus:ring-2 focus:ring-[#1B4F8A] outline-none text-sm" placeholder="Buscar diagnóstico (ej: E11)" value={cieQuery} onChange={(e) => setCieQuery(e.target.value)} disabled={formData.diagnosticos.length >= 5} />
+               {cieResultados.length > 0 && (
+                 <div className="absolute z-20 w-full bg-white border border-[#DAD4CC] rounded-lg shadow-lg mt-1 max-h-64 overflow-y-auto">
+                   {cieResultados.map((item) => (
+                     <div key={item.id} className="p-3 flex justify-between items-center border-b hover:bg-blue-50 cursor-pointer" onClick={() => agregarDiagnostico(item)}>
+                       <div><span className="font-bold text-[#1B4F8A] text-sm">{item.codigo}</span> <span className="text-sm text-gray-600">{item.descripcion}</span></div>
+                       <span className="text-gray-400">+</span>
+                     </div>
+                   ))}
+                 </div>
+               )}
+             </div>
+             <div className="flex flex-wrap gap-2">
+               {formData.diagnosticos.map((d, index) => (
+                 <div key={d.id} className="bg-blue-50 border border-blue-200 px-3 py-1.5 rounded-lg flex items-center gap-2">
+                   <span className="text-xs font-black bg-[#1B4F8A] text-white px-1.5 py-0.5 rounded">{d.codigo}</span>
+                   <span className="text-xs text-blue-900 font-medium">{d.descripcion}</span>
+                   <button type="button" onClick={() => eliminarDiagnostico(d.id)} className="text-blue-300 hover:text-red-500 ml-1"><X size={13} /></button>
+                 </div>
+               ))}
+             </div>
+             <NavButtons onPrev={() => setCurrentStep(3)} onNext={manejarPaso4} loadingNext={loading} disabledNext={formData.diagnosticos.length === 0} />
+           </div>
+          )}
+
+          {/* PASO 5: Plan */}
+          {currentStep === 5 && (
+            <div className="space-y-5">
+              <h2 className="text-[#1B4F8A] font-bold flex items-center gap-2 text-base"><FileSignature size={20} /> Plan y Cierre</h2>
+              <Field label="Plan terapéutico *"><textarea className={textareaCls} rows={4} value={formData.plan_terapeutico} onChange={(e) => set('plan_terapeutico', e.target.value)} /></Field>
+              <Field label="Prescripciones"><textarea className={textareaCls} rows={3} value={formData.prescripciones} onChange={(e) => set('prescripciones', e.target.value)} /></Field>
+              <NavButtons onPrev={() => setCurrentStep(4)} onNext={manejarPaso5} loadingNext={loading} labelNext="Finalizar y Cerrar Encuentro" isSubmit={true} />
             </div>
           )}
 
         </div>
       </main>
-
-      <footer className="p-4 text-center text-[#5A5048] text-[10px] border-t border-[#DAD4CC] bg-white">
-        MedIA ECE — Cumplimiento NOM-004-SSA3-2012 | Distrito de Salud I Chiapas
-      </footer>
     </div>
   )
 }

@@ -19,7 +19,8 @@ TRANSICIONES_VALIDAS = {
 def critico_condition():
     return or_(
         AuditoriaAcceso.nivel_severidad == "CRITICO",
-        AuditoriaAcceso.nivel_severidad == "CRITICA"
+        AuditoriaAcceso.nivel_severidad == "CRITICA",
+        AuditoriaAcceso.nivel_severidad == "ALTO"
     )
 
 
@@ -36,7 +37,7 @@ def critico_activo_condition():
 @router.get("")
 async def get_logs(
     page: int = Query(1, ge=1),
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=5000),
     solo_criticos: bool = Query(False),
     solo_criticos_activos: bool = Query(False),
     db: AsyncSession = Depends(get_db),
@@ -103,7 +104,7 @@ async def get_audit_stats(
 @router.get("/incidentes/criticos")
 async def get_incidentes_criticos(
     page: int = Query(1, ge=1),
-    limit: int = Query(50, ge=1, le=200),
+    limit: int = Query(50, ge=1, le=1000),
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_role("SUPERADMIN", "OMNIADMIN", "AUDITOR_SEGURIDAD"))
 ):
@@ -154,8 +155,8 @@ async def update_incidente_status(
         raise HTTPException(status_code=404, detail="Incidente no encontrado")
 
     severidad = (incidente.nivel_severidad or "").strip().upper()
-    if severidad not in {"CRITICO", "CRITICA"}:
-        raise HTTPException(status_code=400, detail="Solo se pueden gestionar incidentes críticos")
+    if severidad not in {"CRITICO", "CRITICA", "ALTO"}:
+        raise HTTPException(status_code=400, detail="Solo se pueden gestionar incidentes de severidad ALTA o CRÍTICA")
 
     estado_actual = (incidente.resultado or "ABIERTO").strip().upper()
     if estado_actual not in ESTADOS_INCIDENTE:

@@ -15,6 +15,8 @@ class UsuarioOut(BaseModel):
     activo: bool
     bloqueado: Optional[bool] = False
     ultimo_acceso: Optional[str] = None
+    fecha_nacimiento: Optional[str] = None
+    sexo: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -45,6 +47,8 @@ class UsuarioOut(BaseModel):
                 "nombre":             obj.persona.nombre if obj.persona else None,
                 "primer_apellido":    obj.persona.primer_apellido if obj.persona else None,
                 "segundo_apellido":   obj.persona.segundo_apellido if obj.persona else None,
+                "fecha_nacimiento":   str(obj.persona.fecha_nacimiento) if obj.persona and obj.persona.fecha_nacimiento else None,
+                "sexo":               obj.persona.sexo if obj.persona else None,
             }
             return cls(**data)
         
@@ -59,6 +63,8 @@ class UsuarioCreate(BaseModel):
     email: str
     password: str
     rol: str
+    fecha_nacimiento: str  # Formato YYYY-MM-DD
+    sexo: str             # H, M, X
     cedula_profesional: Optional[str] = None
     id_establecimiento: Optional[uuid.UUID] = None
 

@@ -64,8 +64,8 @@ export default function AdminRolesPage() {
           <p className="text-sm text-[#64748B]">Configuración de privilegios de acceso al Expediente Clínico</p>
         </div>
         <div className="flex items-center gap-2 px-3 py-1.5 bg-[#F8FAFC] border border-[#DAD4CC] rounded-lg">
-          <Lock size={14} className="text-[#64748B]" />
-          <span className="text-[10px] font-bold text-[#64748B] uppercase">Solo Lectura</span>
+          <ShieldCheck size={14} className="text-[#1B4F8A]" />
+          <span className="text-[10px] font-bold text-[#1B4F8A] uppercase">Modo Edición</span>
         </div>
       </div>
 
@@ -129,7 +129,15 @@ export default function AdminRolesPage() {
                   </td>
                   {permisos.map((p, j) => (
                     <td key={j} className="px-4 py-4 text-center">
-                      {p === 1 ? <CheckIcon /> : <CrossIcon />}
+                      <button 
+                        onClick={() => {
+                          // TODO: Implementar guardado real en POST /admin/roles/{id}/permisos
+                          console.log(`Cambiando permiso ${ACCIONES[j]} en módulo ${modulo} para rol ${rolActivo}`)
+                        }}
+                        className="hover:scale-110 transition-transform"
+                      >
+                        {p === 1 ? <CheckIcon /> : <CrossIcon />}
+                      </button>
                     </td>
                   ))}
                 </tr>

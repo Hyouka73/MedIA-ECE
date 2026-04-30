@@ -29,9 +29,9 @@ const IncidentesDrawer = ({ open, onClose, token, refreshKey, userRole, onIncide
     if (!token) return;
     setLoading(true);
     try {
-      const requests = [1, 2, 3].map(page =>
+      const requests = [1, 2].map(page =>
         apiClient.get('/auditoria/incidentes/criticos', {
-          params: { page, limit: 50 },
+          params: { page, limit: 500 },
           headers: { Authorization: `Bearer ${token}` }
         })
       );

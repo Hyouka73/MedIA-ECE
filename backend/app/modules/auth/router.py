@@ -25,6 +25,8 @@ from app.core.security import (
 )
 from app.core.config import settings
 from app.models.auth import User, Role, Persona, SesionActiva
+from app.models.encuentros import EncuentroClinico
+from app.models.notas_soap import NotaMedica
 from app.services.email import email_service
 
 from sqlalchemy import text
