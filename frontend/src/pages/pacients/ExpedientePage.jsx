@@ -5,6 +5,7 @@ import { pacientesAPI } from '../../api/pacientes'
 import { clinicoAPI } from '../../api/clinico'
 import { AlertCircle, ChevronLeft, Clock, FileText, Pill, TrendingUp } from 'lucide-react'
 import BarreraLinguisticaAlert from '../../components/ui/BarreraLinguisticaAlert'
+import { canAccess } from '../../utils/permissions'
 
 export default function ExpedientePage() {
   const { user } = useAuth()
@@ -14,6 +15,7 @@ export default function ExpedientePage() {
   const [paciente, setPaciente] = useState(null)
   const [encuentros, setEncuentros] = useState([])
   const [medicamentos, setMedicamentos] = useState([])
+  const [notas, setNotas] = useState([])
   const [antecedentes, setAntecedentes] = useState({})
   const [inmunizaciones, setInmunizaciones] = useState([])
   const [loading, setLoading] = useState(true)
@@ -271,6 +273,27 @@ export default function ExpedientePage() {
             )
             setMedicamentos(medsFallback)
           }
+
+          if (typeof clinicoAPI.getNotasEncuentro === 'function' && encuentrosData.length > 0) {
+            const notasPromises = await Promise.all(
+              encuentrosData.map(async (enc) => {
+                try {
+                  const notasRes = await clinicoAPI.getNotasEncuentro(enc.id_encuentro)
+                  const notasItems = extraerObjeto(notasRes) || extraerLista(notasRes)
+                  const lista = Array.isArray(notasItems) ? notasItems : (notasRes?.data?.data ? notasRes.data.data : [])
+                  return lista.map((nota) => ({
+                    ...nota,
+                    id_encuentro: enc.id_encuentro,
+                    motivo_consulta: enc.motivo_consulta,
+                    fecha_inicio: enc.fecha_inicio,
+                  }))
+                } catch (err) {
+                  return []
+                }
+              })
+            )
+            setNotas(notasPromises.flat())
+          }
         } catch (err) {
           console.warn('Encuentros no disponibles, usando datos demo', err)
           const demoEncuentros = generarEncuentrosDemo()
@@ -415,7 +438,7 @@ export default function ExpedientePage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <button
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/pacientes')}
               style={{
                 border: 'none',
                 background: 'transparent',
@@ -437,53 +460,59 @@ export default function ExpedientePage() {
           </div>
 
           <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              onClick={() => navigate(`/pacientes/${paciente.id_paciente}/editar`)}
-              style={{
-                padding: '8px 16px',
-                background: 'transparent',
-                border: '1.5px solid #2459A8',
-                color: '#2459A8',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: 12,
-                fontWeight: 500,
-              }}
-            >
-              Editar Paciente
-            </button>
+            {canAccess(user.permisos, 'PACIENTES', 'puede_editar') && (
+              <button
+                onClick={() => navigate(`/pacientes/${paciente.id_paciente}/editar`)}
+                style={{
+                  padding: '8px 16px',
+                  background: 'transparent',
+                  border: '1.5px solid #2459A8',
+                  color: '#2459A8',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: 500,
+                }}
+              >
+                Editar Paciente
+              </button>
+            )}
 
-            <button
-              onClick={() => navigate(`/pacientes/${paciente.id_paciente}/antecedentes`)}
-              style={{
-                padding: '8px 16px',
-                background: 'transparent',
-                border: '1.5px solid #2459A8',
-                color: '#2459A8',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: 12,
-                fontWeight: 500,
-              }}
-            >
-              Agregar Antecedente
-            </button>
+            {canAccess(user.permisos, 'PACIENTES', 'puede_editar') && (
+              <button
+                onClick={() => navigate(`/pacientes/${paciente.id_paciente}/antecedentes`)}
+                style={{
+                  padding: '8px 16px',
+                  background: 'transparent',
+                  border: '1.5px solid #2459A8',
+                  color: '#2459A8',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: 500,
+                }}
+              >
+                Agregar Antecedente
+              </button>
+            )}
 
-            <button
-              onClick={() => navigate(`/consulta/nueva?id_paciente=${paciente.id_paciente}`)}
-              style={{
-                padding: '8px 16px',
-                background: '#2459A8',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontSize: 12,
-                fontWeight: 500,
-              }}
-            >
-              + Nueva Consulta
-            </button>
+            {['MEDICO_GENERAL', 'ESPECIALISTA', 'SUPERADMIN', 'OMNIADMIN'].includes(user.rol) && (
+              <button
+                onClick={() => navigate(`/consulta/nueva?id_paciente=${paciente.id_paciente}`)}
+                style={{
+                  padding: '8px 16px',
+                  background: '#2459A8',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: 500,
+                }}
+              >
+                + Nueva Consulta
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -755,16 +784,71 @@ export default function ExpedientePage() {
         )}
 
         {activeTab === 'Estudios' && (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#5A5048', fontSize: 13 }}>
-            <TrendingUp size={40} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
-            📁 Sección <strong>{activeTab}</strong> — próximamente
+          <div style={{ textAlign: 'center', padding: '60px 20px', background: '#FDFAF5', border: '1px dashed #DAD4CC', borderRadius: 10, color: '#5A5048', fontSize: 13 }}>
+            <TrendingUp size={40} style={{ margin: '0 auto 16px', opacity: 0.3, color: '#2459A8' }} />
+            <p style={{ margin: '0 0 8px 0', fontWeight: 600, fontSize: 14, color: '#1A1510' }}>Módulo de Estudios en Desarrollo</p>
+            <p style={{ margin: 0, opacity: 0.8 }}>El historial de laboratorios e imagenología estará disponible en una próxima actualización.</p>
           </div>
         )}
 
         {activeTab === 'Notas' && (
-          <div style={{ textAlign: 'center', padding: '60px 20px', color: '#5A5048', fontSize: 13 }}>
-            <FileText size={40} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
-            📁 Sección <strong>{activeTab}</strong> — próximamente
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {notas?.length > 0 ? (
+              notas.map((nota, i) => (
+                <div
+                  key={nota.id_nota || i}
+                  style={{
+                    padding: 16,
+                    background: '#FDFAF5',
+                    border: '1px solid #DAD4CC',
+                    borderRadius: 10,
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                    <div>
+                      <h4 style={{ color: '#1A1510', fontSize: 14, fontWeight: 700, margin: '0 0 4px 0' }}>
+                        Nota SOAP
+                      </h4>
+                      <div style={{ fontSize: 12, color: '#5A5048' }}>
+                        {formatearFecha(nota.fecha_inicio)} · {nota.motivo_consulta}
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        padding: '4px 10px',
+                        background: nota.esta_firmada ? '#E8F5E9' : '#FFF4D6',
+                        color: nota.esta_firmada ? '#237A4B' : '#9A6700',
+                        borderRadius: 4,
+                        fontSize: 11,
+                        fontWeight: 600,
+                      }}
+                    >
+                      {nota.esta_firmada ? '✓ Firmada' : '✍ Borrador'}
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, fontSize: 13, color: '#1A1510' }}>
+                    {nota.subjetivo && (
+                      <div><strong style={{ color: '#2459A8' }}>S:</strong> {nota.subjetivo}</div>
+                    )}
+                    {nota.objetivo && (
+                      <div><strong style={{ color: '#2459A8' }}>O:</strong> {nota.objetivo}</div>
+                    )}
+                    {nota.analisis && (
+                      <div><strong style={{ color: '#2459A8' }}>A:</strong> {nota.analisis}</div>
+                    )}
+                    {nota.plan && (
+                      <div><strong style={{ color: '#2459A8' }}>P:</strong> {nota.plan}</div>
+                    )}
+                  </div>
+                </div>
+              ))
+            ) : (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: '#5A5048', fontSize: 13 }}>
+                <FileText size={40} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
+                Sin notas clínicas registradas
+              </div>
+            )}
           </div>
         )}
 
@@ -800,19 +884,45 @@ export default function ExpedientePage() {
                       </div>
                     </div>
 
-                    <span
-                      style={{
-                        display: 'inline-block',
-                        padding: '4px 10px',
-                        background: encuentro.estado === 'abierto' ? '#FFF4D6' : '#E8F5E9',
-                        color: encuentro.estado === 'abierto' ? '#9A6700' : '#237A4B',
-                        borderRadius: 4,
-                        fontSize: 11,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {encuentro.estado === 'abierto' ? '⏳ Abierto' : `✓ ${encuentro.estado}`}
-                    </span>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
+                      <span
+                        style={{
+                          display: 'inline-block',
+                          padding: '4px 10px',
+                          background: encuentro.estado === 'abierto' ? '#FFF4D6' : '#E8F5E9',
+                          color: encuentro.estado === 'abierto' ? '#9A6700' : '#237A4B',
+                          borderRadius: 4,
+                          fontSize: 11,
+                          fontWeight: 600,
+                        }}
+                      >
+                        {encuentro.estado === 'abierto' ? '⏳ Abierto' : `✓ ${encuentro.estado}`}
+                      </span>
+
+                      {encuentro.estado === 'abierto' && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigate(`/consulta/nueva?id_encuentro=${encuentro.id_encuentro}&id_paciente=${paciente?.id_paciente || id}`)
+                          }}
+                          style={{
+                            background: '#1B4F8A',
+                            color: '#fff',
+                            border: 'none',
+                            padding: '6px 12px',
+                            borderRadius: 6,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 4
+                          }}
+                        >
+                          Continuar Consulta
+                        </button>
+                      )}
+                    </div>
                   </div>
 
                   {expandedEncuentro === encuentro.id_encuentro && (

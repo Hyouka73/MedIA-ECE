@@ -77,6 +77,12 @@ class Establecimiento(Base):
     id_localidad = Column(String(9))
     nivel_atencion = Column(Integer)
 
+class UsuarioEstablecimiento(Base):
+    __tablename__ = "usuarios_establecimientos"
+    id_usuario = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), primary_key=True)
+    id_establecimiento = Column(UUID(as_uuid=True), ForeignKey("establecimientos.id_establecimiento"), primary_key=True)
+    es_principal = Column(Boolean, server_default="false")
+
 
 class EstablecimientoEspecialidad(Base):
     __tablename__ = "establecimientos_especialidades"

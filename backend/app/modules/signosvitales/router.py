@@ -59,7 +59,12 @@ async def obtener_signos_encuentro(
     current_user: dict = Depends(get_current_user)
 ):
     try:
-        query = text("SELECT * FROM v_signos_encuentro WHERE id_encuentro = :id_e")
+        query = text("""
+            SELECT sv.*, e.fecha_inicio AS fecha_encuentro, e.motivo_consulta 
+            FROM signos_vitales sv 
+            JOIN encuentros_clinicos e ON sv.id_encuentro = e.id_encuentro 
+            WHERE sv.id_encuentro = :id_e
+        """)
         result = await db.execute(query, {"id_e": id_encuentro})
         row = result.fetchone()
         

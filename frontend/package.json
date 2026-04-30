@@ -10,6 +10,8 @@
         "preview": "vite preview"
     },
     "dependencies": {
+        "ag-grid-community": "^35.2.1",
+        "ag-grid-react": "^35.2.1",
         "axios": "^1.6.0",
         "clsx": "^2.0.0",
         "framer-motion": "^12.35.0",
@@ -20,6 +22,8 @@
         "tailwind-merge": "^2.0.0"
     },
     "devDependencies": {
+        "@otplib/preset-default": "^12.0.1",
+        "@playwright/test": "^1.59.1",
         "@types/react": "^18.2.37",
         "@types/react-dom": "^18.2.15",
         "@vitejs/plugin-react": "^4.2.0",
@@ -28,6 +32,8 @@
         "eslint-plugin-react": "^7.33.2",
         "eslint-plugin-react-hooks": "^4.6.0",
         "eslint-plugin-react-refresh": "^0.4.4",
+        "otplib": "^13.4.0",
+        "playwright": "^1.59.1",
         "postcss": "^8.4.31",
         "tailwindcss": "^3.3.5",
         "vite": "^5.0.0"
