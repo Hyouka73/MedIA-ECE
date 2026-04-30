@@ -196,14 +196,28 @@ export default function ExpedientePage() {
           console.warn('No se pudieron cargar alergias', err)
         }
 
-        // ===== CORREGIDO: Usar getExpedienteCompleto que SÍ existe =====
+        // ===== RESTAURADO: Lógica de extracción de versiones anteriores (Funcionaba en refactor) =====
         try {
-          const expRes = await pacientesAPI.getExpedienteCompleto(id)
-          const expData = extraerObjeto(expRes)
-          antecedentesData = expData?.antecedentes || expData || {}
-          console.log('📦 Antecedentes cargados:', antecedentesData)
+          // Usamos el endpoint de expediente que devuelve la estructura completa
+          const expRes = await pacientesAPI.getExpediente(id)
+          const dataFull = extraerObjeto(expRes)
+          
+          // Buscamos los antecedentes donde sea que estén (raíz o anidados)
+          const rawAnt = dataFull.antecedentes || dataFull
+          
+          antecedentesData = {
+            heredofamiliares: rawAnt.heredofamiliares || rawAnt.antecedentes_heredofamiliares || {},
+            patologicos: Array.isArray(rawAnt.patologicos) ? rawAnt.patologicos : (Array.isArray(rawAnt.antecedentes_patologicos) ? rawAnt.antecedentes_patologicos : []),
+            no_patologicos: rawAnt.no_patologicos || rawAnt.antecedentes_no_patologicos || {}
+          }
+          
+          // También extraemos alergias e inmunizaciones si vienen en este paquete
+          if (Array.isArray(dataFull.alergias) && dataFull.alergias.length > 0) alergiasData = dataFull.alergias
+          if (Array.isArray(dataFull.inmunizaciones) && dataFull.inmunizaciones.length > 0) inmunizacionesData = dataFull.inmunizaciones
+          
+          console.log('✅ Antecedentes recuperados (Legacy Mode):', antecedentesData)
         } catch (err) {
-          console.warn('No se pudieron cargar antecedentes', err)
+          console.error('❌ Error en extracción legacy:', err)
         }
 
         try {
