@@ -3,7 +3,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useParams, useNavigate } from 'react-router-dom'
 import { pacientesAPI } from '../../api/pacientes'
 import { clinicoAPI } from '../../api/clinico'
-import { AlertCircle, ChevronLeft, Clock, FileText, Pill, TrendingUp } from 'lucide-react'
+import { AlertCircle, ChevronLeft, Clock, FileText, Pill, PlusCircle, TrendingUp } from 'lucide-react'
 import BarreraLinguisticaAlert from '../../components/ui/BarreraLinguisticaAlert'
 import { canAccess } from '../../utils/permissions'
 
@@ -460,7 +460,7 @@ export default function ExpedientePage() {
           </div>
 
           <div style={{ display: 'flex', gap: 8 }}>
-            {canAccess(user.permisos, 'PACIENTES', 'puede_editar') && (
+            {(['RECEPCIONISTA', 'ADMINISTRADOR', 'SUPERADMIN', 'OMNIADMIN'].includes(user.rol) || canAccess(user.permisos, 'PACIENTES', 'puede_editar')) && (
               <button
                 onClick={() => navigate(`/pacientes/${paciente.id_paciente}/editar`)}
                 style={{
@@ -474,11 +474,11 @@ export default function ExpedientePage() {
                   fontWeight: 500,
                 }}
               >
-                Editar Paciente
+                Editar Usuario
               </button>
             )}
 
-            {canAccess(user.permisos, 'PACIENTES', 'puede_editar') && (
+            {(['MEDICO_GENERAL', 'ESPECIALISTA', 'SUPERADMIN', 'OMNIADMIN'].includes(user.rol) || canAccess(user.permisos, 'EXPEDIENTE', 'puede_editar')) && (
               <button
                 onClick={() => navigate(`/pacientes/${paciente.id_paciente}/antecedentes`)}
                 style={{
@@ -492,7 +492,7 @@ export default function ExpedientePage() {
                   fontWeight: 500,
                 }}
               >
-                Agregar Antecedente
+                Agregar Antecedentes
               </button>
             )}
 
@@ -684,50 +684,96 @@ export default function ExpedientePage() {
         </div>
 
         {activeTab === 'Antecedentes' && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-            <div style={{ padding: 18, background: '#FDFAF5', border: '1px solid #DAD4CC', borderRadius: 10 }}>
-              <h3 style={{ fontSize: 11, fontWeight: 700, color: '#5A5048', letterSpacing: '0.4px', textTransform: 'uppercase', marginBottom: 14 }}>
-                Enfermedades Crónicas
-              </h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div style={{ display: 'flex', gap: 10 }}>
+              {(['RECEPCIONISTA', 'ADMINISTRADOR', 'SUPERADMIN', 'OMNIADMIN'].includes(user.rol) || canAccess(user.permisos, 'PACIENTES', 'puede_editar')) && (
+                <button
+                  onClick={() => navigate(`/pacientes/${paciente.id_paciente}/editar`)}
+                  style={{
+                    padding: '8px 16px',
+                    background: '#2459A8',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6
+                  }}
+                >
+                  <FileText size={14} /> Editar Usuario
+                </button>
+              )}
 
-              {patologicos.length > 0 ? (
-                patologicos.map((item, i) => (
-                  <div key={item.id_antecedente || i} style={{ display: 'flex', gap: 9, marginBottom: 10, alignItems: 'flex-start' }}>
-                    <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#E8921F', marginTop: 5, flexShrink: 0 }} />
-                    <span style={{ fontSize: 13, color: '#1A1510', lineHeight: 1.45 }}>
-                      {obtenerTextoAntecedente(item)}
-                    </span>
-                  </div>
-                ))
-              ) : (
-                <div style={{ fontSize: 13, color: '#5A5048', fontStyle: 'italic' }}>
-                  Sin enfermedades crónicas registradas
-                </div>
+              {(['MEDICO_GENERAL', 'ESPECIALISTA', 'SUPERADMIN', 'OMNIADMIN'].includes(user.rol) || canAccess(user.permisos, 'EXPEDIENTE', 'puede_editar')) && (
+                <button
+                  onClick={() => navigate(`/pacientes/${paciente.id_paciente}/antecedentes`)}
+                  style={{
+                    padding: '8px 16px',
+                    background: 'transparent',
+                    border: '1.5px solid #2459A8',
+                    color: '#2459A8',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6
+                  }}
+                >
+                  <PlusCircle size={14} /> Agregar Antecedentes
+                </button>
               )}
             </div>
 
-            <div style={{ padding: 18, background: '#FDFAF5', border: '1px solid #DAD4CC', borderRadius: 10 }}>
-              <h3 style={{ fontSize: 11, fontWeight: 700, color: '#5A5048', letterSpacing: '0.4px', textTransform: 'uppercase', marginBottom: 14 }}>
-                Resumen Clínico
-              </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div style={{ padding: 18, background: '#FDFAF5', border: '1px solid #DAD4CC', borderRadius: 10 }}>
+                <h3 style={{ fontSize: 11, fontWeight: 700, color: '#5A5048', letterSpacing: '0.4px', textTransform: 'uppercase', marginBottom: 14 }}>
+                  Enfermedades Crónicas
+                </h3>
 
-              {[
-                ['Grupo Sanguíneo', paciente.grupo_sanguineo || 'N/A'],
-                ['Última Consulta', encuentros?.length ? formatearFecha(encuentros[0]?.fecha_inicio) : 'N/A'],
-                ['Total Consultas', encuentros?.length || '0'],
-                ['Alergias', paciente.alergias?.length ? `${paciente.alergias.length} registrada(s)` : 'Ninguna'],
-                ['Vacunas', inmunizaciones?.length ? `${inmunizaciones.length} registrada(s)` : 'Ninguna'],
-                ['Diabetes Heredofamiliar', heredoData?.diabetes ? '✅ Sí' : '❌ No'],
-                ['Hipertensión Heredofamiliar', heredoData?.hipertension ? '✅ Sí' : '❌ No'],
-                ['Tabaquismo', noPatData?.tabaquismo ? '✅ Sí' : '❌ No'],
-                ['Alcoholismo', noPatData?.alcoholismo ? '✅ Sí' : '❌ No'],
-                ['🌐 Lengua Materna', paciente.persona?.id_lengua_materna ? `ID: ${paciente.persona.id_lengua_materna}` : 'No especificada'],
-              ].map(([label, value]) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, gap: 10 }}>
-                  <span style={{ fontSize: 12, color: '#5A5048' }}>{label}</span>
-                  <span style={{ fontSize: 12, color: '#1A1510', fontWeight: 500, textAlign: 'right' }}>{value}</span>
-                </div>
-              ))}
+                {patologicos.length > 0 ? (
+                  patologicos.map((item, i) => (
+                    <div key={item.id_antecedente || i} style={{ display: 'flex', gap: 9, marginBottom: 10, alignItems: 'flex-start' }}>
+                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#E8921F', marginTop: 5, flexShrink: 0 }} />
+                      <span style={{ fontSize: 13, color: '#1A1510', lineHeight: 1.45 }}>
+                        {obtenerTextoAntecedente(item)}
+                      </span>
+                    </div>
+                  ))
+                ) : (
+                  <div style={{ fontSize: 13, color: '#5A5048', fontStyle: 'italic' }}>
+                    Sin enfermedades crónicas registradas
+                  </div>
+                )}
+              </div>
+
+              <div style={{ padding: 18, background: '#FDFAF5', border: '1px solid #DAD4CC', borderRadius: 10 }}>
+                <h3 style={{ fontSize: 11, fontWeight: 700, color: '#5A5048', letterSpacing: '0.4px', textTransform: 'uppercase', marginBottom: 14 }}>
+                  Resumen Clínico
+                </h3>
+
+                {[
+                  ['Grupo Sanguíneo', paciente.grupo_sanguineo || 'N/A'],
+                  ['Última Consulta', encuentros?.length ? formatearFecha(encuentros[0]?.fecha_inicio) : 'N/A'],
+                  ['Total Consultas', encuentros?.length || '0'],
+                  ['Alergias', paciente.alergias?.length ? `${paciente.alergias.length} registrada(s)` : 'Ninguna'],
+                  ['Vacunas', inmunizaciones?.length ? `${inmunizaciones.length} registrada(s)` : 'Ninguna'],
+                  ['Diabetes Heredofamiliar', heredoData?.diabetes ? '✅ Sí' : '❌ No'],
+                  ['Hipertensión Heredofamiliar', heredoData?.hipertension ? '✅ Sí' : '❌ No'],
+                  ['Tabaquismo', noPatData?.tabaquismo ? '✅ Sí' : '❌ No'],
+                  ['Alcoholismo', noPatData?.alcoholismo ? '✅ Sí' : '❌ No'],
+                  ['🌐 Lengua Materna', paciente.persona?.nombre_lengua || (paciente.persona?.id_lengua_materna ? `ID: ${paciente.persona.id_lengua_materna}` : 'No especificada')],
+                ].map(([label, value]) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, gap: 10 }}>
+                    <span style={{ fontSize: 12, color: '#5A5048' }}>{label}</span>
+                    <span style={{ fontSize: 12, color: '#1A1510', fontWeight: 500, textAlign: 'right' }}>{value}</span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         )}

@@ -54,7 +54,12 @@ async def get_expediente_completo(
 
         # Obtener paciente y persona
         paciente = await db.scalar(
-            select(Paciente).options(joinedload(Paciente.persona)).where(
+            select(Paciente)
+            .options(
+                joinedload(Paciente.persona),
+                selectinload(Paciente.persona, Persona.lengua)
+            )
+            .where(
                 Paciente.id_paciente == id_paciente,
                 Paciente.eliminado_en == None
             )
@@ -84,10 +89,11 @@ async def get_expediente_completo(
                 calle_numero=persona.calle_numero,
                 referencia_geografica=persona.referencia_geografica,
                 id_lengua_materna=persona.id_lengua_materna,
+                nombre_lengua=persona.lengua.nombre if hasattr(persona, 'lengua') and persona.lengua else None,
                 telefono=persona.telefono,
                 url_foto=persona.url_foto,
                 fecha_registro=persona.fecha_registro,
-                alerta_barrera_linguistica=bool(persona.id_lengua_materna)
+                alerta_barrera_linguistica=bool(persona.id_lengua_materna and persona.lengua and persona.lengua.nombre.lower() != 'español')
             )
 
         # Obtener alergias

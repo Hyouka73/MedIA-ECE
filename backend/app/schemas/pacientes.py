@@ -34,6 +34,7 @@ class PersonaOut(BaseModel):
     calle_numero: Optional[str] = None
     referencia_geografica: Optional[str] = None
     id_lengua_materna: Optional[int] = None
+    nombre_lengua: Optional[str] = None
     telefono: Optional[str] = None
     url_foto: Optional[str] = None
     fecha_registro: datetime
