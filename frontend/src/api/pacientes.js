@@ -49,6 +49,13 @@ export const pacientesAPI = {
     
     // POST /expediente/:id/inmunizaciones — Agregar inmunización
     addInmunizacion: (id, data) => api.post(`/expediente/${id}/inmunizaciones`, data),
+
+    // ── Prescripciones ─────────────────────────────────────
+    // GET /pacientes/:id/prescripciones — Obtener prescripciones históricas
+    getPrescripciones: (id) => api.get(`/pacientes/${id}/prescripciones`),
+    
+    // POST /pacientes/:id/prescripciones — Agregar nueva prescripción
+    addPrescripcion: (id, data) => api.post(`/pacientes/${id}/prescripciones`, data),
     
     // ── Catálogos INEGI ────────────────────────────────────
     // GET /catalogos/estados — Lista de estados

@@ -26,7 +26,8 @@ const NAV_ITEMS = [
     { id: 'expediente', icon: FileText, label: 'Expediente', group: 'PACIENTE', href: '/expediente', moduleCode: 'EXPEDIENTE', requiresPatientFlow: true },
     { id: 'consulta', icon: ClipboardList, label: 'Consulta', group: 'PACIENTE', href: '/consulta', moduleCode: 'ENCUENTROS', requiresPatientFlow: true, hideForRoles: ['ENFERMERIA', 'RECEPCIONISTA', 'ADMINISTRADOR', 'AUDITOR_SEGURIDAD'] },
     { id: 'documentos', icon: FileBox, label: 'Estudios/Docs', group: 'PACIENTE', href: '/documentos', moduleCode: 'ESTUDIOS', requiresPatientFlow: true, hideForRoles: ['RECEPCIONISTA', 'ADMINISTRADOR', 'AUDITOR_SEGURIDAD'] },
-    
+    { id: 'recetas', icon: AlertCircle, label: 'Recetas', group: 'PACIENTE', href: '/pacientes/:id/recetas', moduleCode: 'RECETAS', requiresPatientFlow: true, hideForRoles: ['ENFERMERIA', 'RECEPCIONISTA', 'ADMINISTRADOR', 'AUDITOR_SEGURIDAD'] },
+
     { id: 'auditoria', icon: ShieldAlert, label: 'Auditoría', group: 'SISTEMA', href: '/audit/logs', moduleCode: 'AUDITORIA', hideForRoles: ['MEDICO_GENERAL', 'ESPECIALISTA', 'ENFERMERIA', 'RECEPCIONISTA', 'ADMINISTRADOR'] },
     { id: 'admin', icon: Settings, label: 'Administración', group: 'SISTEMA', href: '/admin', moduleCode: 'ADMIN', hideForRoles: ['MEDICO_GENERAL', 'ESPECIALISTA', 'ENFERMERIA', 'RECEPCIONISTA', 'AUDITOR_SEGURIDAD'] },
 ]
@@ -43,9 +44,9 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }) {
   const query = new URLSearchParams(search)
   const queryPacienteId = query.get('id_paciente')
   const expedienteMatch = pathname.match(/^\/expediente\/([^/]+)/)
-  const editarPacienteMatch = pathname.match(/^\/pacientes\/([^/]+)\/editar$/)
+  const pacienteSubRouteMatch = pathname.match(/^\/pacientes\/([^/]+)\/(editar|antecedentes|recetas)$/)
 
-  const activePatientId = queryPacienteId || expedienteMatch?.[1] || editarPacienteMatch?.[1] || null
+  const activePatientId = queryPacienteId || expedienteMatch?.[1] || pacienteSubRouteMatch?.[1] || null
 
   useEffect(() => {
     const checkCritical = async () => {
@@ -101,6 +102,7 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }) {
       case 'expediente': return `/expediente/${activePatientId}`
       case 'consulta': return `/consulta/nueva?id_paciente=${activePatientId}`
       case 'documentos': return `/documentos?id_paciente=${activePatientId}`
+      case 'recetas': return `/pacientes/${activePatientId}/recetas`
       default: return item.href
     }
   }
@@ -109,6 +111,7 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }) {
     if (item.id === 'pacientes') return pathname.startsWith('/pacientes') && !activePatientId
     if (item.id === 'expediente') return pathname.startsWith('/expediente')
     if (item.id === 'consulta') return pathname.startsWith('/consulta')
+    if (item.id === 'recetas') return pathname.startsWith(`/pacientes/${activePatientId}/recetas`)
     return pathname.startsWith(item.href)
   }
 
