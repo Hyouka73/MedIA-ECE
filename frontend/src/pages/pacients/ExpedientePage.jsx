@@ -6,6 +6,7 @@ import { clinicoAPI } from '../../api/clinico'
 import { AlertCircle, ChevronLeft, Clock, FileText, Pill, PlusCircle, TrendingUp } from 'lucide-react'
 import BarreraLinguisticaAlert from '../../components/ui/BarreraLinguisticaAlert'
 import { canAccess } from '../../utils/permissions'
+import RecetasTab from '../recetas/RecetasTab'
 
 export default function ExpedientePage() {
   const { user } = useAuth()
@@ -588,7 +589,7 @@ export default function ExpedientePage() {
         )}
 
         <div className="flex border-b border-border mb-6 overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
-          {['Antecedentes', 'Medicamentos', 'Estudios', 'Notas', 'Encuentros'].map((tab) => (
+          {['Antecedentes', 'Recetas', 'Estudios', 'Notas', 'Encuentros'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -678,49 +679,11 @@ export default function ExpedientePage() {
           </div>
         )}
 
-        {activeTab === 'Medicamentos' && (
-          <div className="space-y-4 animate-in fade-in duration-500">
-            {medicamentos.length > 0 ? (
-              medicamentos.map((med, i) => (
-                <div
-                  key={med._key || i}
-                  className="p-4 bg-[#FDFAF5] border border-border rounded-xl shadow-sm hover:shadow-md transition-shadow"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                    <div className="min-w-0">
-                      <h4 className="text-sm font-bold text-text-primary mb-1 truncate">
-                        {obtenerNombreMedicamento(med)}
-                      </h4>
-                      <p className="text-xs text-text-secondary">
-                        {[med.dosis, med.via_administracion, med.frecuencia].filter(Boolean).join(' · ') || 'Sin detalle de prescripción'}
-                      </p>
-                    </div>
-
-                    <div className="flex sm:flex-col items-center sm:items-end justify-between gap-2 shrink-0">
-                      <span className="text-[10px] text-text-secondary bg-black/5 px-2 py-1 rounded">
-                        {formatearFecha(med.fecha_inicio)}
-                      </span>
-                      <span className="text-[11px] text-primary font-bold">
-                        {med.motivo_consulta || 'Encuentro clínico'}
-                      </span>
-                    </div>
-                  </div>
-
-                  {med.indicaciones && (
-                    <div className="mt-3 pt-3 border-t border-border/50">
-                      <p className="text-xs text-text-primary leading-relaxed">
-                        <strong className="text-text-secondary">Indicaciones:</strong> {med.indicaciones}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              ))
-            ) : (
-              <div className="py-12 text-center text-text-secondary">
-                <Pill size={40} className="mx-auto mb-4 opacity-20" />
-                <p className="text-sm">Sin medicamentos registrados</p>
-              </div>
-            )}
+        {activeTab === 'Recetas' && (
+          <div className="space-y-5 animate-in fade-in duration-500">
+            <div className="w-full">
+              <RecetasTab pacienteId={paciente.id_paciente || id} />
+            </div>
           </div>
         )}
 

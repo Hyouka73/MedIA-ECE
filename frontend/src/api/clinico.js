@@ -50,6 +50,10 @@ export const clinicoAPI = {
     api.post(`/encuentros/${idEncuentro}/diagnosticos`, data),
 
   // ── Prescripciones ─────────────────────────────────────
+  // GET /encuentros/:id/prescripciones — Obtener prescripciones de un encuentro
+  getPrescripciones: (idEncuentro) =>
+    api.get(`/encuentros/${idEncuentro}/prescripciones`),
+
   // POST /encuentros/:id/prescripciones — Agregar prescripción
   addPrescripcion: (idEncuentro, data) =>
     api.post(`/encuentros/${idEncuentro}/prescripciones`, data),

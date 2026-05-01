@@ -44,12 +44,20 @@ import ReferenciasFichaPage from './pages/references/ReferenciasFichaPage'
 import DocumentosPage from './pages/documentos/DocumentosPage'
 import UploadResultadoPage from './pages/laboratorio/UploadResultadoPage'
 
+// Recetas (Compañero)
+import RecetasTab from './pages/recetas/RecetasTab'
+
 
 function App() {
   return (
     <AuthProvider>
       <ToastProvider>
-        <BrowserRouter>
+        <BrowserRouter
+          future={{
+            v7_startTransition: true,
+            v7_relativeSplatPath: true,
+          }}
+        >
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/403" element={<UnauthorizedPage />} />
@@ -70,6 +78,9 @@ function App() {
                   </Route>
                   <Route path="pacientes/:id/editar" element={<PacienteFichaPage />} />
                   <Route path="pacientes/:id/antecedentes" element={<PacienteAntecedentesPage />} />
+                  
+                  {/* Recetas (Módulo de tu compañero integrado) */}
+                  <Route path="pacientes/:id/recetas" element={<RecetasTab />} />
                 </Route>
 
                 <Route element={<ProtectedRoute module="EXPEDIENTE" />}>
@@ -115,4 +126,4 @@ function App() {
   )
 }
 
-export default App
+export default App
