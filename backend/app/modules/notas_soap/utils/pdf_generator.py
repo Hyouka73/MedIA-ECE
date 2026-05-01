@@ -10,8 +10,7 @@ import io
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Tuple
 
-from weasyprint import HTML, CSS
-from weasyprint.css.targets import TargetCollector
+from fpdf import FPDF
 
 from app.models.notas_soap import NotaMedica, NotaSOAP
 from app.models.encuentros import EncuentroClinico
@@ -67,341 +66,100 @@ class PDFGenerator:
         return hashlib.sha256(contenido.encode('utf-8')).hexdigest()
 
     @staticmethod
-    def generar_html_nota(
+    def generar_pdf(
         nota: NotaMedica,
         encuentro: EncuentroClinico,
         medico: User,
         medico_persona: Persona,
         establecimiento: Establecimiento,
-    ) -> str:
+    ) -> bytes:
         """
-        Genera HTML de la nota SOAP con estilos NOM-004/NOM-151.
-        Incluye: CLUES, cédula médico, número expediente, fecha CST,
-        contenido SOAP, hash SHA-256, sello visual de inmutabilidad.
-        """
-        # Convertir fecha a CST
-        fecha_consulta_cst = PDFGenerator.convertir_utc_a_cst(encuentro.fecha_inicio)
-        fecha_str = fecha_consulta_cst.strftime("%d/%m/%Y")
-        hora_str = fecha_consulta_cst.strftime("%H:%M:%S")
-
-        # Generar hash
-        hash_contenido = PDFGenerator.generar_hash_contenido(nota.soap_detalle)
-        
-        # Nombre completo del médico
-        medico_nombre_completo = f"{medico_persona.nombre} {medico_persona.primer_apellido}"
-        if medico_persona.segundo_apellido:
-            medico_nombre_completo += f" {medico_persona.segundo_apellido}"
-
-        # Obtener número de expediente del paciente
-        numero_expediente = encuentro.paciente.numero_expediente if encuentro.paciente else "N/A"
-
-        # Construir contenido SOAP con validación
-        subjetivo = nota.soap_detalle.subjetivo or "(No registrado)"
-        objetivo = nota.soap_detalle.objetivo or "(No registrado)"
-        analisis = nota.soap_detalle.analisis or "(No registrado)"
-        plan = nota.soap_detalle.plan or "(No registrado)"
-
-        # HTML con estilos NOM-004/NOM-151
-        html_content = f"""
-        <!DOCTYPE html>
-        <html lang="es">
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Nota SOAP - Expediente {numero_expediente}</title>
-            <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700;9..40,800&display=swap" rel="stylesheet">
-            <style>
-                * {{
-                    margin: 0;
-                    padding: 0;
-                    box-sizing: border-box;
-                }}
-
-                @page {{
-                    size: letter;
-                    margin: 0.75in;
-                    @bottom-center {{
-                        content: "Página " counter(page) " de " counter(pages);
-                        font-family: {TIPOGRAFIA['familia']};
-                        font-size: 10px;
-                        color: {PALETA_COLORES['texto_secundario']};
-                    }}
-                }}
-
-                body {{
-                    font-family: {TIPOGRAFIA['familia']}, sans-serif;
-                    color: {PALETA_COLORES['texto_principal']};
-                    background-color: {PALETA_COLORES['fondo_base']};
-                    line-height: 1.6;
-                }}
-
-                .contenedor {{
-                    max-width: 8.5in;
-                    background-color: {PALETA_COLORES['blanco']};
-                    padding: 1.5rem;
-                    border: 1px solid #DAD4CC;
-                }}
-
-                /* ENCABEZADO — NOM-004 */
-                .header {{
-                    border-bottom: 2px solid {PALETA_COLORES['azul_institucional']};
-                    padding-bottom: 1rem;
-                    margin-bottom: 1.5rem;
-                }}
-
-                .header__titulo {{
-                    font-size: 14px;
-                    font-weight: {TIPOGRAFIA['pesos']['bold']};
-                    color: {PALETA_COLORES['azul_institucional']};
-                    margin-bottom: 0.5rem;
-                }}
-
-                .header__subtitulo {{
-                    font-size: 10px;
-                    color: {PALETA_COLORES['texto_secundario']};
-                    margin-bottom: 0.5rem;
-                }}
-
-                .header__grid {{
-                    display: grid;
-                    grid-template-columns: 1fr 1fr;
-                    gap: 1rem;
-                    font-size: 11px;
-                    margin-top: 0.75rem;
-                }}
-
-                .header__item {{
-                    display: flex;
-                    flex-direction: column;
-                }}
-
-                .header__label {{
-                    font-weight: {TIPOGRAFIA['pesos']['semibold']};
-                    color: {PALETA_COLORES['texto_secundario']};
-                    font-size: 9px;
-                    text-transform: uppercase;
-                    letter-spacing: 0.5px;
-                }}
-
-                .header__valor {{
-                    color: {PALETA_COLORES['texto_principal']};
-                    font-weight: {TIPOGRAFIA['pesos']['medium']};
-                    margin-top: 0.2rem;
-                }}
-
-                /* SECCIÓN SOAP */
-                .seccion {{
-                    margin-bottom: 1.5rem;
-                }}
-
-                .seccion__titulo {{
-                    font-size: 12px;
-                    font-weight: {TIPOGRAFIA['pesos']['bold']};
-                    color: {PALETA_COLORES['blanco']};
-                    background-color: {PALETA_COLORES['azul_institucional']};
-                    padding: 0.5rem 0.75rem;
-                    margin-bottom: 0.75rem;
-                    border-left: 3px solid {PALETA_COLORES['verde_firma']};
-                    display: inline-block;
-                }}
-
-                .seccion__contenido {{
-                    font-size: 11px;
-                    line-height: 1.6;
-                    color: {PALETA_COLORES['texto_principal']};
-                    padding: 0.75rem;
-                    background-color: #F5F2EC;
-                    border-left: 2px solid {PALETA_COLORES['azul_institucional']};
-                    white-space: pre-wrap;
-                    word-wrap: break-word;
-                }}
-
-                /* FIRMA Y HASH — NOM-151 */
-                .firma {{
-                    border-top: 2px solid {PALETA_COLORES['verde_firma']};
-                    padding-top: 1rem;
-                    margin-top: 1.5rem;
-                    background-color: #F5F2EC;
-                    padding: 0.75rem;
-                    border-radius: 4px;
-                }}
-
-                .firma__titulo {{
-                    font-size: 11px;
-                    font-weight: {TIPOGRAFIA['pesos']['semibold']};
-                    color: {PALETA_COLORES['verde_firma']};
-                    text-transform: uppercase;
-                    margin-bottom: 0.75rem;
-                    display: flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                }}
-
-                .firma__check {{
-                    width: 16px;
-                    height: 16px;
-                    background-color: {PALETA_COLORES['verde_firma']};
-                    color: white;
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-weight: bold;
-                    font-size: 12px;
-                }}
-
-                .firma__contenido {{
-                    font-size: 10px;
-                    line-height: 1.5;
-                    color: {PALETA_COLORES['texto_principal']};
-                }}
-
-                .firma__fila {{
-                    display: flex;
-                    justify-content: space-between;
-                    margin-bottom: 0.5rem;
-                    padding-bottom: 0.25rem;
-                    border-bottom: 1px dotted {PALETA_COLORES['texto_secundario']};
-                }}
-
-                .firma__label {{
-                    font-weight: {TIPOGRAFIA['pesos']['semibold']};
-                    color: {PALETA_COLORES['texto_secundario']};
-                }}
-
-                .firma__valor {{
-                    color: {PALETA_COLORES['texto_principal']};
-                    font-family: monospace;
-                    word-break: break-all;
-                    max-width: 60%;
-                }}
-
-                .sello {{
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 0.5rem;
-                    background-color: {PALETA_COLORES['verde_firma']};
-                    color: white;
-                    padding: 0.5rem 1rem;
-                    border-radius: 4px;
-                    font-weight: {TIPOGRAFIA['pesos']['semibold']};
-                    font-size: 10px;
-                    margin-top: 0.75rem;
-                    text-transform: uppercase;
-                }}
-
-                .sello__icono {{
-                    font-size: 14px;
-                }}
-
-                /* TABLA GRID PARA RESPONSIVIDAD */
-                @media print {{
-                    body {{
-                        background-color: white;
-                    }}
-                    .contenedor {{
-                        box-shadow: none;
-                        border: none;
-                    }}
-                }}
-            </style>
-        </head>
-        <body>
-            <div class="contenedor">
-                <!-- ENCABEZADO NOM-004 -->
-                <div class="header">
-                    <div class="header__titulo">📋 NOTA MÉDICA — FORMATO SOAP</div>
-                    <div class="header__subtitulo">Sistema de Expediente Clínico Electrónico MedIA</div>
-                    
-                    <div class="header__grid">
-                        <div class="header__item">
-                            <span class="header__label">Establecimiento (CLUES)</span>
-                            <span class="header__valor">{establecimiento.clues}</span>
-                        </div>
-                        <div class="header__item">
-                            <span class="header__label">Nombre de la Unidad</span>
-                            <span class="header__valor">{establecimiento.nombre}</span>
-                        </div>
-                        <div class="header__item">
-                            <span class="header__label">Expediente Nº</span>
-                            <span class="header__valor">{numero_expediente}</span>
-                        </div>
-                        <div class="header__item">
-                            <span class="header__label">Médico Tratante</span>
-                            <span class="header__valor">{medico_nombre_completo}</span>
-                        </div>
-                        <div class="header__item">
-                            <span class="header__label">Cédula Profesional</span>
-                            <span class="header__valor">{medico.cedula_profesional or "N/A"}</span>
-                        </div>
-                        <div class="header__item">
-                            <span class="header__label">Fecha y Hora (CST)</span>
-                            <span class="header__valor">{fecha_str} {hora_str}</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- CONTENIDO SOAP -->
-                <div class="seccion">
-                    <div class="seccion__titulo">S — Subjetivo</div>
-                    <div class="seccion__contenido">{subjetivo}</div>
-                </div>
-
-                <div class="seccion">
-                    <div class="seccion__titulo">O — Objetivo</div>
-                    <div class="seccion__contenido">{objetivo}</div>
-                </div>
-
-                <div class="seccion">
-                    <div class="seccion__titulo">A — Análisis</div>
-                    <div class="seccion__contenido">{analisis}</div>
-                </div>
-
-                <div class="seccion">
-                    <div class="seccion__titulo">P — Plan</div>
-                    <div class="seccion__contenido">{plan}</div>
-                </div>
-
-                <!-- SELLO DE FIRMA Y HASH — NOM-151 -->
-                <div class="firma">
-                    <div class="firma__titulo">
-                        <div class="firma__check">✓</div>
-                        Sello de Firma Digital (NOM-151)
-                    </div>
-                    <div class="firma__contenido">
-                        <div class="firma__fila">
-                            <span class="firma__label">Estado:</span>
-                            <span class="firma__valor">FIRMADO ✓ INMUTABLE</span>
-                        </div>
-                        <div class="firma__fila">
-                            <span class="firma__label">Hash SHA-256:</span>
-                            <span class="firma__valor">{hash_contenido}</span>
-                        </div>
-                        <div class="firma__fila">
-                            <span class="firma__label">Fecha de Firma:</span>
-                            <span class="firma__valor">{fecha_str} {hora_str}</span>
-                        </div>
-                    </div>
-                    <div class="sello">
-                        <span class="sello__icono">🔒</span>
-                        Documento Firmado
-                    </div>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
-        return html_content
-
-    @staticmethod
-    def generar_pdf(html_content: str) -> bytes:
-        """
-        Genera PDF binario a partir de HTML usando WeasyPrint.
+        Genera PDF binario directamente usando fpdf2.
         No persiste en almacenamiento — retorna bytes directamente.
         """
         try:
-            pdf_bytes = HTML(string=html_content).write_pdf()
+            # Crear PDF
+            pdf = FPDF()
+            pdf.add_page()
+            
+            # Configurar fuente (usaremos Arial ya que DM Sans no está disponible en FPDF por defecto)
+            pdf.set_font("Arial", "B", 14)
+            
+            # Convertir fecha a CST
+            fecha_consulta_cst = PDFGenerator.convertir_utc_a_cst(encuentro.fecha_inicio)
+            fecha_str = fecha_consulta_cst.strftime("%d/%m/%Y")
+            hora_str = fecha_consulta_cst.strftime("%H:%M:%S")
+            
+            # Generar hash
+            hash_contenido = PDFGenerator.generar_hash_contenido(nota.soap_detalle)
+            
+            # Nombre completo del médico
+            medico_nombre_completo = f"{medico_persona.nombre} {medico_persona.primer_apellido}"
+            if medico_persona.segundo_apellido:
+                medico_nombre_completo += f" {medico_persona.segundo_apellido}"
+            
+            # Obtener número de expediente del paciente
+            numero_expediente = encuentro.paciente.numero_expediente if encuentro.paciente else "N/A"
+            
+            # Construir contenido SOAP con validación
+            subjetivo = nota.soap_detalle.subjetivo or "(No registrado)"
+            objetivo = nota.soap_detalle.objetivo or "(No registrado)"
+            analisis = nota.soap_detalle.analisis or "(No registrado)"
+            plan = nota.soap_detalle.plan or "(No registrado)"
+            
+            # Header
+            pdf.set_fill_color(27, 79, 138)  # Azul institucional
+            pdf.cell(0, 10, "NOTA MEDICA - FORMATO SOAP", 0, 1, "C", fill=True)
+            pdf.set_font("Arial", "", 10)
+            pdf.cell(0, 8, "Sistema de Expediente Clinico Electronico MedIA", 0, 1, "C")
+            pdf.ln(5)
+            
+            # Información del establecimiento y médico
+            pdf.set_font("Arial", "B", 10)
+            pdf.cell(0, 8, f"Establecimiento (CLUES): {establecimiento.clues}", 0, 1)
+            pdf.cell(0, 8, f"Nombre de la Unidad: {establecimiento.nombre}", 0, 1)
+            pdf.cell(0, 8, f"Expediente No: {numero_expediente}", 0, 1)
+            pdf.cell(0, 8, f"Medico Tratante: {medico_nombre_completo}", 0, 1)
+            pdf.cell(0, 8, f"Cedula Profesional: {medico.cedula_profesional or 'N/A'}", 0, 1)
+            pdf.cell(0, 8, f"Fecha y Hora (CST): {fecha_str} {hora_str}", 0, 1)
+            pdf.ln(5)
+            
+            # Secciones SOAP
+            secciones = [
+                ("S - Subjetivo", subjetivo),
+                ("O - Objetivo", objetivo),
+                ("A - Analisis", analisis),
+                ("P - Plan", plan)
+            ]
+            
+            for titulo, contenido in secciones:
+                pdf.set_fill_color(27, 79, 138)
+                pdf.set_text_color(255, 255, 255)
+                pdf.set_font("Arial", "B", 12)
+                pdf.cell(0, 8, titulo, 0, 1, "L", fill=True)
+                pdf.set_text_color(0, 0, 0)
+                pdf.set_font("Arial", "", 10)
+                pdf.set_fill_color(245, 242, 236)
+                pdf.multi_cell(0, 6, contenido, 0, 1, fill=True)
+                pdf.ln(3)
+            
+            # Sello de firma
+            pdf.ln(5)
+            pdf.set_fill_color(45, 134, 83)  # Verde firma
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font("Arial", "B", 10)
+            pdf.cell(0, 8, "SELLO DE FIRMA DIGITAL (NOM-151)", 0, 1, "C", fill=True)
+            pdf.set_text_color(0, 0, 0)
+            pdf.set_font("Arial", "", 9)
+            pdf.set_fill_color(245, 242, 236)
+            pdf.cell(0, 6, f"Estado: FIRMADO INMUTABLE", 0, 1, fill=True)
+            pdf.cell(0, 6, f"Hash SHA-256: {hash_contenido}", 0, 1, fill=True)
+            pdf.cell(0, 6, f"Fecha de Firma: {fecha_str} {hora_str}", 0, 1, fill=True)
+            
+            # Obtener bytes del PDF
+            pdf_bytes = pdf.output(dest='S')
             return pdf_bytes
+            
         except Exception as e:
             raise RuntimeError(f"Error generando PDF: {str(e)}")
 
@@ -430,16 +188,13 @@ class PDFGenerator:
         Raises:
             RuntimeError: Si falla generación de PDF
         """
-        # Generar HTML
-        html = PDFGenerator.generar_html_nota(
+        # Generar PDF directamente
+        pdf_bytes = PDFGenerator.generar_pdf(
             nota=nota,
             encuentro=encuentro,
             medico=medico,
             medico_persona=medico_persona,
             establecimiento=establecimiento,
         )
-        
-        # Generar PDF
-        pdf_bytes = PDFGenerator.generar_pdf(html)
         
         return pdf_bytes
