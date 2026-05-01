@@ -61,6 +61,11 @@ const IconDoc = ({ size = 14 }) => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
   </svg>
 );
+const IconAlert = ({ size = 24, color = "#fff" }) => (
+  <svg width={size} height={size} fill="none" viewBox="0 0 24 24" stroke={color} strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+  </svg>
+);
 
 // ── Estilos comunes ───────────────────────────────────────────────────────────
 const s = {
@@ -280,6 +285,10 @@ export default function RecetasTab({ pacienteId: propPacienteId }) {
   const [query, setQuery] = useState("");
   const [indicaciones, setIndicaciones] = useState("");
   const [firmado, setFirmado] = useState(false);
+  
+  // --- ESTADOS PARA MODAL DE SEGURIDAD P5 ---
+  const [showSafetyModal, setShowSafetyModal] = useState(false);
+  const [pendingItem, setPendingItem] = useState(null);
   const searchRef = useRef(null);
   let nextId = useRef(1);
 
@@ -348,25 +357,85 @@ export default function RecetasTab({ pacienteId: propPacienteId }) {
     if (rxItems.length === 0) return;
     
     setLoading(true);
+    const successItems = [];
+    const queue = [...rxItems];
+    
     try {
-      for (const item of rxItems) {
+      while (queue.length > 0) {
+        const item = queue[0];
         const payload = {
           codigo_medicamento_ssa: item.drug.codigo_medicamento_ssa,
           indicacion_dosis: `${item.dosis} | ${item.frecuencia} | ${item.via} | ${item.indicEsp}`.trim(),
           duracion_dias: parseInt(item.duracion) || 1,
-          cantidad_surtir: parseInt(item.cantidad) || 1
+          cantidad_surtir: parseInt(item.cantidad) || 1,
+          alerta_ignorada: false
         };
-        await pacientesAPI.addPrescripcion(pacienteId, payload);
+
+        try {
+          await pacientesAPI.addPrescripcion(pacienteId, payload);
+          successItems.push(item);
+          queue.shift(); // Eliminar de la cola si tuvo éxito
+        } catch (err) {
+          if (err.response?.status === 409 && err.response?.data?.detail?.error === 'ALERTA_CRITICA_ALERGIA') {
+            // DETENER Y MOSTRAR MODAL DE SEGURIDAD
+            setPendingItem({ item, payload, remainingQueue: queue });
+            setShowSafetyModal(true);
+            setLoading(false);
+            return; // Salir del bucle y esperar al modal
+          } else {
+            throw err;
+          }
+        }
       }
-      setFirmado(true);
-      setRxItems([]); // Limpiar los items recién firmados
-      fetchHistory(); // Recargar historial
+      
+      finalizeSigning();
     } catch (err) {
       console.error("Error al firmar recetas:", err);
-      alert(err.response?.data?.detail || "Error al guardar las recetas. Asegúrese de que el paciente tenga un encuentro activo.");
+      alert(err.message || "Error al guardar las recetas.");
+      setLoading(false);
+    }
+  };
+
+  const finalizeSigning = () => {
+    setFirmado(true);
+    setRxItems([]);
+    fetchHistory();
+    setLoading(false);
+  };
+
+  const handleConfirmSafety = async () => {
+    if (!pendingItem) return;
+    setLoading(true);
+    try {
+      // Re-intentar con alerta_ignorada: true
+      await pacientesAPI.addPrescripcion(pacienteId, { 
+        ...pendingItem.payload, 
+        alerta_ignorada: true 
+      });
+      
+      const nextQueue = pendingItem.remainingQueue.slice(1);
+      setShowSafetyModal(false);
+      setPendingItem(null);
+      
+      if (nextQueue.length > 0) {
+        // Continuar con el resto de la cola si hay más
+        setRxItems(nextQueue); // Actualizar UI
+        // Re-iniciar el proceso de firmado para el resto
+        // (En un entorno real, llamaríamos a una función procesadora de colas)
+      } else {
+        finalizeSigning();
+      }
+    } catch (err) {
+      alert("Error al confirmar prescripción de riesgo.");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleCancelSafety = () => {
+    setShowSafetyModal(false);
+    setPendingItem(null);
+    alert("Proceso de firmado cancelado por seguridad clínica.");
   };
 
   if (loading) {
@@ -567,6 +636,87 @@ export default function RecetasTab({ pacienteId: propPacienteId }) {
           <IconShield />
           Prescripción conforme a NOM-004-SSA3-2010 art. 5.12 — Solo medicamentos del Cuadro Básico y Catálogo de Insumos del SPSS
         </div>
+
+        {/* --- MODAL DE SEGURIDAD P5 (AESTHETIC) --- */}
+        {showSafetyModal && (
+          <div style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999,
+            padding: '20px'
+          }}>
+            <div style={{
+              background: 'white', borderRadius: '16px', maxWidth: '500px', width: '100%',
+              overflow: 'hidden', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+              animation: 'modalIn 0.3s ease-out'
+            }}>
+              <div style={{ background: '#DC2626', padding: '24px', textAlign: 'center' }}>
+                <div style={{ 
+                  background: 'rgba(255,255,255,0.2)', width: '64px', height: '64px', 
+                  borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  margin: '0 auto 16px'
+                }}>
+                  <IconAlert size={32} color="white" />
+                </div>
+                <h2 style={{ color: 'white', margin: 0, fontSize: '20px', fontWeight: 'bold' }}>
+                  ALERTA CRÍTICA DE ALERGIA
+                </h2>
+              </div>
+              
+              <div style={{ padding: '32px', textAlign: 'center' }}>
+                <p style={{ fontSize: '16px', color: '#4B5563', lineHeight: '1.6', margin: 0 }}>
+                  El paciente tiene una alergia registrada al medicamento:
+                </p>
+                <p style={{ fontSize: '20px', fontWeight: '800', color: '#111827', margin: '12px 0' }}>
+                  {pendingItem?.item?.drug?.nombre_generico}
+                </p>
+                <div style={{ 
+                  background: '#FEF2F2', border: '1px solid #FEE2E2', borderRadius: '12px',
+                  padding: '16px', marginTop: '24px', textAlign: 'left'
+                }}>
+                  <p style={{ fontSize: '14px', color: '#991B1B', margin: 0, fontWeight: '500' }}>
+                    ⚠️ Riesgo Clínico Detectado:
+                  </p>
+                  <p style={{ fontSize: '13px', color: '#B91C1C', marginTop: '4px', margin: 0 }}>
+                    La prescripción de este medicamento puede causar reacciones adversas severas en este paciente.
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ 
+                padding: '20px 32px', background: '#F9FAFB', borderTop: '1px solid #E5E7EB',
+                display: 'flex', gap: '12px'
+              }}>
+                <button 
+                  onClick={handleCancelSafety}
+                  style={{
+                    flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid #D1D5DB',
+                    background: 'white', color: '#374151', fontWeight: '600', cursor: 'pointer'
+                  }}
+                >
+                  Cancelar Receta
+                </button>
+                <button 
+                  onClick={handleConfirmSafety}
+                  style={{
+                    flex: 1, padding: '12px', borderRadius: '10px', border: 'none',
+                    background: '#DC2626', color: 'white', fontWeight: '600', cursor: 'pointer',
+                    boxShadow: '0 4px 6px -1px rgba(220, 38, 38, 0.4)'
+                  }}
+                >
+                  Ignorar y Proceder
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <style>{`
+          @keyframes modalIn {
+            from { opacity: 0; transform: translateY(20px) scale(0.95); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+          }
+        `}</style>
       </div>
     </div>
   );

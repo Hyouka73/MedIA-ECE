@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text
 from app.core.deps import get_current_user, require_role
 from app.database.session import get_db
-from app.models.auth import Paciente, Persona, Lengua
+from app.models.auth import Paciente, Persona, Lengua, Alergia
 from app.schemas.pacientes import (
     PacienteOut, PacienteCreateIn, PersonaOut, 
     PacienteCreateWithPersonaIn, PacienteUpdateIn
@@ -1702,14 +1702,17 @@ async def add_prescripcion_paciente(
         if not all([codigo_medicamento_ssa, indicacion_dosis, duracion_dias, cantidad_surtir]):
             raise HTTPException(status_code=422, detail="Faltan campos requeridos para la prescripción")
 
-        # Verificar que el medicamento existe en catálogo
-        medicamento_exists = await db.scalar(
-            select(text("1"))
+        # Verificar que el medicamento existe en catálogo y obtener su nombre
+        medicamento = await db.execute(
+            select(text("nombre_generico"))
             .select_from(text("cat_medicamentos"))
-            .where(text("codigo_medicamento_ssa = :codigo"), {"codigo": codigo_medicamento_ssa})
+            .where(text("codigo_medicamento_ssa = :codigo")).params(codigo=codigo_medicamento_ssa)
         )
-        if not medicamento_exists:
+        medicamento_row = medicamento.fetchone()
+        if not medicamento_row:
             raise HTTPException(status_code=422, detail="El código de medicamento SSA no existe en el catálogo")
+        
+        nombre_medicamento = medicamento_row[0]
         
         # Verificar que el paciente tiene un encuentro activo
         encuentro_activo = await db.scalar(
@@ -1721,10 +1724,37 @@ async def add_prescripcion_paciente(
         )
         if not encuentro_activo:
             raise HTTPException(status_code=400, detail="El paciente no tiene un encuentro clínico activo. No se puede agregar prescripción.")
+
+        # --- LÓGICA DE SEGURIDAD P5: VERIFICACIÓN DE ALERGIAS ---
+        alerta_ignorada = prescripcion_in.get("alerta_ignorada", False)
+        
+        # 1. Buscar todas las alergias de este paciente para cruce clínico
+        stmt_all = select(Alergia.alergia).where(Alergia.id_paciente == id_paciente)
+        res_all = await db.execute(stmt_all)
+        todas_las_alergias = [str(r[0]).strip().upper() for r in res_all.fetchall()]
+
+        # 2. Búsqueda de coincidencia inteligente (Persona 5)
+        alergia_detectada = None
+        for a in todas_las_alergias:
+            if a in nombre_medicamento.upper() or nombre_medicamento.upper() in a:
+                alergia_detectada = a
+                break
+
+        if alergia_detectada and not alerta_ignorada:
+            logger.warning(f"SEGURIDAD CLÍNICA: Alergia a {alergia_detectada} detectada para el paciente {id_paciente}")
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "ALERTA_CRITICA_ALERGIA",
+                    "mensaje": f"BLOQUEO DE SEGURIDAD: El paciente tiene una alergia registrada a {alergia_detectada}.",
+                    "id_medicamento": codigo_medicamento_ssa
+                }
+            )
+        # --------------------------------------------------------
         # Insertar prescripción
         query_insert = text("""
-            INSERT INTO prescripciones (id_prescripcion, id_encuentro, codigo_medicamento_ssa, indicacion_dosis, duracion_dias, cantidad_surtir)
-            VALUES (:id_prescripcion, :id_encuentro, :codigo_medicamento_ssa, :indicacion_dosis, :duracion_dias, :cantidad_surtir)
+            INSERT INTO prescripciones (id_prescripcion, id_encuentro, codigo_medicamento_ssa, indicacion_dosis, duracion_dias, cantidad_surtir, alerta_ignorada)
+            VALUES (:id_prescripcion, :id_encuentro, :codigo_medicamento_ssa, :indicacion_dosis, :duracion_dias, :cantidad_surtir, :alerta_ignorada)
         """)
         new_id = str(uuid4())
         await db.execute(query_insert, {
@@ -1733,7 +1763,8 @@ async def add_prescripcion_paciente(
             "codigo_medicamento_ssa": codigo_medicamento_ssa,
             "indicacion_dosis": indicacion_dosis,
             "duracion_dias": duracion_dias,
-            "cantidad_surtir": cantidad_surtir
+            "cantidad_surtir": cantidad_surtir,
+            "alerta_ignorada": alerta_ignorada
         })
         await db.commit()
         return {

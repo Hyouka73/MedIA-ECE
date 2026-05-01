@@ -463,6 +463,37 @@ async def add_prescripcion(
         if enc[0] is not None:
             raise HTTPException(status_code=400, detail="No se pueden agregar prescripciones a un encuentro cerrado")
 
+        # --- LÓGICA DE SEGURIDAD P5: VERIFICACIÓN DE ALERGIAS ---
+        codigo_medicamento = data.get("codigo_medicamento_ssa")
+        alerta_ignorada = data.get("alerta_ignorada", False)
+
+        # 1. Obtener el id_paciente del encuentro
+        res_pac = await db.execute(
+            text("SELECT id_paciente FROM encuentros_clinicos WHERE id_encuentro = :id"),
+            {"id": str(id_encuentro)}
+        )
+        id_paciente = res_pac.scalar()
+
+        # 2. Buscar si existe una alergia registrada para este paciente y este medicamento
+        stmt_alergia = select(Alergia).where(
+            Alergia.id_paciente == id_paciente,
+            Alergia.codigo_medicamento_ssa == codigo_medicamento
+        )
+        res_alergia = await db.execute(stmt_alergia)
+        alergia_existente = res_alergia.scalar_one_or_none()
+
+        if alergia_existente and not alerta_ignorada:
+            # BLOQUEO DE SEGURIDAD (Persona 5)
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={
+                    "error": "ALERTA_CRITICA_ALERGIA",
+                    "mensaje": f"El paciente tiene una alergia registrada a este medicamento ({codigo_medicamento}).",
+                    "id_medicamento": codigo_medicamento
+                }
+            )
+        # --------------------------------------------------------
+
         # Insertar prescripción
         query = text("""
             INSERT INTO prescripciones 
