@@ -254,27 +254,13 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
         "sub": str(user.id_usuario),
         "rol": rol_codigo,
         "email": user.email,
+        "jti": jti,
         "establecimiento": user_context["establecimiento_clues"],
         "id_establecimiento": user_context["id_establecimiento"],
         "id_especialidad": user_context["id_especialidad"],
     }
     token = create_access_token(token_data)
-    refresh = create_refresh_token(token_data | {"jti": jti})
-    
-    # Obtener contexto del usuario (establecimiento, especialidad)
-    user_context = await _get_user_context(db, user.id_usuario)
-    
-    # Incluir contexto en el token JWT
-    token_data = {
-        "sub": str(user.id_usuario), 
-        "rol": rol_codigo, 
-        "email": user.email,
-        "establecimiento": user_context["establecimiento_clues"],
-        "id_establecimiento": user_context["id_establecimiento"],
-        "id_especialidad": user_context["id_especialidad"]
-    }
-    token = create_access_token(token_data)
-    refresh = create_refresh_token(token_data | {"jti": jti})
+    refresh = create_refresh_token(token_data)
 
     await _registrar_sesion(db, user.id_usuario, jti, request)
     await _limpiar_sesiones_expiradas(db)
@@ -355,30 +341,16 @@ async def verify_2fa(request: Request, data: VerifyTOTPRequest, db: AsyncSession
         )
 
     token_data = {
-        "sub": str(user.id_usuario),
-        "rol": rol_codigo,
-        "email": email,
-        "establecimiento": user_context["establecimiento_clues"],
-        "id_establecimiento": user_context["id_establecimiento"],
-        "id_especialidad": user_context["id_especialidad"],
-    }
-    final_token = create_access_token(token_data)
-    refresh = create_refresh_token(token_data | {"jti": jti})
-    
-    # Obtener contexto del usuario
-    user_context = await _get_user_context(db, user.id_usuario)
-    
-    # Incluir contexto en el token JWT
-    token_data = {
         "sub": str(user.id_usuario), 
         "rol": rol_codigo, 
         "email": email,
+        "jti": jti,
         "establecimiento": user_context["establecimiento_clues"],
         "id_establecimiento": user_context["id_establecimiento"],
         "id_especialidad": user_context["id_especialidad"]
     }
     final_token = create_access_token(token_data)
-    refresh = create_refresh_token(token_data | {"jti": jti})
+    refresh = create_refresh_token(token_data)
 
     await _registrar_sesion(db, user.id_usuario, jti, request)
     await _limpiar_sesiones_expiradas(db)
@@ -387,7 +359,6 @@ async def verify_2fa(request: Request, data: VerifyTOTPRequest, db: AsyncSession
         "access_token": final_token,
         "token_type": "bearer",
         "user": _build_user_response(user, rol_codigo, user_context),
-        "user": _build_user_response(user, rol_codigo, user_context)
     })
     _set_refresh_cookie(response, refresh)
     return response
@@ -491,12 +462,13 @@ async def refresh_token(request: Request, db: AsyncSession = Depends(get_db)):
         "sub": str(user.id_usuario),
         "rol": rol_codigo,
         "email": user.email,
+        "jti": new_jti,
         "establecimiento": user_context["establecimiento_clues"],
         "id_establecimiento": user_context["id_establecimiento"],
         "id_especialidad": user_context["id_especialidad"],
     }
     new_access = create_access_token(token_data)
-    new_refresh = create_refresh_token(token_data | {"jti": new_jti})
+    new_refresh = create_refresh_token(token_data)
 
     await _registrar_sesion(db, user.id_usuario, new_jti, request)
 
@@ -584,4 +556,4 @@ async def _trust_ip(db: AsyncSession, user_id: UUID, ip: str, user_agent: str):
         ))
     else:
         trusted.ultima_vez_vista = datetime.now(timezone.utc)
-    # El commit se maneja en el flujo que llama a este helper
+    # El commit se maneja en el flujo que llama a este helper

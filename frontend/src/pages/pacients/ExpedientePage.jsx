@@ -438,55 +438,32 @@ export default function ExpedientePage() {
   const noPatData = antecedentes?.no_patologicos || antecedentes?.antecedentes_no_patologicos || {}
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#EDEBE6' }}>
-      <div
-        style={{
-          padding: '16px 28px',
-          background: '#FDFAF5',
-          borderBottom: '1px solid #DAD4CC',
-          backdropFilter: 'blur(12px)',
-          zIndex: 10,
-          boxShadow: '0 1px 3px rgba(26,21,16,0.05)',
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'space-between' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+    <div className="flex-1 flex flex-col overflow-hidden bg-background">
+      {/* Header Sticky */}
+      <div className="px-4 py-4 md:px-7 bg-[#FDFAF5]/80 backdrop-blur-md border-b border-border z-10 sticky top-0 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => navigate('/pacientes')}
-              style={{
-                border: 'none',
-                background: 'transparent',
-                cursor: 'pointer',
-                color: '#2C2620',
-                padding: '4px 8px',
-              }}
+              className="p-1.5 -ml-2 text-text-primary hover:bg-black/5 rounded-full transition-colors"
             >
               <ChevronLeft size={20} />
             </button>
-            <div>
-              <h1 style={{ color: '#1A1510', fontSize: 18, fontWeight: 700, margin: 0 }}>
+            <div className="min-w-0">
+              <h1 className="text-lg font-bold text-text-primary truncate">
                 Expediente Clínico
               </h1>
-              <p style={{ color: '#5A5048', fontSize: 12, margin: '4px 0 0 0' }}>
+              <p className="text-xs text-text-secondary mt-0.5 truncate">
                 {paciente.numero_expediente} · {paciente.persona?.nombre || paciente.nombre}
               </p>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="flex flex-wrap items-center gap-2">
             {(['RECEPCIONISTA', 'ADMINISTRADOR', 'SUPERADMIN', 'OMNIADMIN'].includes(user.rol) || canAccess(user.permisos, 'PACIENTES', 'puede_editar')) && (
               <button
                 onClick={() => navigate(`/pacientes/${paciente.id_paciente}/editar`)}
-                style={{
-                  padding: '8px 16px',
-                  background: 'transparent',
-                  border: '1.5px solid #2459A8',
-                  color: '#2459A8',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  fontWeight: 500,
-                }}
+                className="px-3 py-1.5 text-xs font-semibold text-primary border-1.5 border-primary rounded-md hover:bg-primary/5 transition-all whitespace-nowrap"
               >
                 Editar Usuario
               </button>
@@ -495,16 +472,7 @@ export default function ExpedientePage() {
             {(['MEDICO_GENERAL', 'ESPECIALISTA', 'SUPERADMIN', 'OMNIADMIN'].includes(user.rol) || canAccess(user.permisos, 'EXPEDIENTE', 'puede_editar')) && (
               <button
                 onClick={() => navigate(`/pacientes/${paciente.id_paciente}/antecedentes`)}
-                style={{
-                  padding: '8px 16px',
-                  background: 'transparent',
-                  border: '1.5px solid #2459A8',
-                  color: '#2459A8',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  fontWeight: 500,
-                }}
+                className="px-3 py-1.5 text-xs font-semibold text-primary border-1.5 border-primary rounded-md hover:bg-primary/5 transition-all whitespace-nowrap"
               >
                 Agregar Antecedentes
               </button>
@@ -513,16 +481,7 @@ export default function ExpedientePage() {
             {['MEDICO_GENERAL', 'ESPECIALISTA', 'SUPERADMIN', 'OMNIADMIN'].includes(user.rol) && (
               <button
                 onClick={() => navigate(`/consulta/nueva?id_paciente=${paciente.id_paciente}`)}
-                style={{
-                  padding: '8px 16px',
-                  background: '#2459A8',
-                  color: '#fff',
-                  border: 'none',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontSize: 12,
-                  fontWeight: 500,
-                }}
+                className="px-3 py-1.5 text-xs font-semibold text-white bg-primary rounded-md hover:bg-primary-hover shadow-md shadow-primary/20 transition-all whitespace-nowrap"
               >
                 + Nueva Consulta
               </button>
@@ -531,64 +490,30 @@ export default function ExpedientePage() {
         </div>
       </div>
 
-      <div style={{ flex: 1, overflowY: 'auto', padding: '22px 28px' }}>
-        <div
-          style={{
-            display: 'flex',
-            gap: 16,
-            alignItems: 'flex-start',
-            marginBottom: 20,
-            padding: '18px 20px',
-            background: '#F5F2EC',
-            border: '1px solid #DAD4CC',
-            borderRadius: 12,
-          }}
-        >
-          <div
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: '50%',
-              flexShrink: 0,
-              background: 'linear-gradient(135deg, #5B7ABC, #2459A8)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              fontSize: 18,
-              fontWeight: 700,
-            }}
-          >
+      <div className="flex-1 overflow-y-auto px-4 py-6 md:px-7">
+        <div className="flex flex-col sm:flex-row gap-5 items-start sm:items-center mb-6 p-5 bg-[#F5F2EC] border border-border rounded-xl">
+          <div className="w-14 h-14 rounded-full bg-gradient-to-br from-[#5B7ABC] to-[#2459A8] flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-primary/20 shrink-0">
             {initials}
           </div>
 
-          <div style={{ flex: 1 }}>
-            <h2 style={{ color: '#1A1510', fontSize: 18, fontWeight: 700, margin: '0 0 8px 0' }}>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg md:text-xl font-bold text-text-primary truncate">
               {paciente.persona?.nombre || `${paciente.nombre || ''} ${paciente.primer_apellido || ''}`}
             </h2>
 
-            <div style={{ color: '#2C2620', fontSize: 12, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-text-primary mt-1.5">
               <span>{calcularEdad(paciente?.persona?.fecha_nacimiento)} años</span>
-              <span>·</span>
+              <span className="hidden xs:inline text-border">•</span>
               <span>Nac. {paciente.persona?.fecha_nacimiento || 'N/A'}</span>
-              <span>·</span>
-              <span
-                style={{
-                  padding: '2px 8px',
-                  borderRadius: 4,
-                  background: '#F5969C',
-                  color: '#BA2E45',
-                  fontWeight: 600,
-                  fontSize: 11,
-                }}
-              >
+              <span className="hidden xs:inline text-border">•</span>
+              <span className="px-2 py-0.5 rounded bg-[#F5969C] text-[#BA2E45] font-bold text-[10px]">
                 Grupo {paciente.grupo_sanguineo || 'N/A'}
               </span>
-              <span>·</span>
-              <span>📞 {paciente.persona?.telefono || paciente.persona?.telefono_contacto || 'N/A'}</span>
+              <span className="hidden xs:inline text-border">•</span>
+              <span className="flex items-center gap-1">📞 {paciente.persona?.telefono || paciente.persona?.telefono_contacto || 'N/A'}</span>
             </div>
 
-            <p style={{ color: '#5A5048', fontSize: 10, margin: '6px 0 0 0', fontFamily: 'monospace', letterSpacing: '0.5px' }}>
+            <p className="text-[10px] text-text-secondary mt-2 font-mono tracking-wider">
               CURP: {paciente.persona?.curp || 'N/A'}
             </p>
           </div>
@@ -667,30 +592,16 @@ export default function ExpedientePage() {
           </div>
         )}
 
-        <div
-          style={{
-            display: 'flex',
-            gap: 0,
-            borderBottom: '1px solid #DAD4CC',
-            marginBottom: 18,
-            overflowX: 'auto',
-          }}
-        >
+        <div className="flex border-b border-border mb-6 overflow-x-auto scrollbar-hide -mx-4 px-4 md:mx-0 md:px-0">
           {['Antecedentes', 'Medicamentos', 'Estudios', 'Notas', 'Encuentros'].map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              style={{
-                padding: '12px 18px',
-                border: 'none',
-                background: 'transparent',
-                fontSize: 13,
-                fontWeight: activeTab === tab ? 600 : 400,
-                color: activeTab === tab ? '#2459A8' : '#2C2620',
-                borderBottom: `2px solid ${activeTab === tab ? '#2459A8' : 'transparent'}`,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
+              className={`px-5 py-3 text-sm font-medium whitespace-nowrap transition-all border-b-2 ${
+                activeTab === tab 
+                ? 'text-primary border-primary bg-primary/5' 
+                : 'text-text-secondary border-transparent hover:text-text-primary hover:bg-black/5'
+              }`}
             >
               {tab}
             </button>
@@ -698,24 +609,12 @@ export default function ExpedientePage() {
         </div>
 
         {activeTab === 'Antecedentes' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-            <div style={{ display: 'flex', gap: 10 }}>
+          <div className="space-y-5 animate-in fade-in duration-500">
+            <div className="flex flex-wrap gap-3">
               {(['RECEPCIONISTA', 'ADMINISTRADOR', 'SUPERADMIN', 'OMNIADMIN'].includes(user.rol) || canAccess(user.permisos, 'PACIENTES', 'puede_editar')) && (
                 <button
                   onClick={() => navigate(`/pacientes/${paciente.id_paciente}/editar`)}
-                  style={{
-                    padding: '8px 16px',
-                    background: '#2459A8',
-                    color: '#fff',
-                    border: 'none',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6
-                  }}
+                  className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-primary rounded-md hover:bg-primary-hover shadow-sm transition-all"
                 >
                   <FileText size={14} /> Editar Usuario
                 </button>
@@ -724,120 +623,107 @@ export default function ExpedientePage() {
               {(['MEDICO_GENERAL', 'ESPECIALISTA', 'SUPERADMIN', 'OMNIADMIN'].includes(user.rol) || canAccess(user.permisos, 'EXPEDIENTE', 'puede_editar')) && (
                 <button
                   onClick={() => navigate(`/pacientes/${paciente.id_paciente}/antecedentes`)}
-                  style={{
-                    padding: '8px 16px',
-                    background: 'transparent',
-                    border: '1.5px solid #2459A8',
-                    color: '#2459A8',
-                    borderRadius: '6px',
-                    cursor: 'pointer',
-                    fontSize: 12,
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 6
-                  }}
+                  className="flex items-center gap-2 px-4 py-2 text-xs font-bold text-primary border-1.5 border-primary rounded-md hover:bg-primary/5 transition-all"
                 >
                   <PlusCircle size={14} /> Agregar Antecedentes
                 </button>
               )}
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-              <div style={{ padding: 18, background: '#FDFAF5', border: '1px solid #DAD4CC', borderRadius: 10 }}>
-                <h3 style={{ fontSize: 11, fontWeight: 700, color: '#5A5048', letterSpacing: '0.4px', textTransform: 'uppercase', marginBottom: 14 }}>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <div className="p-5 bg-[#FDFAF5] border border-border rounded-xl shadow-sm">
+                <h3 className="text-[11px] font-bold text-text-secondary uppercase tracking-widest mb-4 border-b border-border/50 pb-2">
                   Enfermedades Crónicas
                 </h3>
 
                 {patologicos.length > 0 ? (
-                  patologicos.map((item, i) => (
-                    <div key={item.id_antecedente || i} style={{ display: 'flex', gap: 9, marginBottom: 10, alignItems: 'flex-start' }}>
-                      <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#E8921F', marginTop: 5, flexShrink: 0 }} />
-                      <span style={{ fontSize: 13, color: '#1A1510', lineHeight: 1.45 }}>
-                        {obtenerTextoAntecedente(item)}
-                      </span>
-                    </div>
-                  ))
+                  <div className="space-y-3">
+                    {patologicos.map((item, i) => (
+                      <div key={item.id_antecedente || i} className="flex gap-3 items-start">
+                        <div className="w-1.5 h-1.5 rounded-full bg-orange-400 mt-1.5 shrink-0" />
+                        <span className="text-sm text-text-primary leading-relaxed font-medium">
+                          {obtenerTextoAntecedente(item)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
                 ) : (
-                  <div style={{ fontSize: 13, color: '#5A5048', fontStyle: 'italic' }}>
-                    Sin enfermedades crónicas registradas
+                  <div className="py-8 text-center">
+                    <p className="text-sm text-text-secondary italic">Sin enfermedades crónicas registradas</p>
                   </div>
                 )}
               </div>
 
-              <div style={{ padding: 18, background: '#FDFAF5', border: '1px solid #DAD4CC', borderRadius: 10 }}>
-                <h3 style={{ fontSize: 11, fontWeight: 700, color: '#5A5048', letterSpacing: '0.4px', textTransform: 'uppercase', marginBottom: 14 }}>
+              <div className="p-5 bg-[#FDFAF5] border border-border rounded-xl shadow-sm">
+                <h3 className="text-[11px] font-bold text-text-secondary uppercase tracking-widest mb-4 border-b border-border/50 pb-2">
                   Resumen Clínico
                 </h3>
 
-                {[
-                  ['Grupo Sanguíneo', paciente.grupo_sanguineo || 'N/A'],
-                  ['Última Consulta', encuentros?.length ? formatearFecha(encuentros[0]?.fecha_inicio) : 'N/A'],
-                  ['Total Consultas', encuentros?.length || '0'],
-                  ['Alergias', paciente.alergias?.length ? `${paciente.alergias.length} registrada(s)` : 'Ninguna'],
-                  ['Vacunas', inmunizaciones?.length ? `${inmunizaciones.length} registrada(s)` : 'Ninguna'],
-                  ['Diabetes Heredofamiliar', heredoData?.diabetes ? '✅ Sí' : '❌ No'],
-                  ['Hipertensión Heredofamiliar', heredoData?.hipertension ? '✅ Sí' : '❌ No'],
-                  ['Tabaquismo', noPatData?.tabaquismo ? '✅ Sí' : '❌ No'],
-                  ['Alcoholismo', noPatData?.alcoholismo ? '✅ Sí' : '❌ No'],
-                  ['🌐 Lengua Materna', paciente.persona?.nombre_lengua || (paciente.persona?.id_lengua_materna ? `ID: ${paciente.persona.id_lengua_materna}` : 'No especificada')],
-                ].map(([label, value]) => (
-                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, gap: 10 }}>
-                    <span style={{ fontSize: 12, color: '#5A5048' }}>{label}</span>
-                    <span style={{ fontSize: 12, color: '#1A1510', fontWeight: 500, textAlign: 'right' }}>{value}</span>
-                  </div>
-                ))}
+                <div className="space-y-3.5">
+                  {[
+                    ['Grupo Sanguíneo', paciente.grupo_sanguineo || 'N/A'],
+                    ['Última Consulta', encuentros?.length ? formatearFecha(encuentros[0]?.fecha_inicio) : 'N/A'],
+                    ['Total Consultas', encuentros?.length || '0'],
+                    ['Alergias', paciente.alergias?.length ? `${paciente.alergias.length} registrada(s)` : 'Ninguna'],
+                    ['Vacunas', inmunizaciones?.length ? `${inmunizaciones.length} registrada(s)` : 'Ninguna'],
+                    ['Diabetes Heredofamiliar', heredoData?.diabetes ? '✅ Sí' : '❌ No'],
+                    ['Hipertensión Heredofamiliar', heredoData?.hipertension ? '✅ Sí' : '❌ No'],
+                    ['Tabaquismo', noPatData?.tabaquismo ? '✅ Sí' : '❌ No'],
+                    ['Alcoholismo', noPatData?.alcoholismo ? '✅ Sí' : '❌ No'],
+                    ['🌐 Lengua Materna', paciente.persona?.nombre_lengua || (paciente.persona?.id_lengua_materna ? `ID: ${paciente.persona.id_lengua_materna}` : 'No especificada')],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex justify-between items-center gap-4 group">
+                      <span className="text-[12px] text-text-secondary group-hover:text-text-primary transition-colors">{label}</span>
+                      <span className="text-[12px] text-text-primary font-bold text-right">{value}</span>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
         )}
 
         {activeTab === 'Medicamentos' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="space-y-4 animate-in fade-in duration-500">
             {medicamentos.length > 0 ? (
               medicamentos.map((med, i) => (
                 <div
                   key={med._key || i}
-                  style={{
-                    padding: 16,
-                    background: '#FDFAF5',
-                    border: '1px solid #DAD4CC',
-                    borderRadius: 10,
-                  }}
+                  className="p-4 bg-[#FDFAF5] border border-border rounded-xl shadow-sm hover:shadow-md transition-shadow"
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-                    <div>
-                      <h4 style={{ margin: '0 0 6px 0', fontSize: 14, fontWeight: 700, color: '#1A1510' }}>
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                    <div className="min-w-0">
+                      <h4 className="text-sm font-bold text-text-primary mb-1 truncate">
                         {obtenerNombreMedicamento(med)}
                       </h4>
-                      <p style={{ margin: '0 0 4px 0', fontSize: 12, color: '#5A5048' }}>
+                      <p className="text-xs text-text-secondary">
                         {[med.dosis, med.via_administracion, med.frecuencia].filter(Boolean).join(' · ') || 'Sin detalle de prescripción'}
                       </p>
                     </div>
 
-                    <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: 11, color: '#5A5048' }}>
+                    <div className="flex sm:flex-col items-center sm:items-end justify-between gap-2 shrink-0">
+                      <span className="text-[10px] text-text-secondary bg-black/5 px-2 py-1 rounded">
                         {formatearFecha(med.fecha_inicio)}
-                      </div>
-                      <div style={{ fontSize: 11, color: '#2459A8', fontWeight: 600 }}>
+                      </span>
+                      <span className="text-[11px] text-primary font-bold">
                         {med.motivo_consulta || 'Encuentro clínico'}
-                      </div>
+                      </span>
                     </div>
                   </div>
 
                   {med.indicaciones && (
-                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #E7E0D8' }}>
-                      <p style={{ margin: 0, fontSize: 12, color: '#1A1510' }}>
-                        <strong>Indicaciones:</strong> {med.indicaciones}
+                    <div className="mt-3 pt-3 border-t border-border/50">
+                      <p className="text-xs text-text-primary leading-relaxed">
+                        <strong className="text-text-secondary">Indicaciones:</strong> {med.indicaciones}
                       </p>
                     </div>
                   )}
                 </div>
               ))
             ) : (
-              <div style={{ textAlign: 'center', padding: '60px 20px', color: '#5A5048', fontSize: 13 }}>
-                <Pill size={40} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
-                Sin medicamentos registrados
+              <div className="py-12 text-center text-text-secondary">
+                <Pill size={40} className="mx-auto mb-4 opacity-20" />
+                <p className="text-sm">Sin medicamentos registrados</p>
               </div>
             )}
           </div>
@@ -852,110 +738,92 @@ export default function ExpedientePage() {
         )}
 
         {activeTab === 'Notas' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="space-y-4 animate-in fade-in duration-500">
             {notas?.length > 0 ? (
               notas.map((nota, i) => (
                 <div
                   key={nota.id_nota || i}
-                  style={{
-                    padding: 16,
-                    background: '#FDFAF5',
-                    border: '1px solid #DAD4CC',
-                    borderRadius: 10,
-                  }}
+                  className="p-5 bg-[#FDFAF5] border border-border rounded-xl shadow-sm"
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+                  <div className="flex justify-between items-start mb-4">
                     <div>
-                      <h4 style={{ color: '#1A1510', fontSize: 14, fontWeight: 700, margin: '0 0 4px 0' }}>
-                        Nota SOAP
+                      <h4 className="text-xs font-bold text-primary uppercase tracking-widest mb-1">
+                        Nota Clínica {nota.esta_firmada ? '✓' : '(Borrador)'}
                       </h4>
-                      <div style={{ fontSize: 12, color: '#5A5048' }}>
+                      <p className="text-[11px] text-text-secondary">
                         {formatearFecha(nota.fecha_inicio)} · {nota.motivo_consulta}
-                      </div>
+                      </p>
                     </div>
-                    <span
-                      style={{
-                        padding: '4px 10px',
-                        background: nota.esta_firmada ? '#E8F5E9' : '#FFF4D6',
-                        color: nota.esta_firmada ? '#237A4B' : '#9A6700',
-                        borderRadius: 4,
-                        fontSize: 11,
-                        fontWeight: 600,
-                      }}
-                    >
-                      {nota.esta_firmada ? '✓ Firmada' : '✍ Borrador'}
-                    </span>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 12, fontSize: 13, color: '#1A1510' }}>
+                  <div className="grid grid-cols-1 gap-3">
                     {nota.subjetivo && (
-                      <div><strong style={{ color: '#2459A8' }}>S:</strong> {nota.subjetivo}</div>
+                      <div className="text-sm">
+                        <span className="font-bold text-primary mr-2 text-xs">S:</span>
+                        <span className="text-text-primary italic">"{nota.subjetivo}"</span>
+                      </div>
                     )}
                     {nota.objetivo && (
-                      <div><strong style={{ color: '#2459A8' }}>O:</strong> {nota.objetivo}</div>
+                      <div className="text-sm">
+                        <span className="font-bold text-primary mr-2 text-xs">O:</span>
+                        <span className="text-text-primary">{nota.objetivo}</span>
+                      </div>
                     )}
                     {nota.analisis && (
-                      <div><strong style={{ color: '#2459A8' }}>A:</strong> {nota.analisis}</div>
+                      <div className="text-sm">
+                        <span className="font-bold text-primary mr-2 text-xs">A:</span>
+                        <span className="text-text-primary">{nota.analisis}</span>
+                      </div>
                     )}
                     {nota.plan && (
-                      <div><strong style={{ color: '#2459A8' }}>P:</strong> {nota.plan}</div>
+                      <div className="text-sm">
+                        <span className="font-bold text-primary mr-2 text-xs">P:</span>
+                        <span className="text-text-primary">{nota.plan}</span>
+                      </div>
                     )}
                   </div>
                 </div>
               ))
             ) : (
-              <div style={{ textAlign: 'center', padding: '60px 20px', color: '#5A5048', fontSize: 13 }}>
-                <FileText size={40} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
-                Sin notas clínicas registradas
+              <div className="py-12 text-center text-text-secondary">
+                <FileText size={40} className="mx-auto mb-4 opacity-20" />
+                <p className="text-sm">Sin notas clínicas registradas</p>
               </div>
             )}
           </div>
         )}
 
         {activeTab === 'Encuentros' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div className="space-y-4 animate-in fade-in duration-500">
             {encuentros?.length > 0 ? (
               encuentros.map((encuentro) => (
                 <div
                   key={encuentro.id_encuentro}
-                  style={{
-                    padding: 16,
-                    background: '#FDFAF5',
-                    border: '1px solid #DAD4CC',
-                    borderRadius: 10,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                  }}
+                  className="p-4 bg-[#FDFAF5] border border-border rounded-xl shadow-sm hover:border-primary/30 transition-all cursor-pointer group"
                   onClick={() =>
                     setExpandedEncuentro(
                       expandedEncuentro === encuentro.id_encuentro ? null : encuentro.id_encuentro
                     )
                   }
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-                    <div>
-                      <h4 style={{ color: '#1A1510', fontSize: 13, fontWeight: 600, margin: '0 0 6px 0' }}>
+                  <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+                    <div className="min-w-0">
+                      <h4 className="text-[13px] font-bold text-text-primary mb-2 group-hover:text-primary transition-colors">
                         {encuentro.motivo_consulta}
                       </h4>
-                      <div style={{ display: 'flex', gap: 12, fontSize: 12, color: '#5A5048', flexWrap: 'wrap' }}>
-                        <span>📅 {formatearFecha(encuentro.fecha_inicio)}</span>
-                        <span>🕐 {encuentro.hora_inicio}</span>
-                        <span>👨‍⚕️ {encuentro.medico}</span>
+                      <div className="flex flex-wrap gap-x-4 gap-y-2 text-[11px] text-text-secondary">
+                        <span className="flex items-center gap-1.5">📅 {formatearFecha(encuentro.fecha_inicio)}</span>
+                        <span className="flex items-center gap-1.5">🕐 {encuentro.hora_inicio}</span>
+                        <span className="flex items-center gap-1.5 font-medium text-text-primary">👨‍⚕️ {encuentro.medico}</span>
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8 }}>
-                      <span
-                        style={{
-                          display: 'inline-block',
-                          padding: '4px 10px',
-                          background: encuentro.estado === 'abierto' ? '#FFF4D6' : '#E8F5E9',
-                          color: encuentro.estado === 'abierto' ? '#9A6700' : '#237A4B',
-                          borderRadius: 4,
-                          fontSize: 11,
-                          fontWeight: 600,
-                        }}
-                      >
+                    <div className="flex sm:flex-col items-center sm:items-end justify-between w-full sm:w-auto gap-3">
+                      <span className={`px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-tight ${
+                        encuentro.estado === 'abierto' 
+                        ? 'bg-amber-100 text-amber-700' 
+                        : 'bg-emerald-100 text-emerald-700'
+                      }`}>
                         {encuentro.estado === 'abierto' ? '⏳ Abierto' : `✓ ${encuentro.estado}`}
                       </span>
 
@@ -965,51 +833,45 @@ export default function ExpedientePage() {
                             e.stopPropagation()
                             navigate(`/consulta/nueva?id_encuentro=${encuentro.id_encuentro}&id_paciente=${paciente?.id_paciente || id}`)
                           }}
-                          style={{
-                            background: '#1B4F8A',
-                            color: '#fff',
-                            border: 'none',
-                            padding: '6px 12px',
-                            borderRadius: 6,
-                            fontSize: 11,
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 4
-                          }}
+                          className="px-3 py-1.5 bg-primary text-white text-[10px] font-bold rounded-md hover:bg-primary-hover shadow-sm"
                         >
-                          Continuar Consulta
+                          Continuar
                         </button>
                       )}
                     </div>
                   </div>
 
                   {expandedEncuentro === encuentro.id_encuentro && (
-                    <div style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid #DAD4CC' }}>
+                    <div className="mt-4 pt-4 border-t border-border/50 grid grid-cols-1 md:grid-cols-2 gap-4 animate-in slide-in-from-top-2 duration-300">
                       {encuentro.diagnosticos?.length > 0 && (
-                        <div style={{ marginBottom: 12 }}>
-                          <p style={{ color: '#5A5048', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', marginBottom: 6 }}>
+                        <div>
+                          <p className="text-[10px] font-bold text-text-secondary uppercase tracking-widest mb-2">
                             Diagnósticos
                           </p>
-                          {encuentro.diagnosticos.map((dx, i) => (
-                            <p key={i} style={{ fontSize: 12, color: '#1A1510', margin: '4px 0' }}>
-                              • {typeof dx === 'string' ? dx : dx.descripcion_narrativa || dx.descripcion || dx.codigo_cie || 'Diagnóstico'}
-                            </p>
-                          ))}
+                          <div className="space-y-1.5">
+                            {encuentro.diagnosticos.map((dx, i) => (
+                              <div key={i} className="text-xs text-text-primary flex gap-2">
+                                <span className="text-primary">•</span>
+                                <span>{typeof dx === 'string' ? dx : dx.descripcion_narrativa || dx.descripcion || dx.codigo_cie}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
 
                       {encuentro.prescripciones?.length > 0 && (
                         <div>
-                          <p style={{ color: '#5A5048', fontSize: 11, fontWeight: 600, textTransform: 'uppercase', marginBottom: 6 }}>
+                          <p className="text-[10px] font-bold text-text-secondary uppercase tracking-widest mb-2">
                             Prescripciones
                           </p>
-                          {encuentro.prescripciones.map((rx, i) => (
-                            <p key={i} style={{ fontSize: 12, color: '#1A1510', margin: '4px 0' }}>
-                              • {typeof rx === 'string' ? rx : `${obtenerNombreMedicamento(rx)}${rx.dosis ? ` - ${rx.dosis}` : ''}`}
-                            </p>
-                          ))}
+                          <div className="space-y-1.5">
+                            {encuentro.prescripciones.map((rx, i) => (
+                              <div key={i} className="text-xs text-text-primary flex gap-2">
+                                <span className="text-primary-300">•</span>
+                                <span>{typeof rx === 'string' ? rx : `${obtenerNombreMedicamento(rx)}${rx.dosis ? ` - ${rx.dosis}` : ''}`}</span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
                     </div>
@@ -1017,9 +879,9 @@ export default function ExpedientePage() {
                 </div>
               ))
             ) : (
-              <div style={{ textAlign: 'center', padding: '60px 20px', color: '#5A5048', fontSize: 13 }}>
-                <Clock size={40} style={{ margin: '0 auto 16px', opacity: 0.5 }} />
-                Sin encuentros registrados
+              <div className="py-12 text-center text-text-secondary">
+                <Clock size={40} className="mx-auto mb-4 opacity-20" />
+                <p className="text-sm">Sin encuentros registrados</p>
               </div>
             )}
           </div>
