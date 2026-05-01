@@ -17,7 +17,7 @@ import {
   ActionBtn 
 } from '../../../utils/auditoria.utils';
 
-const IncidentesDrawer = ({ open, onClose, token, refreshKey, userRole, onIncidentUpdated }) => {
+const IncidentesDrawer = ({ open, onClose, token, refreshKey, userRole, onIncidentUpdated, onSelectLog }) => {
   const [incidentes, setIncidentes] = useState([]);
   const [loading, setLoading] = useState(false);
   const [updatingId, setUpdatingId] = useState(null);
@@ -131,7 +131,17 @@ const IncidentesDrawer = ({ open, onClose, token, refreshKey, userRole, onIncide
               const borderColor = estadoColor(resultado);
 
               return (
-                <div key={inc.id_auditoria} style={{ background: C.cd, border: `1px solid ${C.bd}`, borderLeft: `5px solid ${borderColor}`, borderRadius: "0 10px 10px 0", padding: "16px" }}>
+                <div 
+                  key={inc.id_auditoria} 
+                  onClick={() => onSelectLog?.(inc)}
+                  style={{ 
+                    background: C.cd, border: `1px solid ${C.bd}`, borderLeft: `5px solid ${borderColor}`, 
+                    borderRadius: "0 10px 10px 0", padding: "16px", cursor: "pointer",
+                    transition: "transform 0.2s",
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.transform = "scale(1.01)"}
+                  onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, gap: 10 }}>
                     <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
                       <div style={{ width: 34, height: 34, borderRadius: 8, background: borderColor, color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>

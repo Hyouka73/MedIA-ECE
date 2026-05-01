@@ -158,6 +158,21 @@ class AuditoriaAcceso(Base):
     id_establecimiento_dato = Column(UUID(as_uuid=True), nullable=True)
 
     usuario = relationship("User")
+    incidente = relationship("IncidenteSeguridad", back_populates="auditoria", uselist=False, lazy="joined")
+
+class IncidenteSeguridad(Base):
+    __tablename__ = "incidentes_seguridad"
+
+    id_incidente = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    id_auditoria = Column(BigInteger, ForeignKey("auditoria_accesos.id_auditoria"), nullable=False)
+    estado = Column(String(20), server_default="NUEVO")
+    asignado_a = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), nullable=True)
+    notas_investigacion = Column(Text)
+    fecha_creacion = Column(DateTime(timezone=True), server_default=func.now())
+    fecha_resolucion = Column(DateTime(timezone=True), nullable=True)
+
+    auditoria = relationship("AuditoriaAcceso", back_populates="incidente")
+    asignado = relationship("User")
 
 # ── CATÁLOGOS CLÍNICOS (Persona 5) ──────────────────────────────────────
 

@@ -312,18 +312,26 @@ const AuditoriaPage = () => {
     setDrawerRefreshKey(prev => prev + 1);
   }, [fetchStats, fetchLogs]);
 
-  const handleUpdateEstadoFromModal = async (log, nuevoEstado) => {
+  const handleUpdateEstadoFromModal = async (log, nuevoEstado, notas) => {
     if (!token || !canManageIncidents) return;
     setUpdatingEstado(true);
     try {
       await apiClient.patch(
         `/auditoria/incidentes/${log.id_auditoria}/estado`,
-        { estado: nuevoEstado },
+        { estado: nuevoEstado, notas: notas },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      setLogSeleccionado({ ...log, resultado: nuevoEstado });
+      // Actualizamos el estado local para reflejar el cambio inmediato
+      setLogSeleccionado({ 
+        ...log, 
+        resultado: nuevoEstado, 
+        incidente: { ...log.incidente, estado: nuevoEstado, notas_investigacion: notas } 
+      });
       handleIncidentUpdated();
-    } catch (e) { console.error("Error actualizando estado:", e); }
+    } catch (e) { 
+      console.error("Error actualizando estado:", e); 
+      alert(e?.response?.data?.detail || 'No se pudo actualizar el estado del incidente');
+    }
     finally { setUpdatingEstado(false); }
   };
 
@@ -453,7 +461,18 @@ const AuditoriaPage = () => {
         />
       )}
 
-      <IncidentesDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} token={token} refreshKey={drawerRefreshKey} userRole={userRole} onIncidentUpdated={handleIncidentUpdated} />
+      <IncidentesDrawer 
+        open={drawerOpen} 
+        onClose={() => setDrawerOpen(false)} 
+        token={token} 
+        refreshKey={drawerRefreshKey} 
+        userRole={userRole} 
+        onIncidentUpdated={handleIncidentUpdated} 
+        onSelectLog={(log) => {
+          setLogSeleccionado(log);
+          setDrawerOpen(false); // Cerramos el drawer para ver el modal
+        }}
+      />
       <BlacklistDrawer open={blacklistOpen} onClose={() => setBlacklistOpen(false)} token={token} refreshKey={blacklistRefreshKey} />
 
       <div style={{ padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: `1px solid ${C.bd}`, background: C.sf }}>
