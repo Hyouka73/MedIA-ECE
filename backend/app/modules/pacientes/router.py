@@ -1,19 +1,17 @@
 """Pacientes module router"""
 from app.models.encuentros import EncuentroClinico
-from fastapi import APIRouter, Depends, HTTPException, Query, Body
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text
 from app.core.deps import get_current_user, require_role
 from app.database.session import get_db
 from app.models.auth import Paciente, Persona, Lengua, Alergia
 from app.schemas.pacientes import (
-    PacienteOut, PacienteCreateIn, PersonaOut, 
-    PacienteCreateWithPersonaIn, PacienteUpdateIn
+    PacienteOut, PersonaOut
 )
 from uuid import UUID, uuid4
 from datetime import datetime, timezone, date
 from sqlalchemy import update
-import uuid
 from pydantic import BaseModel as PydanticBaseModel
 from typing import Optional
 import logging
@@ -1660,6 +1658,7 @@ async def get_prescripciones_paciente(
 async def add_prescripcion_paciente(
     id_paciente: UUID,
     prescripcion_in: dict,
+    request: Request,
     current_user: dict = Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA"])),
     db: AsyncSession = Depends(get_db)
 ):
@@ -1766,6 +1765,32 @@ async def add_prescripcion_paciente(
             "cantidad_surtir": cantidad_surtir,
             "alerta_ignorada": alerta_ignorada
         })
+
+        # --- REGISTRO DE AUDITORÍA Y SEGURIDAD (P5) ---
+        if alerta_ignorada:
+            # 1. Crear registro en auditoria_accesos
+            query_audit = text("""
+                INSERT INTO auditoria_accesos (id_usuario, modulo_funcion, tipo_evento, resultado, nivel_severidad, detalles, direccion_ip)
+                VALUES (:id_usuario, 'PRESCRIPCIONES', 'OVERRIDE_ALERGIA', 'ALERTA_IGNORADA', 'CRITICO', :detalles, :ip)
+                RETURNING id_auditoria
+            """)
+            audit_res = await db.execute(query_audit, {
+                "id_usuario": user_id,
+                "detalles": f'{{"paciente_id": "{id_paciente}", "medicamento": "{nombre_medicamento}", "motivo": "Prescripción con riesgo de alergia confirmada por médico"}}',
+                "ip": request.client.host
+            })
+            id_auditoria = audit_res.scalar()
+
+            # 2. Crear incidente de seguridad vinculado
+            query_incidente = text("""
+                INSERT INTO incidentes_seguridad (id_auditoria, estado, notas_investigacion)
+                VALUES (:id_audit, 'NUEVO', :notas)
+            """)
+            await db.execute(query_incidente, {
+                "id_audit": id_auditoria,
+                "notas": f"El médico ignoró una alerta de alergia crítica para el medicamento {nombre_medicamento} (SSA: {codigo_medicamento_ssa})."
+            })
+
         await db.commit()
         return {
             "data": {"id_prescripcion": new_id},
