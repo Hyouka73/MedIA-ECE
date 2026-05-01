@@ -35,10 +35,16 @@ export const getItemsFromResponse = (data) => {
 };
 
 export const getResultado = (item) => {
-  const raw = normalize(pickFirst(item?.resultado, item?.estado, 'ABIERTO'));
+  // Priorizamos el estado de la gestión (IncidenteSeguridad) sobre el resultado técnico del log
+  const estadoDb = normalize(item?.incidente?.estado);
+  let raw = normalize(pickFirst(estadoDb, item?.resultado, item?.estado, 'ABIERTO'));
+
+  // Normalización de estados de la BD a estados del Frontend
+  if (raw === 'NUEVO') raw = 'ABIERTO';
+  if (raw === 'EN_INVESTIGACION') raw = 'ENINVESTIGACION';
+  if (raw === 'RESUELTO') raw = 'CERRADO';
+  
   if (!raw) return 'ABIERTO';
-  if (raw === 'EN_PROCESO') return 'ENINVESTIGACION';
-  if (raw === 'RESUELTO') return 'CERRADO';
   
   // Si es un resultado técnico (EXITOSO, DENEGADO, etc) y no un estado de gestión,
   // lo tratamos como ABIERTO para permitir la transición en el flujo de incidentes.

@@ -79,7 +79,7 @@ const DetalleIncidenteModal = ({ log, onClose, onUpdateEstado, canManage, updati
           {Object.keys(detalles).length > 0 && (
             <div style={{ background: "#F1F5F9", borderRadius: 8, padding: "12px 14px" }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: C.tm, textTransform: "uppercase", marginBottom: 8 }}>
-                Información del incidente
+                Información técnica del log
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {detalles.alerta && (
@@ -94,11 +94,34 @@ const DetalleIncidenteModal = ({ log, onClose, onUpdateEstado, canManage, updati
             </div>
           )}
 
+          {/* NUEVA SECCIÓN DE SEGUIMIENTO FORENSE */}
+          <div style={{ background: '#fff', border: `1px solid ${C.bd}`, borderRadius: 10, padding: '16px' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: C.th, textTransform: "uppercase", marginBottom: 10, display: "flex", justifyContent: "space-between" }}>
+              <span>Seguimiento e Investigación</span>
+              <span style={{ color: C.b500 }}>Fase: {getResultadoLabel(resultado)}</span>
+            </div>
+            
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 10, fontWeight: 700, color: C.ts, display: "block", marginBottom: 4 }}>
+                NOTAS DE INVESTIGACIÓN / CAUSA RAÍZ
+              </label>
+              <textarea 
+                placeholder="Describa los hallazgos, acciones de contención y causa raíz identificada..."
+                defaultValue={log.incidente?.notas_investigacion || ''}
+                id="notas_forenses"
+                style={{ 
+                  width: "100%", height: 80, padding: 10, borderRadius: 8, border: `1px solid ${C.bd}`,
+                  fontSize: 12, color: C.th, resize: "none", outline: "none", background: C.sf
+                }}
+              />
+            </div>
+          </div>
+
           <div style={{
             background: '#FFF8E8', border: '1px solid #F3D9A8', borderRadius: 8,
             padding: '12px 14px', fontSize: 12, color: C.ts
           }}>
-            <strong>¿Qué hace “Investigar”?</strong> Cambia el incidente de <strong>ABIERTO</strong> a <strong>EN INVESTIGACIÓN</strong>. Eso indica que ya entró a seguimiento formal, se documentan acciones de contención y se analiza causa raíz antes de erradicar o cerrar.
+            <strong>Cumplimiento Doc 6:</strong> Las notas registradas forman parte de la cadena de custodia digital y se incluirán en el reporte forense final.
           </div>
 
           <div style={{ fontSize: 11, color: C.tm, fontStyle: "italic" }}>
@@ -125,7 +148,10 @@ const DetalleIncidenteModal = ({ log, onClose, onUpdateEstado, canManage, updati
               <ActionBtn
                 color={C.y500}
                 disabled={!canManage || !canTransition(resultado, 'ENINVESTIGACION') || updatingEstado}
-                onClick={() => onUpdateEstado(log, 'ENINVESTIGACION')}
+                onClick={() => {
+                  const notas = document.getElementById('notas_forenses')?.value;
+                  onUpdateEstado(log, 'ENINVESTIGACION', notas);
+                }}
                 title="Mover a ENINVESTIGACION"
               >
                 <Search size={13} /> Investigar
@@ -134,7 +160,10 @@ const DetalleIncidenteModal = ({ log, onClose, onUpdateEstado, canManage, updati
               <ActionBtn
                 color={C.g500}
                 disabled={!canManage || !canTransition(resultado, 'ERRADICADO') || updatingEstado}
-                onClick={() => onUpdateEstado(log, 'ERRADICADO')}
+                onClick={() => {
+                  const notas = document.getElementById('notas_forenses')?.value;
+                  onUpdateEstado(log, 'ERRADICADO', notas);
+                }}
                 title="Mover a ERRADICADO"
               >
                 <CheckCircle2 size={13} /> Erradicar
@@ -143,7 +172,10 @@ const DetalleIncidenteModal = ({ log, onClose, onUpdateEstado, canManage, updati
               <ActionBtn
                 color={C.b500}
                 disabled={!canManage || !canTransition(resultado, 'CERRADO') || updatingEstado}
-                onClick={() => onUpdateEstado(log, 'CERRADO')}
+                onClick={() => {
+                  const notas = document.getElementById('notas_forenses')?.value;
+                  onUpdateEstado(log, 'CERRADO', notas);
+                }}
                 title="Mover a CERRADO"
               >
                 <Archive size={13} /> Cerrar
