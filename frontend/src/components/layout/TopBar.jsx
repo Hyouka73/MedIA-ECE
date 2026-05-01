@@ -1,10 +1,10 @@
 import React from 'react'
-import { Bell, LogOut } from 'lucide-react'
+import { Bell, LogOut, Menu } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { useNavigate } from 'react-router-dom'
 import { Avatar } from '../ui/Avatar'
 
-export default function TopBar() {
+export default function TopBar({ onMenuToggle }) {
     const { user, logout } = useAuth()
     const navigate = useNavigate()
 
@@ -15,9 +15,16 @@ export default function TopBar() {
 
     return (
         <header className="h-14 bg-white border-b border-border flex items-center justify-between px-4 lg:px-6 flex-shrink-0 z-10 shadow-sm">
-            <div className="flex-1 min-w-0 flex items-center gap-4">
+            <div className="flex-1 min-w-0 flex items-center gap-3">
+                <button 
+                  onClick={onMenuToggle}
+                  className="p-2 -ml-2 text-text-secondary hover:text-text-primary hover:bg-background rounded-md md:hidden transition-colors"
+                >
+                  <Menu size={20} />
+                </button>
+                
                 {/* Titulo dinámico (CLUES / Expediente) */}
-                <div>
+                <div className="hidden xs:block">
                     <h1 className="text-sm font-semibold text-text-primary leading-none">Distrito de Salud I</h1>
                     <p className="text-xs text-text-secondary mt-1">CS Tuxtla Gutiérrez • Turno Matutino</p>
                 </div>

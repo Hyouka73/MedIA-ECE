@@ -124,7 +124,7 @@ async def get_forensic_logs(current_user: dict = Depends(require_role(["AUDITOR_
         return {"content": f.readlines()[-50:]}
 
 @app.get("/api/seguridad/sessions-blacklist", tags=["Auditoría"])
-async def get_blacklist(request: Request, current_user: dict = Depends(require_role(["AUDITOR_SEGURIDAD", "OMNIADMIN"]))):
+async def get_blacklist(request: Request, current_user: dict = Depends(require_role(["AUDITOR_SEGURIDAD", "OMNIADMIN", "SUPERADMIN"]))):
     return request.app.state.blacklist_detalles
 
 if settings.APP_ENV != "production":
