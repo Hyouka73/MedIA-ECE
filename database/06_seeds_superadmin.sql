@@ -1,62 +1,71 @@
--- 06_seeds_superadmin.sql
--- Seed de usuario SUPERADMIN inicial
--- Hash Argon2id precargado para MedIA2026! 
--- (NOTA: En producción, forcezar cambio de clave en 1er login)
+﻿-- 06_seeds_superadmin.sql
+-- Seeds de usuarios base para el sistema MedIA ECE
+-- Incluye SuperAdmin, OmniAdmin y perfiles operativos por defecto
 
--- 1. Crear a la persona física del admin
+-- 1. Persona para el Superadmin
 INSERT INTO personas (id_persona, nombre, primer_apellido, segundo_apellido, curp, fecha_nacimiento, sexo)
 VALUES (
-    'a1b2c3d4-e5f6-4a5b-8c7d-9e0f1a2b3c4d',
-    'Root',
-    'Administrador',
-    'Seguridad',
-    NULL,
-    '1990-01-01',
-    'X'
+    'c3d4e5f6-a7b8-4c9d-8e7f-0a1b2c3d4e5f',
+    'ADMINISTRADOR',
+    'SISTEMA',
+    'CENTRAL',
+    'ASCE800101HDFRRD01',
+    '1980-01-01',
+    'M'
 );
 
--- 2. Crear al usuario asociado con ROL SUPERADMIN (Rol = 1)
+-- 2. Personas para perfiles operativos adicionales
+INSERT INTO personas (id_persona, nombre, primer_apellido, segundo_apellido, curp, fecha_nacimiento, sexo)
+VALUES 
+    ('f1a2b3c4-d5e6-4f7a-8b9c-0d1e2f3a4b5c', 'ADMIN', 'OPERATIVO', 'LOCAL', 'AOL850101HDFRRD02', '1985-01-01', 'M'),
+    ('f2a3b4c5-d6e7-4f8a-9b0c-1d2e3f4a5b6c', 'JUAN', 'MEDICO', 'GARCIA', 'JMG900101HDFRRD03', '1990-01-01', 'M'),
+    ('f3a4b5c6-d7e8-4f9a-0b1c-2d3e4f5a6b7c', 'MARIA', 'ENFERMERA', 'LOPEZ', 'MEL920101MDFRRD04', '1992-01-01', 'F'),
+    ('f4a5b6c7-d8e9-4f0a-1b2c-3d4e5f6a7b8c', 'ANA', 'RECEPCION', 'PEREZ', 'ARP950101MDFRRD05', '1995-01-01', 'F');
+
+-- 3. Superadmin
 INSERT INTO usuarios_sistema (id_usuario, id_persona, email, password_hash, id_rol, cedula_profesional, requires_2fa, activo)
 VALUES (
     'b2c3d4e5-f6a7-4b5c-8d9e-0f1a2b3c4d5e',
-    'a1b2c3d4-e5f6-4a5b-8c7d-9e0f1a2b3c4d',
-    'baka637472@gmail.com',
+    'c3d4e5f6-a7b8-4c9d-8e7f-0a1b2c3d4e5f',
+    'superadmin@media.local',
     '$argon2id$v=19$m=65536,t=3,p=4$OYeQEuJ8D+H83xuD0JqzVg$OjFreNfXV6jJdVMxiH5dE9oghuyJNYZMq7ndSPILK1M', -- MedIA2026!
-    1, -- SUPERADMIN ID
+    1, -- SUPERADMIN
     NULL,
-    true, -- TEST: Enable 2FA for SuperAdmin
+    true, -- All users must configure 2FA on first login
     true
 );
 
--- 4. Crear a la persona del OmniAdmin
-INSERT INTO personas (id_persona, nombre, primer_apellido, segundo_apellido, curp, fecha_nacimiento, sexo)
-VALUES (
-    'c3d4e5f6-a7b8-4c9d-8e7f-0a1b2c3d4e5f',
-    'Omni',
-    'Admin',
-    'Universal',
-    NULL,
-    '1985-05-05',
-    'X'
-);
-
--- 5. Crear al usuario OMNIADMIN (Rol = 9)
+-- 4. Omniadmin
 INSERT INTO usuarios_sistema (id_usuario, id_persona, email, password_hash, id_rol, cedula_profesional, requires_2fa, activo)
 VALUES (
     'd4e5f6a7-b8c9-4d0e-9f8a-0b1c2d3e4f5a',
-    'c3d4e5f6-a7b8-4c9d-8e7f-0a1b2c3d4e5f',
+    'c3d4e5f6-a7b8-4c9d-8e7f-0a1b2c3d4e5f', -- Comparte la misma persona base o podríamos usar una nueva
     'omniadmin@media.local',
     '$argon2id$v=19$m=65536,t=3,p=4$OYeQEuJ8D+H83xuD0JqzVg$OjFreNfXV6jJdVMxiH5dE9oghuyJNYZMq7ndSPILK1M', -- MedIA2026!
     9, -- OMNIADMIN
     NULL,
-    false, -- No 2FA for OmniAdmin (as requested for fast bypass)
+    true,
     true
 );
 
--- 6. Asignar Omniadmin al establecimiento principal
-INSERT INTO usuarios_establecimientos (id_usuario, id_establecimiento, es_principal)
-VALUES ('d4e5f6a7-b8c9-4d0e-9f8a-0b1c2d3e4f5a', 'e7eb6ece-9f20-4bf6-ab0e-6ed4d058abcb', true);
+-- 5. Perfiles Operativos Solicitados (requires_2fa = true para todos)
+INSERT INTO usuarios_sistema (id_usuario, id_persona, email, password_hash, id_rol, cedula_profesional, requires_2fa, activo)
+VALUES 
+    -- Administrador
+    ('a1b2c3d4-e5f6-4a1b-2c3d-4e5f6a7b8c9d', 'f1a2b3c4-d5e6-4f7a-8b9c-0d1e2f3a4b5c', 'admin@media.local', '$argon2id$v=19$m=65536,t=3,p=4$Ch6a+oCvSoQmPuGVTKnYWQ$ZsXBIZwlnE14HSPvsk0u7qm5sIsIUagebyHOoZrmRXs', 2, NULL, true, true),
+    -- Medico
+    ('c1e2d3c4-f5a6-4a1b-2c3d-4e5f6a7b8c9d', 'f2a3b4c5-d6e7-4f8a-9b0c-1d2e3f4a5b6c', 'medico_a@media.local', '$argon2id$v=19$m=65536,t=3,p=4$+3BgOV6VbxASQ68m/rW4uA$UukJKFWpqvNjc5ZEmLnBXjJLeeaXFWVQ3vUAALYM+7k', 5, '12345678', true, true),
+    -- Enfermeria
+    ('e1b2c3d4-f5e6-4a1b-2c3d-4e5f6a7b8c9d', 'f3a4b5c6-d7e8-4f9a-0b1c-2d3e4f5a6b7c', 'enfermera@media.local', '$argon2id$v=19$m=65536,t=3,p=4$LA2fHRfJvixOI4L+UEYHCQ$mQUr+9YgXF+BPvkVM5d0htF4ebOd/HJM6cLFXhGWrXA', 4, NULL, true, true),
+    -- Recepcion
+    ('b1e2c3e4-d5c6-4a1b-2c3d-4e5f6a7b8c9d', 'f4a5b6c7-d8e9-4f0a-1b2c-3d4e5f6a7b8c', 'recepcion@media.local', '$argon2id$v=19$m=65536,t=3,p=4$P35CkmW9Pcv3+4OKxqB8jg$pN8jnaShTiaPbS7hHy0k165ptQL1pRHX9gq+8QNsuiE', 3, NULL, true, true);
 
--- 7. Asignar el Superadmin al establecimiento principal
+-- 6. Asignar usuarios al establecimiento principal (CS Santa Ana - Chiapas)
 INSERT INTO usuarios_establecimientos (id_usuario, id_establecimiento, es_principal)
-VALUES ('b2c3d4e5-f6a7-4b5c-8d9e-0f1a2b3c4d5e', 'e7eb6ece-9f20-4bf6-ab0e-6ed4d058abcb', true);
+VALUES 
+    ('b2c3d4e5-f6a7-4b5c-8d9e-0f1a2b3c4d5e', 'e7eb6ece-9f20-4bf6-ab0e-6ed4d058abcb', true), -- SuperAdmin
+    ('d4e5f6a7-b8c9-4d0e-9f8a-0b1c2d3e4f5a', 'e7eb6ece-9f20-4bf6-ab0e-6ed4d058abcb', true), -- OmniAdmin
+    ('a1b2c3d4-e5f6-4a1b-2c3d-4e5f6a7b8c9d', 'e7eb6ece-9f20-4bf6-ab0e-6ed4d058abcb', true), -- Admin
+    ('c1e2d3c4-f5a6-4a1b-2c3d-4e5f6a7b8c9d', 'e7eb6ece-9f20-4bf6-ab0e-6ed4d058abcb', true), -- Medico
+    ('e1b2c3d4-f5e6-4a1b-2c3d-4e5f6a7b8c9d', 'e7eb6ece-9f20-4bf6-ab0e-6ed4d058abcb', true), -- Enfermera
+    ('b1e2c3e4-d5c6-4a1b-2c3d-4e5f6a7b8c9d', 'e7eb6ece-9f20-4bf6-ab0e-6ed4d058abcb', true); -- Recepcion

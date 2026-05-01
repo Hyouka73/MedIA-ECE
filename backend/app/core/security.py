@@ -111,7 +111,7 @@ def create_refresh_token(data: dict) -> str:
 
 
 def verify_totp(secret: str, code: str) -> bool:
-    # Reducción de ventana de tiempo de 300s a 60s para cumplimiento de estándares de seguridad
-    totp = pyotp.TOTP(secret, interval=60)
-    # valid_window=1 permite un margen extra de ±60s por desincronización
+    # Cambio a estándar de 30s para compatibilidad con Google Authenticator
+    totp = pyotp.TOTP(secret, interval=30)
+    # valid_window=1 permite un margen extra de ±30s por desincronización
     return totp.verify(code, valid_window=1)

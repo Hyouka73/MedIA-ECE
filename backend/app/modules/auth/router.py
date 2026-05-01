@@ -24,10 +24,10 @@ from app.core.security import (
     encrypt_secret, decrypt_secret
 )
 from app.core.config import settings
-from app.models.auth import User, Role, Persona, SesionActiva
+from app.models.auth import User, Role, Persona, SesionActiva, UserTrustedIP
 from app.models.encuentros import EncuentroClinico
 from app.models.notas_soap import NotaMedica
-from app.services.email import email_service
+from app.core.deps import get_current_user
 
 from sqlalchemy import text
 
@@ -214,36 +214,31 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
     await db.commit()
 
     rol_codigo = await _get_role_code(db, user.id_rol)
+    ip_cliente = request.client.host
 
-    # ── Flujo 2FA ──────────────────────────────────────────────
-    if user.requires_2fa or fue_desbloqueada:
+    # ── Flujo 2FA Adaptativo ───────────────────────────────────
+    # REGLA: Pedir 2FA si tiene TOTP configurado Y (es nueva IP O fue desbloqueada)
+    es_ip_conocida = await _is_ip_trusted(db, user.id_usuario, ip_cliente)
+    
+    if user.totp_secret and (not es_ip_conocida or fue_desbloqueada):
         temp_token = create_access_token(
             {"sub": str(user.id_usuario), "rol": "PENDING_2FA", "email": user.email},
             expires_delta=300
         )
-        if not user.totp_secret:
-            raw_secret = generate_totp_secret()
-            user.totp_secret = encrypt_secret(raw_secret)
-            await db.commit()
-            await db.refresh(user)
         
-        # Descifrar para generar código
-        raw_secret = decrypt_secret(user.totp_secret)
-        codigo_enviado = pyotp.TOTP(raw_secret, interval=60).now()
-
-        if settings.APP_ENV != "production":
-            print(f"🔑 [DEV MODO] CÓDIGO 2FA PARA {user.email}: {codigo_enviado}")
-
-        email_service.send_2fa_token(user.email, codigo_enviado)
-
         return {
             "access_token": "",
             "token_type": "bearer",
             "requires_2fa": True,
             "temp_token": temp_token,
+            "totp_configured": True,
             "user": None,
-            "reason": "account_unlocked" if fue_desbloqueada else "2fa_required",
+            "reason": "account_unlocked" if fue_desbloqueada else "new_ip_detected",
         }
+
+    # Si NO tiene TOTP configurado, permitimos el login pero el frontend 
+    # detectará totp_configured=False y redirigirá a /2fa/setup.
+
 
     # ── Flujo normal ───────────────────────────────────────────
     jti = str(uuid.uuid4())
@@ -274,7 +269,8 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
         "access_token": token,
         "token_type": "bearer",
         "requires_2fa": False,
-        "user": _build_user_response(user, rol_codigo, user_context),
+        "totp_configured": bool(user.totp_secret),
+        "user": _build_user_response(user, rol_codigo, user_context)
     })
     _set_refresh_cookie(response, refresh)
     return response
@@ -302,9 +298,8 @@ async def verify_2fa(request: Request, data: VerifyTOTPRequest, db: AsyncSession
     if not user.activo:
         raise HTTPException(status_code=423, detail="Cuenta bloqueada. Contacte Auditoría.")
 
-    dev_bypass = {"000000"}
-    es_valido = data.code in dev_bypass
-    if not es_valido and user.totp_secret:
+    es_valido = False
+    if user.totp_secret:
         # Descifrar para validar
         raw_secret = decrypt_secret(user.totp_secret)
         es_valido = verify_totp(raw_secret, data.code)
@@ -335,6 +330,10 @@ async def verify_2fa(request: Request, data: VerifyTOTPRequest, db: AsyncSession
     jti = str(uuid.uuid4())
     user_context = await _get_user_context(db, user.id_usuario)
 
+    # Confiar en esta IP tras verificación exitosa
+    await _trust_ip(db, user.id_usuario, request.client.host, request.headers.get("user-agent", ""))
+
+
     if not user_context.get("id_establecimiento"):
         raise HTTPException(
             status_code=400,
@@ -363,6 +362,48 @@ async def verify_2fa(request: Request, data: VerifyTOTPRequest, db: AsyncSession
     })
     _set_refresh_cookie(response, refresh)
     return response
+
+
+# ── POST /auth/2fa/setup ──────────────────────────────────────
+@router.post("/2fa/setup")
+@limiter.limit("2/minute")
+async def setup_2fa(
+    request: Request, 
+    db: AsyncSession = Depends(get_db),
+    payload: dict = Depends(get_current_user)
+):
+    """
+    Genera una nueva semilla TOTP para el usuario.
+    Solo para usuarios con sesión completa.
+    """
+    user_id = payload.get("sub")
+    
+    # Obtener el usuario real de la DB
+    query = select(User).where(User.id_usuario == user_id)
+    user = (await db.execute(query)).scalar_one_or_none()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    raw_secret = generate_totp_secret()
+    user.totp_secret = encrypt_secret(raw_secret)
+    user.requires_2fa = True
+    
+    await db.commit()
+    await db.refresh(user)
+    
+    # Generar URI para QR
+    provisioning_uri = pyotp.TOTP(raw_secret).provisioning_uri(
+        name=user.email, 
+        issuer_name="MedSys"
+    )
+    
+    return {
+        "detail": "Configuración de 2FA iniciada",
+        "provisioning_uri": provisioning_uri,
+        "secret_key": raw_secret,
+        "message": "Escanee el código QR o ingrese la clave manualmente en su app de autenticación."
+    }
 
 
 # ── POST /auth/refresh ────────────────────────────────────────
@@ -485,3 +526,34 @@ async def logout(request: Request, response: Response, db: AsyncSession = Depend
                     })
 
     return {"detail": "Sesión cerrada y tokens revocados exitosamente"}
+
+
+# ── Helpers de Adaptabilidad 2FA ──────────────────────────────
+async def _is_ip_trusted(db: AsyncSession, user_id: UUID, ip: str) -> bool:
+    """Verifica si la IP ya ha sido validada anteriormente para este usuario."""
+    stmt = select(UserTrustedIP).where(
+        UserTrustedIP.id_usuario == user_id,
+        UserTrustedIP.ip_direccion == ip
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none() is not None
+
+
+async def _trust_ip(db: AsyncSession, user_id: UUID, ip: str, user_agent: str):
+    """Registra o actualiza una IP como confiable tras un 2FA exitoso."""
+    stmt = select(UserTrustedIP).where(
+        UserTrustedIP.id_usuario == user_id,
+        UserTrustedIP.ip_direccion == ip
+    )
+    result = await db.execute(stmt)
+    trusted = result.scalar_one_or_none()
+    
+    if not trusted:
+        db.add(UserTrustedIP(
+            id_usuario=user_id, 
+            ip_direccion=ip, 
+            user_agent=user_agent
+        ))
+    else:
+        trusted.ultima_vez_vista = datetime.now(timezone.utc)
+    # El commit se maneja en el flujo que llama a este helper

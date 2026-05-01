@@ -45,12 +45,13 @@ async def check_regla_1(id_paciente: UUID, id_usuario: UUID, db: AsyncSession) -
             logger.info(f"check_regla_1: Acceso concedido a administrador {id_usuario}")
             return True
         
-        # Para médicos, verificar encuentro
+        # Para médicos, verificar encuentro ACTIVO (Req Forense)
         query_encounter = text("""
             SELECT COUNT(*) as total 
             FROM encuentros_clinicos 
             WHERE id_paciente = :id_paciente 
               AND id_medico = :id_usuario
+              AND fecha_cierre IS NULL
         """)
         result = await db.execute(query_encounter, {
             "id_paciente": id_paciente,
@@ -60,7 +61,7 @@ async def check_regla_1(id_paciente: UUID, id_usuario: UUID, db: AsyncSession) -
         
         allowed = count > 0
         if not allowed:
-            logger.info(f"check_regla_1: {id_usuario} no tiene encuentro con paciente {id_paciente}")
+            logger.warning(f"check_regla_1: ACCESO DENEGADO. El médico {id_usuario} no tiene un encuentro ACTIVO con el paciente {id_paciente}")
         return allowed
         
     except Exception as e:
