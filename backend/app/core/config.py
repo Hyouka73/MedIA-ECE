@@ -16,14 +16,14 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://media_dev:dev_pass_changeme@localhost:5432/media_db"
 
     # JWT
-    JWT_SECRET_KEY: str = "CHANGE_ME_IN_PRODUCTION"
+    JWT_SECRET_KEY: str = "d80f48e1a2dedd934220dad01652ccfc4fdb458317e915d560ca08c171567059"
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # TOTP / 2FA
     TOTP_ISSUER: str = "MedIA-ECE"
-    TOTP_ENCRYPTION_KEY: str = "CHANGE_ME_IN_PRODUCTION"
+    TOTP_ENCRYPTION_KEY: str = "295u-mX7xG5ycaAPbwvjIfu-7zTE9kujPHt6osFueKU="
 
     # CORS
     ALLOWED_ORIGINS: str = "http://localhost:5173"
