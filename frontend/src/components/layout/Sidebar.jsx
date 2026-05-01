@@ -31,7 +31,7 @@ const NAV_ITEMS = [
     { id: 'admin', icon: Settings, label: 'Administración', group: 'SISTEMA', href: '/admin', moduleCode: 'ADMIN', hideForRoles: ['MEDICO_GENERAL', 'ESPECIALISTA', 'ENFERMERIA', 'RECEPCIONISTA', 'AUDITOR_SEGURIDAD'] },
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }) {
   const location = useLocation()
   const navigate = useNavigate()
   const { pathname, search } = location
@@ -113,12 +113,22 @@ export default function Sidebar() {
   }
 
   return (
-    <aside className="w-[230px] bg-sidebar text-white flex-shrink-0 flex flex-col h-full transition-all border-r border-sidebar-hover hidden md:flex">
+    <aside className={`
+      fixed inset-y-0 left-0 z-50 w-[260px] bg-sidebar text-white flex-shrink-0 flex flex-col h-full transition-transform duration-300 border-r border-sidebar-hover
+      md:static md:translate-x-0
+      ${isMobileMenuOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'}
+    `}>
       {/* Header Logo */}
-      <div className="h-14 flex items-center px-4 font-bold text-lg border-b border-sidebar-hover">
+      <div className="h-14 flex items-center justify-between px-4 font-bold text-lg border-b border-sidebar-hover">
         <span className="text-white">
           Med<span className="text-primary-300">IA</span>
         </span>
+        <button 
+          onClick={() => setIsMobileMenuOpen(false)}
+          className="md:hidden text-gray-400 hover:text-white"
+        >
+          <X size={20} />
+        </button>
       </div>
 
       <nav className="flex-1 overflow-y-auto py-4 scrollbar-hide">
