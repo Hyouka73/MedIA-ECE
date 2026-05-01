@@ -403,7 +403,94 @@ async def cerrar_encuentro(
         await db.rollback()
         logger.error(f"Error al cerrar encuentro: {str(e)}")
         raise HTTPException(status_code=500, detail="Error al cerrar encuentro")
-        raise HTTPException(status_code=500, detail="Error al cerrar")
+
+
+# ── Prescripciones ────────────────────────────────────────────────────
+
+@router.get("/{id_encuentro}/prescripciones", response_model=dict)
+async def get_prescripciones(
+    id_encuentro: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """GET /encuentros/{id}/prescripciones — Obtiene las prescripciones de un encuentro"""
+    try:
+        query = text("""
+            SELECT 
+                p.id_prescripcion,
+                p.codigo_medicamento_ssa,
+                p.indicacion_dosis,
+                p.duracion_dias,
+                p.cantidad_surtir,
+                p.alerta_ignorada,
+                m.nombre_generico,
+                m.forma_farmaceutica,
+                m.presentacion
+            FROM prescripciones p
+            JOIN cat_medicamentos m ON p.codigo_medicamento_ssa = m.codigo_medicamento_ssa
+            WHERE p.id_encuentro = :id_e
+        """)
+        
+        result = await db.execute(query, {"id_e": str(id_encuentro)})
+        rows = result.mappings().all()
+        
+        return {
+            "data": [dict(row) for row in rows],
+            "message": "Prescripciones obtenidas exitosamente"
+        }
+    except Exception as e:
+        logger.error(f"Error al obtener prescripciones: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error al obtener prescripciones")
+
+
+@router.post("/{id_encuentro}/prescripciones", response_model=dict, status_code=status.HTTP_201_CREATED)
+async def add_prescripcion(
+    id_encuentro: UUID,
+    data: dict,
+    current_user: dict = Depends(require_role("MEDICO_GENERAL", "ESPECIALISTA", "SUPERADMIN")),
+    db: AsyncSession = Depends(get_db)
+):
+    """POST /encuentros/{id}/prescripciones — Agrega una prescripción al encuentro"""
+    try:
+        # Validar que el encuentro esté abierto
+        res_enc = await db.execute(
+            text("SELECT fecha_cierre FROM encuentros_clinicos WHERE id_encuentro = :id"),
+            {"id": str(id_encuentro)}
+        )
+        enc = res_enc.fetchone()
+        if not enc:
+            raise HTTPException(status_code=404, detail="Encuentro no encontrado")
+        if enc[0] is not None:
+            raise HTTPException(status_code=400, detail="No se pueden agregar prescripciones a un encuentro cerrado")
+
+        # Insertar prescripción
+        query = text("""
+            INSERT INTO prescripciones 
+            (id_encuentro, codigo_medicamento_ssa, indicacion_dosis, duracion_dias, cantidad_surtir, alerta_ignorada)
+            VALUES (:id_e, :cod, :ind, :dur, :cant, :alert)
+            RETURNING id_prescripcion
+        """)
+        
+        result = await db.execute(query, {
+            "id_e": str(id_encuentro),
+            "cod": data.get("codigo_medicamento_ssa"),
+            "ind": data.get("indicacion_dosis"),
+            "dur": data.get("duracion_dias", 1),
+            "cant": data.get("cantidad_surtir", 1),
+            "alert": data.get("alerta_ignorada", False)
+        })
+        
+        await db.commit()
+        return {
+            "id_prescripcion": str(result.scalar()),
+            "message": "Prescripción agregada exitosamente"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        await db.rollback()
+        logger.error(f"Error al agregar prescripción: {str(e)}")
+        raise HTTPException(status_code=500, detail="Error al agregar prescripción")
 
 
 

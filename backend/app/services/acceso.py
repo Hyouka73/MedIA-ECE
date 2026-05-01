@@ -54,8 +54,8 @@ async def check_regla_1(id_paciente: UUID, id_usuario: UUID, db: AsyncSession) -
               AND fecha_cierre IS NULL
         """)
         result = await db.execute(query_encounter, {
-            "id_paciente": id_paciente,
-            "id_usuario": id_usuario
+            "id_paciente": str(id_paciente),
+            "id_usuario": str(id_usuario)
         })
         count = result.scalar() or 0
         

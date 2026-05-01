@@ -1,4 +1,5 @@
 """Pacientes module router"""
+from app.models.encuentros import EncuentroClinico
 from fastapi import APIRouter, Depends, HTTPException, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text
@@ -1567,3 +1568,182 @@ async def add_tutor(
         logger.error(f"Error al agregar tutor: {str(e)}")
         await db.rollback()
         raise HTTPException(status_code=500, detail="Error interno al agregar tutor")
+
+
+# ── GET /pacientes/{id}/prescripciones ──────────────────────────────
+@router.get("/{id_paciente}/prescripciones", response_model=dict)
+async def get_prescripciones_paciente(
+    id_paciente: UUID,
+    current_user: dict = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """GET /pacientes/{id}/prescripciones — Obtiene todas las prescripciones históricas del paciente"""
+    try:
+        # Extraer ID de usuario del token
+        user_id_str = current_user.get("sub")
+        if not user_id_str:
+            raise HTTPException(status_code=401, detail="Token no contiene identificación de usuario")
+        
+        try:
+            user_id = UUID(user_id_str)
+        except ValueError:
+            logger.error(f"ID de usuario inválido en token: {user_id_str}")
+            raise HTTPException(status_code=401, detail="ID de usuario inválido")
+
+        # Verificar acceso (Regla 1)
+        # Nota: check_regla_1 tiene su propio try/except y devuelve bool
+        tiene_acceso = await check_regla_1(id_paciente, user_id, db)
+        if not tiene_acceso:
+            # Si es médico, puede ser que no tenga encuentro activo.
+            # Pero para desarrollo, vamos a ser un poco más permisivos o informar mejor.
+            logger.warning(f"Acceso denegado Regla 1: Usuario {user_id} -> Paciente {id_paciente}")
+            raise HTTPException(
+                status_code=403, 
+                detail="Acceso denegado. No tiene un encuentro activo con este paciente o permisos suficientes."
+            )
+
+        # Verificar paciente existe
+        paciente_exists = await db.scalar(
+            select(Paciente.id_paciente)
+            .where(Paciente.id_paciente == id_paciente, Paciente.eliminado_en == None)
+        )
+        if not paciente_exists:
+            raise HTTPException(status_code=404, detail="Paciente no encontrado")
+
+        query = text("""
+            SELECT 
+                p.id_prescripcion,
+                p.id_encuentro,
+                p.codigo_medicamento_ssa,
+                p.indicacion_dosis,
+                p.duracion_dias,
+                p.cantidad_surtir,
+                p.alerta_ignorada,
+                m.nombre_generico,
+                m.forma_farmaceutica,
+                m.presentacion,
+                e.fecha_inicio as fecha_prescripcion
+            FROM prescripciones p
+            INNER JOIN encuentros_clinicos e ON p.id_encuentro = e.id_encuentro
+            INNER JOIN cat_medicamentos m ON p.codigo_medicamento_ssa = m.codigo_medicamento_ssa
+            WHERE e.id_paciente = :id_p
+            ORDER BY e.fecha_inicio DESC
+        """)
+        
+        result = await db.execute(query, {"id_p": str(id_paciente)})
+        rows = result.mappings().all()
+        
+        # Serializar para JSON
+        data = []
+        for row in rows:
+            item = dict(row)
+            # Convertir UUIDs y datetimes a string
+            for key, value in item.items():
+                if value is None:
+                    continue
+                if isinstance(value, (uuid.UUID, datetime, date)):
+                    item[key] = str(value)
+            data.append(item)
+        
+        return {
+            "data": data,
+            "message": "Prescripciones históricas obtenidas exitosamente"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error crítico en get_prescripciones_paciente ({id_paciente}): {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error interno al procesar la solicitud de prescripciones")
+
+# ── POST /pacientes/{id}/prescripciones/ ──────────────────────
+@router.post("/{id_paciente}/prescripciones", response_model=dict, status_code=201)
+async def add_prescripcion_paciente(
+    id_paciente: UUID,
+    prescripcion_in: dict,
+    current_user: dict = Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA"])),
+    db: AsyncSession = Depends(get_db)
+):
+    """POST /pacientes/{id}/prescripciones — Agrega una nueva prescripción al paciente (requiere encuentro activo)"""
+    try:
+        # Extraer ID de usuario del token
+        user_id_str = current_user.get("sub")
+        if not user_id_str:
+            raise HTTPException(status_code=401, detail="Token no contiene identificación de usuario")
+        
+        try:
+            user_id = UUID(user_id_str)
+        except ValueError:
+            logger.error(f"ID de usuario inválido en token: {user_id_str}")
+            raise HTTPException(status_code=401, detail="ID de usuario inválido")
+
+        # Verificar acceso (Regla 1)
+        tiene_acceso = await check_regla_1(id_paciente, user_id, db)
+        if not tiene_acceso:
+            logger.warning(f"Acceso denegado Regla 1 para agregar prescripción: Usuario {user_id} -> Paciente {id_paciente}")
+            raise HTTPException(
+                status_code=403, 
+                detail="Acceso denegado. No tiene un encuentro activo con este paciente o permisos suficientes para agregar prescripción."
+            )
+
+        # Verificar paciente existe
+        paciente_exists = await db.scalar(
+            select(Paciente.id_paciente)
+            .where(Paciente.id_paciente == id_paciente, Paciente.eliminado_en == None)
+        )
+        if not paciente_exists:
+            raise HTTPException(status_code=404, detail="Paciente no encontrado")
+
+        # Validar campos requeridos
+        codigo_medicamento_ssa = prescripcion_in.get("codigo_medicamento_ssa")
+        indicacion_dosis = prescripcion_in.get("indicacion_dosis")
+        duracion_dias = prescripcion_in.get("duracion_dias")
+        cantidad_surtir = prescripcion_in.get("cantidad_surtir")
+
+        if not all([codigo_medicamento_ssa, indicacion_dosis, duracion_dias, cantidad_surtir]):
+            raise HTTPException(status_code=422, detail="Faltan campos requeridos para la prescripción")
+
+        # Verificar que el medicamento existe en catálogo
+        medicamento_exists = await db.scalar(
+            select(text("1"))
+            .select_from(text("cat_medicamentos"))
+            .where(text("codigo_medicamento_ssa = :codigo"), {"codigo": codigo_medicamento_ssa})
+        )
+        if not medicamento_exists:
+            raise HTTPException(status_code=422, detail="El código de medicamento SSA no existe en el catálogo")
+        
+        # Verificar que el paciente tiene un encuentro activo
+        encuentro_activo = await db.scalar(
+            select(EncuentroClinico.id_encuentro)
+            .where(
+                EncuentroClinico.id_paciente == id_paciente,
+                EncuentroClinico.fecha_cierre == None
+            )
+        )
+        if not encuentro_activo:
+            raise HTTPException(status_code=400, detail="El paciente no tiene un encuentro clínico activo. No se puede agregar prescripción.")
+        # Insertar prescripción
+        query_insert = text("""
+            INSERT INTO prescripciones (id_prescripcion, id_encuentro, codigo_medicamento_ssa, indicacion_dosis, duracion_dias, cantidad_surtir)
+            VALUES (:id_prescripcion, :id_encuentro, :codigo_medicamento_ssa, :indicacion_dosis, :duracion_dias, :cantidad_surtir)
+        """)
+        new_id = str(uuid4())
+        await db.execute(query_insert, {
+            "id_prescripcion": new_id,
+            "id_encuentro": str(encuentro_activo),
+            "codigo_medicamento_ssa": codigo_medicamento_ssa,
+            "indicacion_dosis": indicacion_dosis,
+            "duracion_dias": duracion_dias,
+            "cantidad_surtir": cantidad_surtir
+        })
+        await db.commit()
+        return {
+            "data": {"id_prescripcion": new_id},
+            "message": "Prescripción agregada exitosamente"
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error crítico al agregar prescripción para paciente {id_paciente}: {str(e)}", exc_info=True)
+        await db.rollback()
+        raise HTTPException(status_code=500, detail="Error interno al agregar prescripción")
+    
