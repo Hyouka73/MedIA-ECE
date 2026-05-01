@@ -2,8 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { pacientesAPI } from '../../api/pacientes';
-import { AlertCircle, Plus } from 'lucide-react';
-import { Languages } from 'lucide-react';
+import { AlertCircle, Plus, FileText, Languages } from 'lucide-react';
 import { canAccess } from '../../utils/permissions';
 
 /**
@@ -171,16 +170,28 @@ export default function PacientesListPage() {
   return (
     <div className="flex flex-col h-full space-y-6 animate-in fade-in duration-500">
       {/* Encabezado */}
-      <div>
-        <h2 className="text-2xl font-bold tracking-tight text-text-primary">Pacientes</h2>
-        <p className="text-text-secondary mt-1">
-          {pacientesFiltrados.length} de {pacientes.length} pacientes
-        </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight text-text-primary">Pacientes</h2>
+          <p className="text-text-secondary mt-1">
+            {pacientesFiltrados.length} de {pacientes.length} pacientes
+          </p>
+        </div>
+        
+        {canAccess(user.permisos, 'PACIENTES', 'puede_crear') && (
+          <button 
+            onClick={() => navigate('/pacientes/nuevo')}
+            className="w-full sm:w-auto px-4 py-2.5 bg-primary text-white rounded-lg font-bold hover:bg-primary-hover shadow-md shadow-primary/20 transition-all flex items-center justify-center gap-2"
+          >
+            <Plus size={18} />
+            Nuevo Paciente
+          </button>
+        )}
       </div>
 
       {/* Filtros */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="relative">
+      <div className="flex flex-col lg:flex-row gap-4">
+        <div className="relative flex-1">
           <input
             type="text"
             placeholder="Buscar por nombre o teléfono..."
@@ -189,127 +200,113 @@ export default function PacientesListPage() {
               setSearchQuery(e.target.value);
               setPage(1);
             }}
-            className="w-full px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full px-4 py-2.5 border border-border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
           />
         </div>
 
-        <select
-          value={filterAlergias}
-          onChange={(e) => {
-            setFilterAlergias(e.target.value);
-            setPage(1);
-          }}
-          className="px-4 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
-        >
-          <option value="todos">Todos los pacientes</option>
-          <option value="con_alergias">Con alergias</option>
-          <option value="sin_alergias">Sin alergias</option>
-        </select>
-
-        {canAccess(user.permisos, 'PACIENTES', 'puede_crear') && (
-          <button 
-            onClick={() => navigate('/pacientes/nuevo')}
-            className="px-4 py-2 bg-primary text-white rounded-lg font-medium hover:bg-primary-dark transition-colors flex items-center justify-center gap-2"
+        <div className="flex flex-col sm:flex-row gap-4 lg:w-1/3">
+          <select
+            value={filterAlergias}
+            onChange={(e) => {
+              setFilterAlergias(e.target.value);
+              setPage(1);
+            }}
+            className="flex-1 px-4 py-2.5 border border-border rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
           >
-            <Plus size={18} />
-            Nuevo Paciente
-          </button>
-        )}
+            <option value="todos">Todas las alergias</option>
+            <option value="con_alergias">Con alergias</option>
+            <option value="sin_alergias">Sin alergias</option>
+          </select>
+        </div>
       </div>
 
       {/* Tabla */}
-      <div className="bg-card border border-border rounded-lg overflow-hidden shadow-sm">
+      <div className="bg-white border border-border rounded-xl overflow-hidden shadow-sm">
         {loading ? (
-          <div className="p-8 text-center text-text-secondary">
-            ⏳ Cargando pacientes...
+          <div className="p-12 text-center text-text-secondary flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <p className="text-sm font-medium">Cargando pacientes...</p>
           </div>
-        ) : error ? (
-          <div className="p-4 bg-semantic-error/10 border border-semantic-error text-semantic-error rounded-lg m-4">
-            ❌ {error}
+        ) : error && pacientes.length === 0 ? (
+          <div className="p-8 bg-semantic-error/5 border-l-4 border-semantic-error text-semantic-error m-4 rounded-r-lg">
+            <div className="flex items-center gap-2 font-bold mb-1">
+              <AlertCircle size={18} />
+              <span>Error de carga</span>
+            </div>
+            <p className="text-sm opacity-90">{error}</p>
           </div>
         ) : pacientesFiltrados.length === 0 ? (
-          <div className="p-8 text-center">
-            <div className="text-4xl mb-3">🔍</div>
+          <div className="p-12 text-center">
+            <div className="text-5xl mb-4 grayscale opacity-20">📂</div>
             <p className="font-bold text-text-primary">No se encontraron pacientes</p>
             <p className="text-sm text-text-secondary mt-2">
-              {searchQuery ? "Intenta con otro término de búsqueda" : "Crea un nuevo paciente para comenzar"}
+              {searchQuery ? "Intenta con otro término de búsqueda" : "Aún no hay pacientes registrados en el sistema."}
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-surface border-b border-border">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Paciente</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Edad</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Grupo Sangre</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Teléfono</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Alergias</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Idioma</th>
-                  <th className="px-6 py-3 text-left text-xs font-semibold text-text-secondary uppercase tracking-wide">Última Consulta</th>
-                  <th className="px-6 py-3 text-center text-xs font-semibold text-text-secondary uppercase tracking-wide">Acciones</th>
+          <div className="overflow-x-auto scrollbar-hide">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-[#F8F7F4] border-b border-border">
+                  <th className="px-6 py-4 text-[11px] font-bold text-text-secondary uppercase tracking-widest">Paciente</th>
+                  <th className="px-6 py-4 text-[11px] font-bold text-text-secondary uppercase tracking-widest hidden md:table-cell">Edad</th>
+                  <th className="px-6 py-4 text-[11px] font-bold text-text-secondary uppercase tracking-widest hidden sm:table-cell">Grupo</th>
+                  <th className="px-6 py-4 text-[11px] font-bold text-text-secondary uppercase tracking-widest">Alergias</th>
+                  <th className="px-6 py-4 text-[11px] font-bold text-text-secondary uppercase tracking-widest hidden lg:table-cell">Última Consulta</th>
+                  <th className="px-6 py-4 text-[11px] font-bold text-text-secondary uppercase tracking-widest text-center">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border">
+              <tbody className="divide-y divide-border/50">
                 {pacientesFiltrados.map((paciente) => {
                   const tieneAlergias = paciente.alergias && paciente.alergias.length > 0;
-                  const alergiaAlta = tieneAlergias && paciente.alergias.some((a) => a.severidad === "alta");
+                  const alergiaAlta = tieneAlergias && paciente.alergias.some((a) => a.severidad === "alta" || a.severidad === "critica");
 
                   return (
-                    <tr key={paciente.id_paciente} className="hover:bg-surface/50 transition-colors">
-                      <td className="px-6 py-4 text-sm font-medium text-text-primary">{paciente.nombre}</td>
-                      <td className="px-6 py-4 text-sm text-text-secondary">{paciente.edad} años</td>
-                      <td className="px-6 py-4 text-sm">
-                        <span className="px-2 py-1 bg-primary/10 text-primary rounded text-xs font-semibold">
-                          {paciente.grupo_sanguineo || "Desconocido"}
+                    <tr key={paciente.id_paciente} className="hover:bg-[#FDFAF5] transition-colors group">
+                      <td className="px-6 py-4">
+                        <div className="font-bold text-text-primary group-hover:text-primary transition-colors">{paciente.nombre}</div>
+                        <div className="text-[10px] text-text-secondary mt-0.5 md:hidden">
+                          {paciente.edad} años · {paciente.grupo_sanguineo || 'N/A'}
+                        </div>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-text-secondary hidden md:table-cell">{paciente.edad} años</td>
+                      <td className="px-6 py-4 hidden sm:table-cell">
+                        <span className="px-2 py-0.5 bg-black/5 text-text-primary rounded text-[10px] font-bold">
+                          {paciente.grupo_sanguineo || "—"}
                         </span>
                       </td>
-                      <td className="px-6 py-4 text-sm text-text-secondary">{paciente.telefono}</td>
-                      <td className="px-6 py-4 text-sm">
+                      <td className="px-6 py-4">
                         {tieneAlergias ? (
-                          <div className="flex items-center gap-2">
-                            <span className={alergiaAlta ? "text-semantic-error" : "text-semantic-warning"}>
-                              {alergiaAlta ? "🔴" : "🟡"}
-                            </span>
-                            <span className={alergiaAlta ? "text-semantic-error" : "text-semantic-warning"}>
-                              {paciente.alergias.length} {paciente.alergias.length === 1 ? "alergia" : "alergias"}
-                            </span>
-                          </div>
+                          <span className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold ${
+                            alergiaAlta ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
+                          }`}>
+                            <span className="text-xs">{alergiaAlta ? "🔴" : "🟡"}</span>
+                            {paciente.alergias.length}
+                          </span>
                         ) : (
-                          <span className="text-text-secondary text-xs">—</span>
+                          <span className="text-[10px] text-text-secondary font-medium italic opacity-50">Ninguna</span>
                         )}
                       </td>
-                      <td className="px-6 py-4 text-sm">
-                        {paciente.lengua_materna ? (
-                          <div className="flex items-center gap-1">
-                            <span className="text-text-primary">{paciente.lengua_materna}</span>
-                            {paciente.tiene_barrera_linguistica && (
-                              <span className="flex items-center gap-1 text-warning" title="Barrera lingüística">
-                                <Languages size={14} />
-                              </span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="text-text-secondary text-xs">—</span>
-                        )}
+                      <td className="px-6 py-4 text-[12px] text-text-secondary hidden lg:table-cell">
+                        {paciente.ultimaConsulta || 'Sin registros'}
                       </td>
-                      <td className="px-6 py-4 text-sm text-text-secondary">{paciente.ultimaConsulta}</td>
-                      <td className="px-6 py-4 text-sm">
+                      <td className="px-6 py-4">
                         <div className="flex items-center justify-center gap-2">
                           {canAccess(user.permisos, 'EXPEDIENTE', 'puede_leer') && (
                             <button 
                               onClick={() => navigate(`/expediente/${paciente.id_paciente}`)}
-                              className="px-3 py-1 text-xs bg-secondary text-text-primary rounded hover:bg-secondary/80 transition-colors"
+                              className="p-2 text-primary hover:bg-primary/10 rounded-lg transition-all"
+                              title="Ver Expediente"
                             >
-                              📋 Ver
+                              <FileText size={18} />
                             </button>
                           )}
                           {['MEDICO_GENERAL', 'ESPECIALISTA', 'SUPERADMIN', 'OMNIADMIN'].includes(user.rol) && (
                             <button 
                               onClick={() => navigate(`/consulta/nueva?id_paciente=${paciente.id_paciente}`)}
-                              className="px-3 py-1 text-xs bg-primary text-white rounded hover:bg-primary-dark transition-colors"
+                              className="px-3 py-1.5 bg-primary text-white text-[11px] font-bold rounded-lg hover:bg-primary-hover shadow-sm transition-all"
                             >
-                              + Consulta
+                              Consulta
                             </button>
                           )}
                         </div>
