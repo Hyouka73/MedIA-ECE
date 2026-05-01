@@ -2,6 +2,7 @@ import React from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import MainLayout from './components/layout/MainLayout'
 import LoginPage from './pages/auth/LoginPage'
+import Setup2FA from './pages/auth/Setup2FA'
 import { AuthProvider } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
 import { ToastProvider } from './components/ui/Alert'
@@ -54,6 +55,7 @@ function App() {
             <Route path="/404" element={<ErrorPage code="404" title="Página no encontrada" />} />
 
             <Route path="/" element={<ProtectedRoute />}>
+              <Route path="2fa/setup" element={<Setup2FA />} />
               <Route element={<MainLayout />}>
                 <Route index element={<Navigate to="/dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardPage />} />
