@@ -23,17 +23,12 @@ export default function ExpedientePage() {
   const [activeTab, setActiveTab] = useState('Antecedentes')
   const [expandedEncuentro, setExpandedEncuentro] = useState(null)
 
-  const rolesPermitidos = [
-    'MEDICO_GENERAL',
-    'ESPECIALISTA',
-    'ENFERMERIA',
-    'RECEPCIONISTA',
-    'ADMINISTRADOR',
-    'SUPERADMIN',
-    'OMNIADMIN',
-  ]
-
-  const tieneAcceso = user && rolesPermitidos.includes(user.rol)
+  // Verificación de acceso granular (Muros de Fuego - Fase Final)
+  const tieneAcceso = user && (
+    user.rol === 'OMNIADMIN' || 
+    user.rol === 'SUPERADMIN' ||
+    canAccess(user.permisos, 'EXPEDIENTE', 'puede_leer')
+  )
 
   const calcularEdad = (fechaNacimiento) => {
     if (!fechaNacimiento) return null

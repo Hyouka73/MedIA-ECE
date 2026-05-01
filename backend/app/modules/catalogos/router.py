@@ -1,5 +1,5 @@
 """Catálogos module router — Endpoints INEGI y clínicos con TTL de caché 24h"""
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 from app.core.deps import get_current_user
@@ -20,10 +20,13 @@ router = APIRouter()
 # ── GET /estados — Listar todos los estados ────────────────────────────
 @router.get("/estados", response_model=dict)
 async def get_estados(
+    response: Response,
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """GET /catalogos/estados — Lista todos los estados mexicanos (CDN TTL: 24h)"""
+    response.headers["Cache-Control"] = "public, max-age=86400"
+
     try:
         query = select(Estado).order_by(Estado.nombre)
         result = await db.execute(query)
@@ -54,11 +57,14 @@ async def get_estados(
 # ── GET /municipios — Listar municipios por estado ─────────────────────
 @router.get("/municipios", response_model=dict)
 async def get_municipios(
+    response: Response,
     estado: str = Query(..., description="Clave del estado (ej: '07' para Chiapas)"),
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """GET /catalogos/municipios?estado={clave} — Lista municipios por estado (CDN TTL: 24h)"""
+    response.headers["Cache-Control"] = "public, max-age=86400"
+
     try:
         # Validar que el estado existe
         estado_query = select(Estado).where(Estado.id_estado == estado)
@@ -108,11 +114,14 @@ async def get_municipios(
 # ── GET /localidades — Listar localidades por municipio ───────────────
 @router.get("/localidades", response_model=dict)
 async def get_localidades(
+    response: Response,
     municipio: str = Query(..., description="Clave del municipio (ej: '07101' para Tuxtla Gutiérrez)"),
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """GET /catalogos/localidades?municipio={clave} — Lista localidades por municipio (CDN TTL: 24h)"""
+    response.headers["Cache-Control"] = "public, max-age=86400"
+
     try:
         from sqlalchemy import func, select
         
@@ -163,10 +172,13 @@ async def get_localidades(
 # ── GET /lenguas — Listar lenguas indígenas ────────────────────────────
 @router.get("/lenguas", response_model=dict)
 async def get_lenguas(
+    response: Response,
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """GET /catalogos/lenguas — Lista lenguas indígenas para alertas de barrera lingüística (CDN TTL: 24h)"""
+    response.headers["Cache-Control"] = "public, max-age=86400"
+
     try:
         query = select(Lengua).order_by(Lengua.nombre)
         result = await db.execute(query)
@@ -202,11 +214,14 @@ async def get_lenguas(
 # ── GET /cie10 — Búsqueda de diagnósticos CIE-10 ──────────────────────
 @router.get("/cie10", response_model=dict)
 async def search_cie10(
+    response: Response,
     q: str = Query("", description="Buscar por código (ej: E11) o descripción (ej: Diabetes). Mín. 3 caracteres."),
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
 ):
     """GET /catalogos/cie10?q= — Búsqueda en catálogo CIE-10 (tabla: cat_cie10)"""
+    response.headers["Cache-Control"] = "public, max-age=86400"
+
     if len(q.strip()) < 3:
         return {"data": [], "message": "Mínimo 3 caracteres para buscar"}
 
@@ -252,6 +267,7 @@ async def search_cie10(
 # ── GET /medicamentos — Búsqueda de medicamentos SSA ──────────────────────
 @router.get("/medicamentos", response_model=dict)
 async def search_medicamentos(
+    response: Response,
     q: str = Query("", description="Buscar por nombre genérico o código SSA. Mín. 3 caracteres."),
     current_user: dict = Depends(get_current_user),
     db: AsyncSession = Depends(get_db)
@@ -265,6 +281,8 @@ async def search_medicamentos(
     Returns:
         Lista de medicamentos con id, código SSA y nombre genérico
     """
+    response.headers["Cache-Control"] = "public, max-age=86400"
+
     # Validar mínimo de caracteres
     if len(q.strip()) < 3:
         return {
@@ -277,7 +295,6 @@ async def search_medicamentos(
         # Usar SQL text para búsqueda en cat_medicamentos
         stmt = text("""
             SELECT 
-                id_medicamento,
                 codigo_medicamento_ssa,
                 nombre_generico
             FROM cat_medicamentos
@@ -306,7 +323,7 @@ async def search_medicamentos(
         
         data = [
             {
-                "id": str(row["id_medicamento"]),  # UUID a string para JSON
+                "id": row["codigo_medicamento_ssa"],
                 "codigo_ssa": row["codigo_medicamento_ssa"],
                 "nombre_generico": row["nombre_generico"]
             }

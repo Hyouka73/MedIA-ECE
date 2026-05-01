@@ -66,6 +66,21 @@ class SesionActiva(Base):
     fecha_expira = Column(DateTime(timezone=True), nullable=False)
 
 
+class UserTrustedIP(Base):
+    """
+    Tabla de IPs confiables para evitar pedir 2FA en cada inicio de sesión.
+    Se limpia o expira según política de seguridad (e.g. 30 días).
+    """
+    __tablename__ = "usuarios_ips_confiables"
+    id_confianza = Column(BigInteger, primary_key=True, index=True)
+    id_usuario = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), nullable=False)
+    ip_direccion = Column(String(45), nullable=False)
+    user_agent = Column(String(512))
+    fecha_registro = Column(DateTime(timezone=True), server_default=func.now())
+    ultima_vez_vista = Column(DateTime(timezone=True), onupdate=func.now())
+
+
+
 # ── INFRAESTRUCTURA INSTITUCIONAL ───────────────────────────────────────
 
 class Establecimiento(Base):

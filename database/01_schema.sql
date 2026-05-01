@@ -44,6 +44,7 @@ CREATE TABLE cat_medicamentos (
     nombre_generico TEXT NOT NULL,
     forma_farmaceutica TEXT NOT NULL,
     presentacion TEXT,
+    concentracion TEXT,
     indicaciones TEXT
 );
 
@@ -405,6 +406,17 @@ CREATE TABLE sesiones_activas (
 
 CREATE INDEX ix_sesiones_activas_id_usuario ON sesiones_activas(id_usuario);
 CREATE INDEX ix_sesiones_activas_fecha_expira ON sesiones_activas(fecha_expira);
+
+CREATE TABLE usuarios_ips_confiables (
+    id_confianza BIGSERIAL PRIMARY KEY,
+    id_usuario UUID REFERENCES usuarios_sistema(id_usuario) ON DELETE CASCADE NOT NULL,
+    ip_direccion VARCHAR(45) NOT NULL,
+    user_agent VARCHAR(512),
+    fecha_registro TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    ultima_vez_vista TIMESTAMPTZ
+);
+
+CREATE INDEX ix_usuarios_ips_confiables_id_usuario ON usuarios_ips_confiables(id_usuario);
 
 CREATE TABLE bitacora_recuperacion (
     id_recuperacion SERIAL PRIMARY KEY,

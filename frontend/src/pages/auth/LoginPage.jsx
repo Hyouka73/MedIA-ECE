@@ -70,11 +70,19 @@ export default function LoginPage() {
         setLoading(true);
         try {
             const res = await login(email, password);
+            
+            if (!res.totp_configured) {
+                // Si no tiene TOTP configurado, lo mandamos a configurar (ya tiene token completo)
+                toast('Configuración de seguridad requerida.', 'info');
+                navigate('/2fa/setup');
+                return;
+            }
+
             if (res.requires_2fa) {
                 setTempToken(res.tempToken);
                 setStep(2);
-                setTimeLeft(60);
-                toast('Se ha enviado un código a su correo electrónico.', 'info');
+                setTimeLeft(30);
+                toast('Ingrese su código de autenticación.', 'info');
             } else {
                 toast('Inicio de sesión exitoso.', 'success');
                 navigate('/dashboard');
@@ -148,7 +156,7 @@ export default function LoginPage() {
                             </div>
                             <p className="text-sm font-semibold text-text-primary">Verificación en dos pasos</p>
                             <p className="text-xs text-text-secondary mt-1 leading-relaxed">
-                                Hemos enviado un código a tu correo electrónico. Revísalo e ingresa los 6 dígitos.
+                                Ingresa los 6 dígitos generados por tu aplicación de autenticación.
                             </p>
                         </div>
                         <OtpInput
@@ -165,20 +173,11 @@ export default function LoginPage() {
                         >
                             Verificar y entrar ✓
                         </Button>
-                        {timeLeft > 0 ? (
-                            <p className="w-full text-xs text-text-secondary text-center pt-2">
-                                Podrás solicitar otro código en {timeLeft}s
-                            </p>
-                        ) : (
-                            <button
-                                type="button"
-                                onClick={handleLogin}
-                                className="w-full text-xs font-semibold text-primary hover:text-primary-dark text-center pt-2 transition-colors"
-                                disabled={loading || isLocked}
-                            >
-                                Reenviar código
-                            </button>
-                        )}
+                        <p className="w-full text-center pt-2">
+                            <span className="text-[10px] text-text-secondary uppercase tracking-wider font-bold">
+                                El código se actualiza automáticamente cada 30s
+                            </span>
+                        </p>
                         <button
                             type="button"
                             onClick={() => { setStep(1); setOtp(''); }}
