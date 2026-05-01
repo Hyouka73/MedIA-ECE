@@ -20,3 +20,5 @@ export function Spinner({ className, ...props }) {
         </svg>
     );
 }
+
+export default Spinner;

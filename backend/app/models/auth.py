@@ -182,7 +182,6 @@ class CatMedicamento(Base):
     nombre_generico = Column(String(255), nullable=False)
     presentacion = Column(String(100))
     forma_farmaceutica = Column(String(100))
-    concentracion = Column(String(100))
     indicaciones = Column(Text)
 
 class CatCIE10(Base):
