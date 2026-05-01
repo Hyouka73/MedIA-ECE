@@ -23,10 +23,25 @@ class Base(DeclarativeBase):
     pass
 
 
-async def get_db():
-    """Generador de sesiones para inyección de dependencias."""
+from starlette.requests import Request
+from sqlalchemy import text
+
+async def get_db(request: Request = None):
+    """Generador de sesiones para inyección de dependencias.
+    Seta myapp.current_user para auditoría por triggers.
+    """
     async with AsyncSessionLocal() as session:
         try:
+            # Si hay un usuario autenticado, setear el contexto en la sesión de BD
+            if request and hasattr(request.state, "user"):
+                user_id = request.state.user.get("sub")
+                if user_id:
+                    # set_config es la forma segura de setear variables de sesión en Postgres
+                    await session.execute(
+                        text("SELECT set_config('myapp.current_user', :uid, false)"),
+                        {"uid": str(user_id)}
+                    )
+            
             yield session
             await session.commit()
         except Exception:
