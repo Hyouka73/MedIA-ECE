@@ -42,6 +42,7 @@ import ReferenciasFichaPage from './pages/references/ReferenciasFichaPage'
 
 // Documentos
 import DocumentosPage from './pages/documentos/DocumentosPage'
+import UploadResultadoPage from './pages/laboratorio/UploadResultadoPage'
 
 
 function App() {
@@ -88,6 +89,7 @@ function App() {
 
                 <Route element={<ProtectedRoute module="ESTUDIOS" />}>
                   <Route path="documentos" element={<DocumentosPage />} />
+                  <Route path="laboratorio/upload" element={<UploadResultadoPage />} />
                 </Route>
 
                 {/* Sistema (Protección por Módulo) */}
