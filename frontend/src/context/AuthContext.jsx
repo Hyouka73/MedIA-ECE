@@ -119,6 +119,7 @@ export const AuthProvider = ({ children }) => {
                 return {
                     requires_2fa: true,
                     tempToken: response.data.temp_token,
+                    totp_configured: response.data.totp_configured,
                     reason: response.data.reason 
                 };
             }
@@ -131,7 +132,10 @@ export const AuthProvider = ({ children }) => {
             setUser(response.data.user);
             setIsAuthenticated(true);
             scheduleTokenRefresh(finalToken);
-            return { success: true };
+            return { 
+                success: true, 
+                totp_configured: response.data.totp_configured 
+            };
         } catch (error) {
             console.error('Error en login:', error);
             throw error;

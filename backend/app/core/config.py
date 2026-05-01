@@ -38,9 +38,7 @@ class Settings(BaseSettings):
     AZURE_BLOB_CONTAINER_TUTORES: str = "tutores-docs"
     AZURE_BLOB_SAS_EXPIRY_MINUTES: int = 15
 
-    # Email Service (Resend)
-    RESEND_API_KEY: Optional[str] = None
-    RESEND_FROM_EMAIL: str = "onboarding@resend.dev" # Default para pruebas
+
 
     model_config = {
         "env_file": ".env",
