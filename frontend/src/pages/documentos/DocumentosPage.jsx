@@ -2,22 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { documentosAPI } from '../../api/documentos';
+import { getResultadosBySolicitud } from '../../api/laboratorio';
 import {
   ChevronLeft, FileText, Pill, FlaskConical, Send,
-  Download, AlertCircle, Filter, Clock, CheckCircle, XCircle
+  Download, AlertCircle, Filter, Clock, CheckCircle, XCircle, Upload
 } from 'lucide-react';
 
 /**
  * DocumentosPage — Centro de Documentos (Módulo 12)
- *
- * Según Doc3 Módulo 12: MedIA genera 4 documentos PDF a partir de datos
- * ya registrados en la BD. Los PDFs son generados on-demand por WeasyPrint.
- *
- * Documentos soportados:
- *   1. Nota SOAP firmada  → notas_medicas + notas_soap_detalle
- *   2. Receta médica      → prescripciones + cat_medicamentos
- *   3. Solicitud de laboratorio → solicitudes_estudio
- *   4. Referencia médica  → referencias_medicas
  */
 export default function DocumentosPage() {
   const { user } = useAuth();
@@ -30,6 +22,7 @@ export default function DocumentosPage() {
   const [error, setError] = useState(null);
   const [filtroTipo, setFiltroTipo] = useState('TODOS');
   const [descargando, setDescargando] = useState(null);
+  const [resultadosSolicitud, setResultadosSolicitud] = useState({ id: null, items: [], loading: false });
 
   useEffect(() => {
     if (!idPaciente) {
@@ -69,64 +62,43 @@ export default function DocumentosPage() {
     }
   };
 
-  // Configuración visual por tipo de documento
-  const tipoConfig = {
-    NOTA_SOAP: {
-      icon: FileText,
-      label: 'Nota SOAP',
-      color: '#2459A8',
-      bg: '#E3F2FD',
-      emoji: '📋',
-    },
-    RECETA: {
-      icon: Pill,
-      label: 'Receta Médica',
-      color: '#237A4B',
-      bg: '#E8F5E9',
-      emoji: '💊',
-    },
-    SOLICITUD_ESTUDIO: {
-      icon: FlaskConical,
-      label: 'Solicitud de Estudio',
-      color: '#8B5CF6',
-      bg: '#F3E8FF',
-      emoji: '🔬',
-    },
-    REFERENCIA: {
-      icon: Send,
-      label: 'Referencia Médica',
-      color: '#E8921F',
-      bg: '#FFF3E0',
-      emoji: '📤',
-    },
+  const handleVerResultados = async (solicitudId) => {
+    if (resultadosSolicitud.id === solicitudId) {
+      setResultadosSolicitud({ id: null, items: [], loading: false });
+      return;
+    }
+    
+    try {
+      setResultadosSolicitud({ id: solicitudId, items: [], loading: true });
+      const data = await getResultadosBySolicitud(solicitudId);
+      setResultadosSolicitud({ id: solicitudId, items: data, loading: false });
+    } catch (err) {
+      console.error('Error cargando resultados:', err);
+      setResultadosSolicitud({ id: null, items: [], loading: false });
+      alert('Error al cargar los resultados de laboratorio');
+    }
   };
 
-  // Combinar todos los documentos en una lista plana y filtrar
+  const tipoConfig = {
+    NOTA_SOAP: { icon: FileText, label: 'Nota SOAP', color: '#2459A8', bg: '#E3F2FD', emoji: '📋' },
+    RECETA: { icon: Pill, label: 'Receta Médica', color: '#237A4B', bg: '#E8F5E9', emoji: '💊' },
+    SOLICITUD_ESTUDIO: { icon: FlaskConical, label: 'Solicitud de Estudio', color: '#8B5CF6', bg: '#F3E8FF', emoji: '🔬' },
+    REFERENCIA: { icon: Send, label: 'Referencia Médica', color: '#E8921F', bg: '#FFF3E0', emoji: '📤' },
+  };
+
   const getAllDocuments = () => {
     if (!documentos) return [];
-
     let all = [
       ...(documentos.notas || []),
       ...(documentos.recetas || []),
       ...(documentos.solicitudes || []),
       ...(documentos.referencias || []),
     ];
-
-    if (filtroTipo !== 'TODOS') {
-      all = all.filter(d => d.tipo_documento === filtroTipo);
-    }
-
-    // Ordenar por fecha descendente
-    all.sort((a, b) => {
-      const dateA = a.fecha ? new Date(a.fecha) : new Date(0);
-      const dateB = b.fecha ? new Date(b.fecha) : new Date(0);
-      return dateB - dateA;
-    });
-
+    if (filtroTipo !== 'TODOS') all = all.filter(d => d.tipo_documento === filtroTipo);
+    all.sort((a, b) => (b.fecha ? new Date(b.fecha) : 0) - (a.fecha ? new Date(a.fecha) : 0));
     return all;
   };
 
-  // Sin paciente seleccionado
   if (!idPaciente) {
     return (
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: 40, background: '#EDEBE6' }}>
@@ -147,7 +119,6 @@ export default function DocumentosPage() {
 
   return (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#EDEBE6' }}>
-      {/* TopBar */}
       <div style={{ padding: '16px 28px', background: '#FDFAF5', borderBottom: '1px solid #DAD4CC' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -156,75 +127,32 @@ export default function DocumentosPage() {
             </button>
             <div>
               <h1 style={{ color: '#1A1510', fontSize: 18, fontWeight: 700, margin: 0 }}>Documentos del Paciente</h1>
-              <p style={{ color: '#5A5048', fontSize: 12, margin: '4px 0 0 0' }}>
-                Módulo 12 — Generación de Documentos PDF (NOM-004 / NOM-151)
-              </p>
+              <p style={{ color: '#5A5048', fontSize: 12, margin: '4px 0 0 0' }}>Módulo 12 — Generación de Documentos PDF (NOM-004 / NOM-151)</p>
             </div>
           </div>
-          {documentos && (
-            <span style={{ padding: '4px 12px', background: '#E3F2FD', color: '#2459A8', borderRadius: 6, fontSize: 12, fontWeight: 600 }}>
-              {documentos.total} documento{documentos.total !== 1 ? 's' : ''}
-            </span>
-          )}
         </div>
       </div>
 
-      {/* Filtros por tipo */}
       <div style={{ padding: '12px 28px', background: '#FDFAF5', borderBottom: '1px solid #DAD4CC', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {[
-          { key: 'TODOS', label: 'Todos', emoji: '📁' },
-          { key: 'NOTA_SOAP', label: 'Notas SOAP', emoji: '📋' },
-          { key: 'RECETA', label: 'Recetas', emoji: '💊' },
-          { key: 'SOLICITUD_ESTUDIO', label: 'Solicitudes', emoji: '🔬' },
-          { key: 'REFERENCIA', label: 'Referencias', emoji: '📤' },
-        ].map(f => (
-          <button key={f.key} onClick={() => setFiltroTipo(f.key)}
+        {['TODOS', 'NOTA_SOAP', 'RECETA', 'SOLICITUD_ESTUDIO', 'REFERENCIA'].map(k => (
+          <button key={k} onClick={() => setFiltroTipo(k)}
             style={{
-              padding: '6px 14px',
-              border: `1.5px solid ${filtroTipo === f.key ? '#2459A8' : '#DAD4CC'}`,
-              borderRadius: 20,
-              background: filtroTipo === f.key ? '#E3F2FD' : '#fff',
-              color: filtroTipo === f.key ? '#2459A8' : '#5A5048',
-              fontSize: 12,
-              fontWeight: filtroTipo === f.key ? 600 : 400,
-              cursor: 'pointer',
-              transition: 'all 0.2s',
+              padding: '6px 14px', borderRadius: 20, fontSize: 12, cursor: 'pointer',
+              border: `1.5px solid ${filtroTipo === k ? '#2459A8' : '#DAD4CC'}`,
+              background: filtroTipo === k ? '#E3F2FD' : '#fff',
+              color: filtroTipo === k ? '#2459A8' : '#5A5048',
+              fontWeight: filtroTipo === k ? 600 : 400,
             }}>
-            {f.emoji} {f.label}
-            {f.key !== 'TODOS' && documentos && (
-              <span style={{ marginLeft: 4, opacity: 0.7 }}>
-                ({f.key === 'NOTA_SOAP' ? documentos.notas?.length || 0 :
-                  f.key === 'RECETA' ? documentos.recetas?.length || 0 :
-                  f.key === 'SOLICITUD_ESTUDIO' ? documentos.solicitudes?.length || 0 :
-                  documentos.referencias?.length || 0})
-              </span>
-            )}
+            {k === 'TODOS' ? '📁 Todos' : k === 'NOTA_SOAP' ? '📋 Notas' : k === 'RECETA' ? '💊 Recetas' : k === 'SOLICITUD_ESTUDIO' ? '🔬 Solicitudes' : '📤 Referencias'}
           </button>
         ))}
       </div>
 
-      {/* Contenido */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '28px' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 60, color: '#5A5048' }}>⏳ Cargando documentos del paciente...</div>
-        ) : error ? (
-          <div style={{ textAlign: 'center', padding: 60 }}>
-            <AlertCircle size={48} style={{ color: '#BA2E45', marginBottom: 16 }} />
-            <p style={{ color: '#BA2E45', fontSize: 14 }}>{error}</p>
-            <button onClick={loadDocumentos}
-              style={{ marginTop: 16, padding: '8px 20px', background: '#2459A8', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}>
-              Reintentar
-            </button>
-          </div>
+          <div style={{ textAlign: 'center', padding: 60, color: '#5A5048' }}>⏳ Cargando documentos...</div>
         ) : allDocs.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 60, color: '#5A5048' }}>
-            <Filter size={48} style={{ opacity: 0.3, marginBottom: 16 }} />
-            <p style={{ fontSize: 14 }}>
-              {filtroTipo !== 'TODOS'
-                ? `No hay documentos de tipo "${tipoConfig[filtroTipo]?.label}" para este paciente`
-                : 'No se encontraron documentos clínicos para este paciente'}
-            </p>
-          </div>
+          <div style={{ textAlign: 'center', padding: 60, color: '#5A5048' }}>No se encontraron documentos.</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {allDocs.map(doc => {
@@ -232,109 +160,72 @@ export default function DocumentosPage() {
               const IconComponent = config.icon;
 
               return (
-                <div key={`${doc.tipo_documento}-${doc.id}`}
-                  style={{
-                    padding: '14px 18px',
-                    background: '#FDFAF5',
-                    border: '1px solid #DAD4CC',
-                    borderRadius: 10,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 14,
-                    transition: 'border-color 0.2s',
-                  }}
-                  onMouseEnter={(e) => e.currentTarget.style.borderColor = config.color}
-                  onMouseLeave={(e) => e.currentTarget.style.borderColor = '#DAD4CC'}
-                >
-                  {/* Icono tipo */}
-                  <div style={{
-                    width: 42, height: 42, borderRadius: 8,
-                    background: config.bg, display: 'flex',
-                    alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                  }}>
-                    <IconComponent size={20} style={{ color: config.color }} />
-                  </div>
+                <div key={`${doc.tipo_documento}-${doc.id}`} style={{
+                  padding: '14px 18px', background: '#FDFAF5', border: '1px solid #DAD4CC', borderRadius: 10,
+                  display: 'flex', flexDirection: 'column', gap: 4
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{ width: 42, height: 42, borderRadius: 8, background: config.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <IconComponent size={20} style={{ color: config.color }} />
+                    </div>
 
-                  {/* Contenido */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-                      <span style={{
-                        fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
-                        padding: '1px 8px', borderRadius: 4,
-                        background: config.bg, color: config.color,
-                      }}>
-                        {config.label}
-                      </span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 8px', borderRadius: 4, background: config.bg, color: config.color }}>{config.label}</span>
+                        {doc.tipo_documento === 'SOLICITUD_ESTUDIO' && (
+                          <span style={{ fontSize: 10, fontWeight: 600, color: doc.tiene_resultados ? '#237A4B' : '#E8921F' }}>
+                            {doc.tiene_resultados ? '✓ Con resultados' : '⏳ Pendiente'}
+                          </span>
+                        )}
+                      </div>
+                      <p style={{ fontSize: 13, color: '#1A1510', margin: 0, fontWeight: 500 }}>{doc.descripcion}</p>
+                      <p style={{ fontSize: 11, color: '#8A7F75', margin: 0 }}>📅 {doc.fecha ? new Date(doc.fecha).toLocaleDateString() : '—'} • 👨‍⚕️ {doc.medico}</p>
+                    </div>
 
-                      {/* Badges especiales según tipo */}
-                      {doc.tipo_documento === 'NOTA_SOAP' && doc.firmada && (
-                        <span style={{ fontSize: 10, fontWeight: 600, color: '#237A4B', display: 'flex', alignItems: 'center', gap: 2 }}>
-                          <CheckCircle size={12} /> Firmada
-                        </span>
-                      )}
-                      {doc.tipo_documento === 'NOTA_SOAP' && !doc.firmada && (
-                        <span style={{ fontSize: 10, fontWeight: 600, color: '#E8921F', display: 'flex', alignItems: 'center', gap: 2 }}>
-                          <Clock size={12} /> Pendiente de firma
-                        </span>
-                      )}
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={() => handleDescargarPDF(doc)} disabled={!doc.pdf_disponible}
+                        style={{ padding: '8px 14px', border: '1.5px solid #DAD4CC', borderRadius: 6, fontSize: 11, cursor: 'pointer', opacity: doc.pdf_disponible ? 1 : 0.5 }}>
+                        PDF
+                      </button>
                       {doc.tipo_documento === 'SOLICITUD_ESTUDIO' && (
-                        <span style={{
-                          fontSize: 10, fontWeight: 600,
-                          color: doc.tiene_resultados ? '#237A4B' : '#E8921F',
-                          display: 'flex', alignItems: 'center', gap: 2,
-                        }}>
-                          {doc.tiene_resultados
-                            ? <><CheckCircle size={12} /> Con resultados ({doc.num_resultados})</>
-                            : <><Clock size={12} /> Pendiente de resultado</>}
-                        </span>
+                        <button onClick={() => navigate(`/laboratorio/upload?id_solicitud=${doc.id}`)}
+                          style={{ padding: '8px 14px', border: '1.5px solid #8B5CF6', background: '#F3E8FF', color: '#8B5CF6', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>
+                          Subir
+                        </button>
                       )}
-                      {doc.tipo_documento === 'REFERENCIA' && doc.estado && (
-                        <span style={{
-                          fontSize: 10, fontWeight: 600,
-                          color: doc.estado === 'EMITIDA' ? '#E8921F' :
-                                 doc.estado === 'ACEPTADA' ? '#2459A8' :
-                                 doc.estado === 'ATENDIDA' ? '#237A4B' : '#BA2E45',
-                        }}>
-                          {doc.estado}
-                        </span>
+                      {doc.tipo_documento === 'SOLICITUD_ESTUDIO' && doc.tiene_resultados && (
+                        <button onClick={() => handleVerResultados(doc.id)}
+                          style={{ padding: '8px 14px', border: '1.5px solid #237A4B', background: resultadosSolicitud.id === doc.id ? '#E8F5E9' : '#fff', color: '#237A4B', borderRadius: 6, fontSize: 11, cursor: 'pointer', fontWeight: 600 }}>
+                          {resultadosSolicitud.id === doc.id ? 'Ocultar' : 'Resultados'}
+                        </button>
                       )}
-                    </div>
-
-                    <p style={{ fontSize: 13, color: '#1A1510', margin: '0 0 4px 0', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {doc.descripcion}
-                    </p>
-
-                    <div style={{ display: 'flex', gap: 12, fontSize: 11, color: '#8A7F75' }}>
-                      {doc.medico && <span>👨‍⚕️ {doc.medico}</span>}
-                      {doc.fecha && <span>📅 {new Date(doc.fecha).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })}</span>}
                     </div>
                   </div>
 
-                  {/* Botón de descarga PDF */}
-                  <button
-                    onClick={() => handleDescargarPDF(doc)}
-                    disabled={!doc.pdf_disponible || descargando === doc.id}
-                    title={doc.pdf_disponible ? 'Descargar PDF' : 'PDF próximamente — Se implementará con WeasyPrint'}
-                    style={{
-                      padding: '8px 14px',
-                      border: `1.5px solid ${doc.pdf_disponible ? config.color : '#DAD4CC'}`,
-                      borderRadius: 6,
-                      background: doc.pdf_disponible ? config.color : 'transparent',
-                      color: doc.pdf_disponible ? '#fff' : '#8A7F75',
-                      cursor: doc.pdf_disponible ? 'pointer' : 'not-allowed',
-                      fontSize: 11,
-                      fontWeight: 500,
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      opacity: doc.pdf_disponible ? 1 : 0.5,
-                      flexShrink: 0,
-                      transition: 'all 0.2s',
-                    }}
-                  >
-                    <Download size={14} />
-                    {descargando === doc.id ? 'Descargando...' : 'PDF'}
-                  </button>
+                  {resultadosSolicitud.id === doc.id && (
+                    <div style={{ marginTop: 10, padding: '12px', background: '#F0F7F0', border: '1px dashed #237A4B', borderRadius: 8 }}>
+                      <p style={{ fontSize: 10, fontWeight: 700, color: '#237A4B', marginBottom: 8 }}>ARCHIVOS SUBIDOS</p>
+                      {resultadosSolicitud.loading ? <p style={{ fontSize: 12 }}>Cargando...</p> : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {resultadosSolicitud.items.map(res => (
+                            <div key={res.id_resultado} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff', padding: '8px', borderRadius: 6, border: '1px solid #DAD4CC' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <FileText size={14} style={{ color: '#237A4B' }} />
+                                <div>
+                                  <p style={{ fontSize: 11, fontWeight: 600, margin: 0 }}>Resultado PDF</p>
+                                  <p style={{ fontSize: 8, color: '#8A7F75', margin: 0 }}>Hash: {res.pdf_hash.substring(0, 20)}...</p>
+                                </div>
+                              </div>
+                              <button onClick={() => window.open(`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000'}${res.pdf_url}`, '_blank')}
+                                style={{ padding: '4px 10px', background: '#237A4B', color: '#fff', border: 'none', borderRadius: 4, fontSize: 10, cursor: 'pointer' }}>
+                                Ver
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })}
