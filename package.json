@@ -1,5 +1,7 @@
 {
   "dependencies": {
-    "qrcode.react": "^4.2.0"
+    "qrcode.react": "^4.2.0",
+    "ag-grid-community": "^35.2.1",
+    "ag-grid-react": "^35.2.1"
   }
 }

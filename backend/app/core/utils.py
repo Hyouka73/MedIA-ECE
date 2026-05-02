@@ -15,4 +15,4 @@ def sanitize_input(text: Optional[str]) -> Optional[str]:
 
     # Por defecto, eliminamos TODAS las etiquetas HTML para campos de texto plano
     # Si en el futuro se requiere Markdown o HTML básico, se pueden configurar tags permitidos aquí.
-    return bleach.clean(text, tags=[], attributes={}, strip=True)
+    return bleach.clean(text, tags=[], attributes={}, strip=True) 
