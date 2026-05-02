@@ -78,8 +78,8 @@ async def list_documentos(
                 "tipo_nota": r[4],
                 "descripcion": (r[5] or r[6] or "Nota clínica")[:120],
                 "medico": r[7],
-                "pdf_disponible": False,
-                "pdf_endpoint": f"/notas/{r[0]}/pdf",
+                "pdf_disponible": r[3] or False,  # Solo si está firmada (NOM-151)
+                "pdf_endpoint": f"/notas_soap/notas/{r[0]}/pdf",
             }
             for r in notas_rows
         ]
@@ -119,8 +119,8 @@ async def list_documentos(
                 "cantidad": r[3],
                 "id_encuentro": str(r[6]),
                 "medico": r[8],
-                "pdf_disponible": False,
-                "pdf_endpoint": f"/encuentros/{r[6]}/prescripciones/pdf",
+                "pdf_disponible": True,
+                "pdf_endpoint": f"/pacientes/{id_pac}/prescripciones/{r[0]}/pdf",
             }
             for r in recetas_rows
         ]
@@ -155,8 +155,8 @@ async def list_documentos(
                 "medico": r[5],
                 "tiene_resultados": (r[6] or 0) > 0,
                 "num_resultados": r[6] or 0,
-                "pdf_disponible": False,
-                "pdf_endpoint": f"/solicitudes/{r[0]}/pdf",
+                "pdf_disponible": True,
+                "pdf_endpoint": f"/pacientes/{id_pac}/estudios/{r[0]}/pdf",
             }
             for r in solicitudes_rows
         ]
@@ -194,8 +194,8 @@ async def list_documentos(
                 "establecimiento_destino": r[4],
                 "especialidad_destino": r[5],
                 "medico": r[6],
-                "pdf_disponible": False,
-                "pdf_endpoint": f"/referencias/{r[0]}/pdf",
+                "pdf_disponible": True,
+                "pdf_endpoint": f"/pacientes/{id_pac}/referencias/{r[0]}/pdf",
             }
             for r in referencias_rows
         ]
