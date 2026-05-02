@@ -27,8 +27,9 @@ async def list_usuarios(
     result = await db.execute(
         select(User).options(
             selectinload(User.persona),
-            selectinload(User.rol)  # <-- CORREGIDO: Antes decía role
-        ).where(User.activo == True)
+            selectinload(User.rol),
+            selectinload(User.establecimientos)
+        )
     )
     usuarios = result.scalars().all()
     # model_validate funciona porque UsuarioOut ahora recibe los campos de persona y rol
@@ -44,18 +45,25 @@ async def create_usuario(
 ):
     """Crea un nuevo usuario en el sistema junto con su persona asociada"""
     
-    # 1. Verificar si el email ya existe
+    # 1. Protección contra escalada de privilegios
+    if current_user["rol"] != "SUPERADMIN" and data.rol in ["SUPERADMIN", "OMNIADMIN"]:
+        raise HTTPException(
+            status_code=403, 
+            detail="No tiene permisos para asignar roles de alta jerarquía (SUPERADMIN/OMNIADMIN)"
+        )
+
+    # 2. Verificar si el email ya existe
     result = await db.execute(select(User).where(User.email == data.email))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="El correo electrónico ya está registrado")
         
-    # 2. Buscar el rol por código
+    # 3. Buscar el rol por código
     rol_res = await db.execute(select(Role).where(Role.codigo == data.rol))
     rol_obj = rol_res.scalar_one_or_none()
     if not rol_obj:
         raise HTTPException(status_code=400, detail=f"El rol '{data.rol}' no existe en el sistema")
 
-    # 3. Crear Persona con datos demográficos obligatorios
+    # 4. Crear Persona con datos demográficos obligatorios
     from datetime import datetime
     import logging
     logger = logging.getLogger(__name__)
@@ -65,7 +73,6 @@ async def create_usuario(
     except ValueError:
         raise HTTPException(status_code=400, detail="Formato de fecha inválido. Use YYYY-MM-DD")
 
-    logger.info(f"Intentando crear Persona: {data.nombre} {data.primer_apellido}")
     nueva_persona = Persona(
         nombre=data.nombre,
         primer_apellido=data.primer_apellido,
@@ -77,14 +84,11 @@ async def create_usuario(
     
     try:
         await db.flush() # Para obtener el id_persona
-        logger.info(f"Persona creada con ID: {nueva_persona.id_persona}")
     except Exception as e:
         await db.rollback()
-        logger.error(f"FALLO EN FLUSH PERSONA: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Error de integridad al crear persona: {str(e)}")
     
-    # 4. Crear Usuario
-    logger.info(f"Intentando crear Usuario para email: {data.email}")
+    # 5. Crear Usuario
     nuevo_usuario = User(
         id_persona=nueva_persona.id_persona,
         email=data.email,
@@ -95,7 +99,7 @@ async def create_usuario(
     )
     db.add(nuevo_usuario)
     
-    # 5. Vincular con establecimiento si se proporcionó
+    # 6. Vincular con establecimiento si se proporcionó
     if data.id_establecimiento:
         await db.flush() # Para obtener el id_usuario
         relacion_estab = UsuarioEstablecimiento(
@@ -107,13 +111,10 @@ async def create_usuario(
     
     try:
         await db.commit()
-        logger.info("Commit de usuario exitoso")
-        await db.refresh(nuevo_usuario, attribute_names=["persona", "rol"])
+        await db.refresh(nuevo_usuario, attribute_names=["persona", "rol", "establecimientos"])
         return UsuarioOut.model_validate(nuevo_usuario)
     except Exception as e:
         await db.rollback()
-        import traceback
-        logger.error(f"FALLO EN COMMIT FINAL: {traceback.format_exc()}")
         raise HTTPException(status_code=400, detail=f"Error de integridad final: {str(e)}")
 
 
@@ -123,14 +124,15 @@ async def update_usuario(
     id_usuario: uuid.UUID,
     data: UsuarioUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role("SUPERADMIN"))
+    current_user: dict = Depends(require_role("SUPERADMIN", "ADMINISTRADOR"))
 ):
     """Actualiza datos de usuario, contraseña y persona"""
     result = await db.execute(
         select(User)
         .options(
             selectinload(User.persona),
-            selectinload(User.rol)  # <-- CORREGIDO: Antes decía role
+            selectinload(User.rol),
+            selectinload(User.establecimientos)
         )
         .where(User.id_usuario == id_usuario)
     )
@@ -141,9 +143,16 @@ async def update_usuario(
 
     update_data = data.model_dump(exclude_unset=True)
 
-    # 1. Gestión de ROL
+    # 1. Gestión de ROL + Protección contra escalada
     if "rol" in update_data:
         rol_codigo = update_data.pop("rol")
+        
+        if current_user["rol"] != "SUPERADMIN" and rol_codigo in ["SUPERADMIN", "OMNIADMIN"]:
+            raise HTTPException(
+                status_code=403, 
+                detail="No tiene permisos para asignar roles de alta jerarquía (SUPERADMIN/OMNIADMIN)"
+            )
+            
         rol_res = await db.execute(select(Role).where(Role.codigo == rol_codigo))
         rol_obj = rol_res.scalar_one_or_none()
         if not rol_obj:
@@ -156,32 +165,48 @@ async def update_usuario(
         for field in persona_fields:
             if field in update_data:
                 setattr(usuario.persona, field, update_data.pop(field))
-    else:
-        # Si por alguna razón no tiene objeto persona, limpiamos los campos para no tronar
-        for field in persona_fields:
-            update_data.pop(field, None)
 
     # 3. Gestión de CONTRASEÑA
     if "password" in update_data:
+        from app.core.security import hash_password
         plain = update_data.pop("password")
-        usuario.password_hash = pwd_context.hash(plain)
+        usuario.password_hash = hash_password(plain)
 
-    # 4. Resto de campos (email, activo, cedula, etc.)
+    # 4. Gestión de ESTABLECIMIENTO
+    if "id_establecimiento" in update_data:
+        new_estab_id = update_data.pop("id_establecimiento")
+        estab_res = await db.execute(
+            select(UsuarioEstablecimiento)
+            .where(UsuarioEstablecimiento.id_usuario == id_usuario)
+        )
+        relacion = estab_res.scalar_one_or_none()
+        
+        if new_estab_id:
+            if relacion:
+                relacion.id_establecimiento = new_estab_id
+            else:
+                nueva_rel = UsuarioEstablecimiento(
+                    id_usuario=id_usuario,
+                    id_establecimiento=new_estab_id,
+                    es_principal=True
+                )
+                db.add(nueva_rel)
+        elif relacion:
+            await db.delete(relacion)
+
+    # 5. Resto de campos (email, activo, cedula, etc.)
     for key, value in update_data.items():
         if hasattr(usuario, key):
             setattr(usuario, key, value)
 
     try:
         await db.commit()
-        # Refrescamos con las relaciones correctas
-        await db.refresh(usuario, attribute_names=["persona", "rol"]) 
+        await db.refresh(usuario, attribute_names=["persona", "rol", "establecimientos"]) 
         return UsuarioOut.model_validate(usuario)
 
     except Exception as e:
         await db.rollback()
-        import traceback 
-        logger.error(f"Error en update_usuario: {traceback.format_exc()}")
-        raise HTTPException(status_code=400, detail="Error al actualizar el usuario")
+        raise HTTPException(status_code=400, detail=f"Error al actualizar el usuario: {str(e)}")
 
 
 # ── GET /establecimientos ──────────────────────────────────────────────
