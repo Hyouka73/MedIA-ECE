@@ -265,14 +265,24 @@ export default function NuevaConsultaPage() {
     setLoading(true)
     setErrorGlobal('')
     try {
-      // 1. Guardar Notas SOAP
-      const notaObj = {
-        S: formData.sintomas,
-        O: [formData.exploracion_general, formData.cabeza_cuello, formData.torax, formData.abdomen, formData.extremidades].filter(Boolean).join('\n'),
-        A: formData.diagnosticos.map(d => d.descripcion).join(', '),
-        P: formData.plan_terapeutico
+      // 1. Guardar Notas SOAP (Campos individuales según esquema de Ricardo)
+      const respNota = await clinicoAPI.crearNota(encuentroId, {
+        tipo_nota: 'EVOLUCION',
+        subjetivo: formData.sintomas,
+        objetivo: [formData.exploracion_general, formData.cabeza_cuello, formData.torax, formData.abdomen, formData.extremidades].filter(Boolean).join('\n'),
+        analisis: formData.diagnosticos.map(d => d.descripcion).join(', '),
+        plan: formData.plan_terapeutico
+      })
+      const idNota = respNota.data?.id_nota || respNota.data?.id
+
+      // 2. Firmar Nota (PASO CRÍTICO NOM-151)
+      if (idNota) {
+        try {
+          await clinicoAPI.firmarNota(idNota)
+        } catch (err) {
+          console.error("Error al firmar nota, pero continuando...", err)
+        }
       }
-      await clinicoAPI.crearNota(encuentroId, { tipo_nota: 'EVOLUCION', nota: JSON.stringify(notaObj) })
 
       // 2. Prescripciones
       if (formData.prescripciones.trim()) {

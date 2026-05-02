@@ -1,8 +1,10 @@
 """Pacientes module router"""
 from app.models.encuentros import EncuentroClinico
-from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 from sqlalchemy import select, func, text
+from app.modules.pacientes.utils.pdf_generator import MedIAPDFGenerator
 from app.core.deps import get_current_user, require_role
 from app.database.session import get_db
 from app.models.auth import Paciente, Persona, Lengua, Alergia
@@ -1802,4 +1804,124 @@ async def add_prescripcion_paciente(
         logger.error(f"Error crítico al agregar prescripción para paciente {id_paciente}: {str(e)}", exc_info=True)
         await db.rollback()
         raise HTTPException(status_code=500, detail="Error interno al agregar prescripción")
+
+
+# ── ENDPOINTS DE DESCARGA PDF (NOM-004 / NOM-151) ──────────────────────────
+
+@router.get("/{id_paciente}/prescripciones/{id_prescripcion}/pdf")
+async def download_receta_pdf(
+    id_paciente: UUID,
+    id_prescripcion: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA", "ADMIN"]))
+):
+    """Genera y descarga el PDF de una prescripción específica"""
+    try:
+        # 1. Datos de la prescripción
+        query_rx = text("""
+            SELECT p.*, m.nombre_generico, m.presentacion 
+            FROM prescripciones p
+            JOIN cat_medicamentos m ON p.codigo_medicamento_ssa = m.codigo_medicamento_ssa
+            WHERE p.id_prescripcion = :id_rx
+        """)
+        res_rx = await db.execute(query_rx, {"id_rx": id_prescripcion})
+        rx = res_rx.mappings().first()
+        if not rx: raise HTTPException(status_code=404, detail="Prescripción no encontrada")
+
+        # 2. Datos del paciente
+        query_pac = select(Paciente).options(joinedload(Paciente.persona)).where(Paciente.id_paciente == id_paciente)
+        res_pac = await db.execute(query_pac)
+        pac = res_pac.scalar_one_or_none()
+        edad = datetime.now().year - pac.persona.fecha_nacimiento.year if pac and pac.persona.fecha_nacimiento else "N/A"
+
+        # 3. Datos del médico
+        query_med = text("SELECT nombre, primer_apellido, cedula_profesional FROM usuarios_sistema u JOIN personas p ON u.id_persona = p.id_persona WHERE u.id_usuario = :id_u")
+        res_med = await db.execute(query_med, {"id_u": current_user["sub"]})
+        med = res_med.mappings().first()
+
+        # 4. Generar PDF
+        pdf_bytes = MedIAPDFGenerator.generar_receta_pdf(
+            {"medicamento": rx["nombre_generico"], "presentacion": rx["presentacion"], "indicaciones": rx["indicacion_dosis"], "duracion": f"{rx['duracion_dias']} dias"},
+            {"nombre": f"{pac.persona.nombre} {pac.persona.primer_apellido}", "expediente": pac.numero_expediente, "edad": str(edad), "sexo": pac.persona.sexo},
+            {"nombre": f"Dr. {med['nombre']} {med['primer_apellido']}", "cedula": med["cedula_profesional"] or "En Tramite"}
+        )
+
+        return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=receta_{id_prescripcion}.pdf"})
+    except Exception as e:
+        logger.error(f"Error PDF Receta: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error al generar PDF de receta")
+
+
+@router.get("/{id_paciente}/estudios/{id_solicitud}/pdf")
+async def download_estudio_pdf(
+    id_paciente: UUID,
+    id_solicitud: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA", "ADMIN"]))
+):
+    """Genera y descarga el PDF de una solicitud de laboratorio"""
+    try:
+        query_est = text("SELECT * FROM solicitudes_estudio WHERE id_solicitud = :id_s")
+        res_est = await db.execute(query_est, {"id_s": id_solicitud})
+        est = res_est.mappings().first()
+        if not est: raise HTTPException(status_code=404, detail="Solicitud no encontrada")
+
+        query_pac = select(Paciente).options(joinedload(Paciente.persona)).where(Paciente.id_paciente == id_paciente)
+        res_pac = await db.execute(query_pac); pac = res_pac.scalar_one_or_none()
+        edad = datetime.now().year - pac.persona.fecha_nacimiento.year if pac and pac.persona.fecha_nacimiento else "N/A"
+
+        query_med = text("SELECT nombre, primer_apellido, cedula_profesional FROM usuarios_sistema u JOIN personas p ON u.id_persona = p.id_persona WHERE u.id_usuario = :id_u")
+        res_med = await db.execute(query_med, {"id_u": current_user["sub"]})
+        med = res_med.mappings().first()
+
+        pdf_bytes = MedIAPDFGenerator.generar_solicitud_estudio_pdf(
+            {"tipo_estudio": est["tipo_estudio"], "indicacion": est["descripcion"], "urgente": False},
+            {"nombre": f"{pac.persona.nombre} {pac.persona.primer_apellido}", "expediente": pac.numero_expediente, "edad": str(edad), "sexo": pac.persona.sexo},
+            {"nombre": f"Dr. {med['nombre']} {med['primer_apellido']}", "cedula": med["cedula_profesional"] or "En Tramite"}
+        )
+
+        return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=solicitud_{id_solicitud}.pdf"})
+    except Exception as e:
+        logger.error(f"Error PDF Estudio: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error al generar PDF de estudio")
+
+
+@router.get("/{id_paciente}/referencias/{id_referencia}/pdf")
+async def download_referencia_pdf(
+    id_paciente: UUID,
+    id_referencia: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA", "ADMIN"]))
+):
+    """Genera y descarga el PDF de una referencia médica"""
+    try:
+        query_ref = text("""
+            SELECT r.*, e.nombre as unidad_destino, esp.nombre as especialidad_nombre
+            FROM referencias_medicas r
+            JOIN establecimientos e ON r.id_establecimiento_destino = e.id_establecimiento
+            JOIN cat_especialidades_medicas esp ON r.id_especialidad_destino = esp.id_especialidad
+            WHERE r.id_referencia = :id_r
+        """)
+        res_ref = await db.execute(query_ref, {"id_r": id_referencia})
+        ref = res_ref.mappings().first()
+        if not ref: raise HTTPException(status_code=404, detail="Referencia no encontrada")
+
+        query_pac = select(Paciente).options(joinedload(Paciente.persona)).where(Paciente.id_paciente == id_paciente)
+        res_pac = await db.execute(query_pac); pac = res_pac.scalar_one_or_none()
+        edad = datetime.now().year - pac.persona.fecha_nacimiento.year if pac and pac.persona.fecha_nacimiento else "N/A"
+
+        query_med = text("SELECT nombre, primer_apellido, cedula_profesional FROM usuarios_sistema u JOIN personas p ON u.id_persona = p.id_persona WHERE u.id_usuario = :id_u")
+        res_med = await db.execute(query_med, {"id_u": current_user["sub"]})
+        med = res_med.mappings().first()
+
+        pdf_bytes = MedIAPDFGenerator.generar_referencia_pdf(
+            {"unidad_destino": ref["unidad_destino"], "especialidad": ref["especialidad_nombre"], "motivo": ref["motivo_referencia"]},
+            {"nombre": f"{pac.persona.nombre} {pac.persona.primer_apellido}", "expediente": pac.numero_expediente, "edad": str(edad), "sexo": pac.persona.sexo},
+            {"nombre": f"Dr. {med['nombre']} {med['primer_apellido']}", "cedula": med["cedula_profesional"] or "En Tramite"}
+        )
+
+        return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=referencia_{id_referencia}.pdf"})
+    except Exception as e:
+        logger.error(f"Error PDF Referencia: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error al generar PDF de referencia")
     
