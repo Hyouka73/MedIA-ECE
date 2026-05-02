@@ -16,3 +16,4 @@ resend>=2.1.0
 Pillow>=10.0.0
 slowapi>=0.1.9
 bleach>=6.1.0
+fpdf2>=2.7.0
