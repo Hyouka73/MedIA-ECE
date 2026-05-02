@@ -7,7 +7,9 @@ class UsuarioOut(BaseModel):
     id_usuario: uuid.UUID
     email: str
     id_rol: Optional[int] = None
+    rol: Optional[str] = None
     rol_nombre: Optional[str] = None
+    id_establecimiento: Optional[uuid.UUID] = None
     nombre: Optional[str] = None
     primer_apellido: Optional[str] = None
     segundo_apellido: Optional[str] = None
@@ -39,11 +41,13 @@ class UsuarioOut(BaseModel):
                 "id_usuario":         obj.id_usuario,
                 "email":              obj.email,
                 "id_rol":             obj.id_rol,
+                "rol":                obj.rol.codigo if obj.rol else None,
+                "id_establecimiento": obj.establecimientos[0].id_establecimiento if obj.establecimientos else None,
                 "activo":             obj.activo,
                 "cedula_profesional": getattr(obj, "cedula_profesional", None),
                 "bloqueado":          esta_bloqueado,
                 "ultimo_acceso":      str(ultimo_login) if ultimo_login else None,
-                "rol_nombre":         obj.rol.nombre if obj.rol else None,  # <--- CORREGIDO: de role a rol
+                "rol_nombre":         obj.rol.nombre if obj.rol else None, 
                 "nombre":             obj.persona.nombre if obj.persona else None,
                 "primer_apellido":    obj.persona.primer_apellido if obj.persona else None,
                 "segundo_apellido":   obj.persona.segundo_apellido if obj.persona else None,
@@ -77,6 +81,7 @@ class UsuarioUpdate(BaseModel):
     rol:                Optional[str]  = None
     activo:             Optional[bool] = None
     cedula_profesional: Optional[str]  = None
+    id_establecimiento: Optional[uuid.UUID] = None
 
 
 class EstablecimientoOut(BaseModel):

@@ -33,6 +33,7 @@ class User(Base):
 
     rol = relationship("Role")
     persona = relationship("Persona", back_populates="usuario")
+    establecimientos = relationship("UsuarioEstablecimiento", lazy="selectin")
 
 
 class Persona(Base):
