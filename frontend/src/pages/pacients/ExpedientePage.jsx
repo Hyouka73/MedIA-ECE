@@ -23,6 +23,14 @@ export default function ExpedientePage() {
   const [error, setError] = useState(null)
   const [activeTab, setActiveTab] = useState('Antecedentes')
   const [expandedEncuentro, setExpandedEncuentro] = useState(null)
+  
+  // Estados para el Modal de Alergias (Persona 5)
+  const [showAlergiaModal, setShowAlergiaModal] = useState(false)
+  const [nuevaAlergia, setNuevaAlergia] = useState({ alergia: '', severidad: 'LEVE' })
+  
+  // Estados para Eliminar Alergia (Seguridad Forense)
+  const [alergiaAEliminar, setAlergiaAEliminar] = useState(null)
+  const [motivoBaja, setMotivoBaja] = useState('')
 
   // Verificación de acceso granular (Muros de Fuego - Fase Final)
   const tieneAcceso = user && (
@@ -520,70 +528,192 @@ export default function ExpedientePage() {
         )}
 
         {paciente.alergias && paciente.alergias.length > 0 && (
-          <div style={{ marginBottom: 18 }}>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 700,
-                color: '#5A5048',
-                letterSpacing: '0.5px',
-                textTransform: 'uppercase',
-                marginBottom: 8,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              <span
-                style={{
-                  width: 16,
-                  height: 16,
-                  borderRadius: '50%',
-                  background: '#BA2E45',
-                  color: '#fff',
-                  fontSize: 9,
-                  fontWeight: 800,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
+          <div className="mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2 text-[11px] font-bold text-text-secondary uppercase tracking-widest">
+                <span className="w-5 h-5 rounded-full bg-semantic-error text-white flex items-center justify-center text-[10px]">!</span>
+                Alergias Registradas
+              </div>
+              <button 
+                onClick={() => setShowAlergiaModal(true)}
+                className="text-[10px] font-bold text-primary hover:underline"
               >
-                !
-              </span>
-              Alergias Registradas
+                + Registrar Nueva
+              </button>
             </div>
 
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <div className="flex flex-wrap gap-3">
               {paciente.alergias.map((alergia, i) => {
                 const sev = (alergia.severidad || '').toLowerCase()
-                const isHigh = ['alta', 'critica', 'crítica'].includes(sev)
+                const isHigh = ['alta', 'critica', 'crítica', 'LEVE'].includes(sev) // Simplificado para demo
+                const color = sev === 'critica' || sev === 'CRITICA' ? '#BA2E45' : (sev === 'moderada' || sev === 'MODERADA' ? '#B86E12' : '#237A4B')
+                const bgColor = sev === 'critica' || sev === 'CRITICA' ? '#F5969E' : (sev === 'moderada' || sev === 'MODERADA' ? '#F9E5BA' : '#EAF6F0')
 
                 return (
                   <div
                     key={alergia.id_alergia || i}
+                    className="group relative flex items-center gap-3 px-4 py-2.5 rounded-xl border-1.5 shadow-sm transition-all hover:scale-105"
                     style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 10,
-                      padding: '10px 14px',
-                      borderRadius: 10,
-                      background: isHigh ? '#F5969E' : '#F9E5BA',
-                      border: `1.5px solid ${isHigh ? '#BA2E45' : '#B86E12'}`,
-                      boxShadow: `0 2px 8px ${isHigh ? '#BA2E4530' : '#B86E1230'}`,
+                      backgroundColor: bgColor,
+                      borderColor: color,
                     }}
                   >
-                    <span style={{ fontSize: 20 }}>{isHigh ? '🔴' : '🟡'}</span>
+                    <span className="text-lg">{sev === 'critica' || sev === 'CRITICA' ? '🔴' : (sev === 'moderada' || sev === 'MODERADA' ? '🟡' : '🟢')}</span>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: isHigh ? '#BA2E45' : '#B86E12' }}>
-                        {alergia.nombre}
+                      <div className="text-sm font-bold" style={{ color: color }}>
+                        {alergia.nombre || alergia.alergia}
                       </div>
-                      <div style={{ fontSize: 10, color: isHigh ? '#BA2E45' : '#B86E12', marginTop: 1 }}>
-                        {isHigh ? 'Severidad alta' : 'Severidad moderada'}
+                      <div className="text-[10px] font-medium opacity-80" style={{ color: color }}>
+                        Severidad {sev.toLowerCase()}
                       </div>
                     </div>
+
+                    {/* Botón de Eliminar (Solo aparece al hacer hover) */}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setAlergiaAEliminar(alergia);
+                      }}
+                      className="absolute -top-2 -right-2 w-5 h-5 bg-white border border-border rounded-full flex items-center justify-center text-[10px] text-semantic-error shadow-sm opacity-0 group-hover:opacity-100 transition-opacity hover:bg-semantic-error hover:text-white"
+                      title="Eliminar registro"
+                    >
+                      ✕
+                    </button>
                   </div>
                 )
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Registro de Alergia (Mejora Futura Persona 5) */}
+        {showAlergiaModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-border animate-in zoom-in-95 duration-200">
+              <div className="p-6 border-b border-border bg-[#FDFAF5]">
+                <h3 className="text-lg font-bold text-text-primary">Registrar Alergia</h3>
+                <p className="text-xs text-text-secondary">Información crítica para la seguridad del paciente</p>
+              </div>
+              
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-[11px] font-bold text-text-secondary uppercase mb-1">Sustancia / Alérgeno</label>
+                  <input 
+                    type="text" 
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm"
+                    placeholder="Ej: Penicilina, Látex..."
+                    value={nuevaAlergia.alergia}
+                    onChange={(e) => setNuevaAlergia({...nuevaAlergia, alergia: e.target.value})}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-text-secondary uppercase mb-1">Nivel de Severidad</label>
+                  <div className="grid grid-cols-3 gap-2 mt-2">
+                    {['LEVE', 'MODERADA', 'CRITICA'].map((s) => (
+                      <button
+                        key={s}
+                        onClick={() => setNuevaAlergia({...nuevaAlergia, severidad: s})}
+                        className={`py-2 text-[10px] font-bold rounded-lg border-2 transition-all ${
+                          nuevaAlergia.severidad === s 
+                          ? (s === 'CRITICA' ? 'border-semantic-error bg-semantic-error text-white' : 
+                             s === 'MODERADA' ? 'border-amber-500 bg-amber-500 text-white' : 
+                             'border-emerald-500 bg-emerald-500 text-white')
+                          : 'border-border text-text-secondary hover:bg-black/5'
+                        }`}
+                      >
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 bg-[#F5F2EC] flex justify-end gap-3">
+                <button 
+                  onClick={() => setShowAlergiaModal(false)}
+                  className="px-4 py-2 text-xs font-bold text-text-secondary hover:text-text-primary"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={async () => {
+                    if (!nuevaAlergia.alergia) return;
+                    try {
+                      await pacientesAPI.addAlergia(id, nuevaAlergia);
+                      setShowAlergiaModal(false);
+                      setNuevaAlergia({ alergia: '', severidad: 'LEVE' });
+                      // Recargar expediente
+                      window.location.reload();
+                    } catch (err) {
+                      alert("Error al registrar alergia");
+                    }
+                  }}
+                  className="px-4 py-2 bg-primary text-white text-xs font-bold rounded-lg hover:bg-primary-hover shadow-md shadow-primary/20"
+                >
+                  Guardar Registro
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Modal de Baja de Alergia (Persona 5 Security) */}
+        {alergiaAEliminar && (
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden border border-semantic-error/20 animate-in zoom-in-95 duration-200">
+              <div className="p-5 border-b border-border bg-semantic-error/5">
+                <div className="flex items-center gap-2 text-semantic-error mb-1">
+                  <AlertCircle className="h-5 w-5" />
+                  <h3 className="font-bold">Dar de baja alergia</h3>
+                </div>
+                <p className="text-[11px] text-text-secondary">Se requiere un motivo clínico para eliminar este registro forense.</p>
+              </div>
+              
+              <div className="p-5 space-y-4">
+                <div className="p-3 bg-background rounded-lg border border-border">
+                  <span className="text-[10px] font-bold text-text-secondary uppercase">Sustancia a eliminar</span>
+                  <p className="text-sm font-bold text-text-primary">{alergiaAEliminar.nombre || alergiaAEliminar.alergia}</p>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-bold text-text-secondary uppercase mb-1">Motivo de la baja</label>
+                  <textarea 
+                    className="w-full px-3 py-2 border border-border rounded-lg focus:ring-2 focus:ring-semantic-error/20 focus:border-semantic-error outline-none text-sm min-h-[80px]"
+                    placeholder="Ej: Registro por error, El paciente ya no presenta reacción..."
+                    value={motivoBaja}
+                    onChange={(e) => setMotivoBaja(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className="p-4 bg-background flex justify-end gap-2">
+                <button 
+                  onClick={() => {
+                    setAlergiaAEliminar(null);
+                    setMotivoBaja('');
+                  }}
+                  className="px-4 py-2 text-xs font-bold text-text-secondary hover:text-text-primary"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  disabled={!motivoBaja.trim()}
+                  onClick={async () => {
+                    try {
+                      await pacientesAPI.deleteAlergia(id, alergiaAEliminar.id_alergia, motivoBaja);
+                      setAlergiaAEliminar(null);
+                      setMotivoBaja('');
+                      window.location.reload();
+                    } catch (err) {
+                      alert("Error al eliminar alergia: " + (err.response?.data?.detail || err.message));
+                    }
+                  }}
+                  className="px-4 py-2 bg-semantic-error text-white text-xs font-bold rounded-lg hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Confirmar Baja
+                </button>
+              </div>
             </div>
           </div>
         )}

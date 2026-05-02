@@ -42,6 +42,7 @@ export default function PacienteAntecedentesPage() {
     detalles: ""
   });
 
+  const [alergias, setAlergias] = useState([]);
   const [ginecoobstetricos, setGinecoobstetricos] = useState({
     menarca: "",
     ritmo_menstrual: "",
@@ -95,8 +96,19 @@ export default function PacienteAntecedentesPage() {
 
         // Cargar antecedentes existentes
         try {
+          const expedienteRes = await pacientesAPI.getExpediente(id);
+          const exp = expedienteRes?.data?.data || expedienteRes?.data || {};
+          
+          if (exp.alergias) {
+            setAlergias(exp.alergias.map(a => ({
+              alergia: a.alergia || a.sustancia || "",
+              severidad: a.severidad || "LEVE"
+            })));
+          }
+
           const antecedentesRes = await pacientesAPI.getExpedienteCompleto(id);
           const ant = extractAntecedentes(antecedentesRes);
+// ... existing loading logic ...
 
           console.log('📦 Antecedentes crudos:', ant);
 
@@ -280,6 +292,21 @@ export default function PacienteAntecedentesPage() {
     setPatologicos(updated);
   };
 
+  // Funciones para Alergias
+  const addAlergia = () => {
+    setAlergias([...alergias, { alergia: "", severidad: "LEVE" }]);
+  };
+
+  const removeAlergia = (index) => {
+    setAlergias(alergias.filter((_, i) => i !== index));
+  };
+
+  const updateAlergia = (index, field, value) => {
+    const updated = [...alergias];
+    updated[index][field] = value;
+    setAlergias(updated);
+  };
+
   // Guardar todos los antecedentes
   const handleSave = async () => {
     try {
@@ -287,7 +314,17 @@ export default function PacienteAntecedentesPage() {
       setError(null);
       setSuccessMsg("");
 
-      // Guardar antecedentes heredofamiliares
+      // 1. Guardar Alergias (Persona 5 Security)
+      for (const item of alergias) {
+        if (item.alergia.trim()) {
+          await pacientesAPI.addAlergia(id, {
+            alergia: item.alergia,
+            severidad: item.severidad
+          });
+        }
+      }
+
+      // 2. Guardar antecedentes heredofamiliares
       await pacientesAPI.addAntecedenteHeredofamiliar(id, heredofamiliares);
 
       // Guardar antecedentes patológicos
@@ -539,6 +576,74 @@ export default function PacienteAntecedentesPage() {
                 <p className="text-sm text-text-secondary text-center py-4">
                   No hay antecedentes patológicos registrados
                 </p>
+              )}
+            </div>
+          </div>
+
+          {/* Antecedentes de Alergias (Persona 5) */}
+          <div className="bg-surface rounded-lg border-2 border-semantic-error/30 p-6 shadow-sm hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-5 w-5 text-semantic-error" />
+                <h2 className="text-lg font-bold text-text-primary">Alergias y Reacciones</h2>
+              </div>
+              <button
+                onClick={addAlergia}
+                className="px-3 py-1 text-xs bg-semantic-error/10 text-semantic-error font-bold rounded-lg hover:bg-semantic-error/20 transition-colors border border-semantic-error/20"
+              >
+                + Registrar Alergia
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {alergias.map((item, index) => (
+                <div key={index} className="border border-border rounded-xl p-4 bg-background/30 backdrop-blur-sm">
+                  <div className="flex justify-between items-start mb-3">
+                    <span className="text-[10px] font-black uppercase tracking-tighter text-text-secondary">ALERGIA #{index + 1}</span>
+                    <button
+                      onClick={() => removeAlergia(index)}
+                      className="text-semantic-error/60 hover:text-semantic-error transition-colors"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-[11px] font-bold text-text-secondary uppercase mb-1">Sustancia / Alérgeno</label>
+                      <input
+                        type="text"
+                        value={item.alergia}
+                        onChange={(e) => updateAlergia(index, 'alergia', e.target.value)}
+                        placeholder="Ej: Penicilina, Nueces..."
+                        className="w-full px-3 py-2 text-sm border border-border rounded-lg focus:ring-2 focus:ring-semantic-error/20 focus:border-semantic-error transition-all"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-text-secondary uppercase mb-1">Severidad</label>
+                      <select
+                        value={item.severidad}
+                        onChange={(e) => updateAlergia(index, 'severidad', e.target.value)}
+                        className={`w-full px-3 py-2 text-sm border-2 rounded-lg font-bold transition-all ${
+                          item.severidad === 'CRITICA' ? 'border-semantic-error text-semantic-error bg-semantic-error/5' :
+                          item.severidad === 'MODERADA' ? 'border-amber-500 text-amber-600 bg-amber-50' :
+                          'border-emerald-500 text-emerald-600 bg-emerald-50'
+                        }`}
+                      >
+                        <option value="LEVE">🟢 LEVE</option>
+                        <option value="MODERADA">🟡 MODERADA</option>
+                        <option value="CRITICA">🔴 CRÍTICA</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+              {alergias.length === 0 && (
+                <div className="text-center py-8 bg-background/20 rounded-xl border-2 border-dashed border-border/50">
+                  <p className="text-sm text-text-secondary italic">No se han registrado alergias para este paciente</p>
+                  <p className="text-[10px] text-text-secondary/60 mt-1 uppercase tracking-widest font-bold">Información Crítica para Persona 5</p>
+                </div>
               )}
             </div>
           </div>
