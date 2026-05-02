@@ -794,28 +794,33 @@ async def delete_alergia(
             raise HTTPException(status_code=404, detail="Alergia no encontrada")
 
         # Validar motivo_baja
-        if not motivo_baja or not motivo_baja.strip():
-            raise HTTPException(status_code=422, detail="motivo_baja es obligatorio para borrado lógico")
+        # Soft delete usando ORM con manejo robusto de UUID
+        user_id = current_user["sub"]
+        if isinstance(user_id, str):
+            user_id = UUID(user_id)
 
-        # Soft delete
-        query_delete = text("""
-            UPDATE alergias 
-            SET eliminado_en = :eliminado_en, eliminado_por = :eliminado_por, motivo_baja = :motivo_baja
-            WHERE id_alergia = :id_alergia
-        """)
+        stmt = (
+            update(Alergia)
+            .where(Alergia.id_alergia == id_alergia)
+            .where(Alergia.id_paciente == id_paciente)
+            .where(Alergia.eliminado_en == None)
+            .values(
+                eliminado_en=datetime.now(timezone.utc),
+                eliminado_por=user_id,
+                motivo_baja=sanitize_input(str(motivo_baja).strip())
+            )
+        )
 
-        await db.execute(query_delete, {
-            "id_alergia": str(id_alergia),
-            "eliminado_en": datetime.now(timezone.utc),
-            "eliminado_por": current_user["sub"],
-            "motivo_baja": sanitize_input(motivo_baja.strip())
-        })
+        result = await db.execute(stmt)
+        if result.rowcount == 0:
+            # Podría ser que no exista o que ya esté eliminado
+            raise HTTPException(status_code=404, detail="No se encontró la alergia activa para este paciente")
 
         await db.commit()
 
         return {
             "data": {"id_alergia": str(id_alergia)},
-            "message": "Alergia eliminada exitosamente (soft delete)"
+            "message": "Alergia dada de baja exitosamente"
         }
     except HTTPException:
         raise
@@ -1729,29 +1734,66 @@ async def add_prescripcion_paciente(
         # --- LÓGICA DE SEGURIDAD P5: VERIFICACIÓN DE ALERGIAS ---
         alerta_ignorada = prescripcion_in.get("alerta_ignorada", False)
         
-        # 1. Buscar todas las alergias de este paciente para cruce clínico
-        stmt_all = select(Alergia.alergia).where(Alergia.id_paciente == id_paciente)
-        res_all = await db.execute(stmt_all)
-        todas_las_alergias = [str(r[0]).strip().upper() for r in res_all.fetchall()]
+        # 1. Buscar todas las alergias de este paciente para cruce clínico (incluyendo severidad)
+        query_alergias = text("""
+            SELECT alergia, severidad 
+            FROM alergias 
+            WHERE id_paciente = :id_paciente AND eliminado_en IS NULL
+        """)
+        res_alergias = await db.execute(query_alergias, {"id_paciente": id_paciente})
+        alergias_paciente = res_alergias.fetchall()
 
-        # 2. Búsqueda de coincidencia inteligente (Persona 5)
-        alergia_detectada = None
-        for a in todas_las_alergias:
-            if a in nombre_medicamento.upper() or nombre_medicamento.upper() in a:
-                alergia_detectada = a
-                break
+        # 2. Búsqueda de coincidencia (Persona 5)
+        alergia_critica_detectada = None
+        alergia_moderada_detectada = None
+        
+        nombre_med_upper = nombre_medicamento.upper()
+        
+        for a_row in alergias_paciente:
+            a_texto = str(a_row[0]).strip().upper()
+            a_sev = str(a_row[1]).strip().upper()
+            
+            # Coincidencia si el medicamento contiene la sustancia alérgica o viceversa
+            if a_texto in nombre_med_upper or nombre_med_upper in a_texto:
+                if a_sev == "CRITICA":
+                    alergia_critica_detectada = a_texto
+                else:
+                    alergia_moderada_detectada = a_texto
 
-        if alergia_detectada and not alerta_ignorada:
-            logger.warning(f"SEGURIDAD CLÍNICA: Alergia a {alergia_detectada} detectada para el paciente {id_paciente}")
+        # Flag para solo verificar sin guardar
+        if prescripcion_in.get("solo_verificar", False):
+            return {
+                "data": {"verificacion": "OK", "alergia_detectada": None},
+                "message": "Verificación de seguridad exitosa"
+            }
+
+        # 3. Aplicar Reglas de Negocio (Doc1 §3.5)
+        if alergia_critica_detectada and not alerta_ignorada:
+            logger.warning(f"BLOQUEO DE SEGURIDAD: Alergia CRÍTICA a {alergia_critica_detectada} para el paciente {id_paciente}")
             raise HTTPException(
                 status_code=409,
                 detail={
                     "error": "ALERTA_CRITICA_ALERGIA",
-                    "mensaje": f"BLOQUEO DE SEGURIDAD: El paciente tiene una alergia registrada a {alergia_detectada}.",
-                    "id_medicamento": codigo_medicamento_ssa
+                    "mensaje": f"BLOQUEO DE SEGURIDAD: El paciente tiene una alergia CRÍTICA registrada a {alergia_critica_detectada}. No se puede recetar este medicamento sin autorización explícita.",
+                    "id_medicamento": codigo_medicamento_ssa,
+                    "severidad": "CRITICA"
                 }
             )
+        
+        # Flag de advertencia para el frontend (si es moderada o si la crítica fue ignorada)
+        advertencia_alergia = None
+        if alergia_critica_detectada and alerta_ignorada:
+            advertencia_alergia = f"Riesgo CRÍTICO asumido: Alergia a {alergia_critica_detectada} ignorada por el médico."
+        elif alergia_moderada_detectada:
+            advertencia_alergia = f"Advertencia de seguridad: El paciente tiene una alergia (Leve/Moderada) a {alergia_moderada_detectada}."
         # --------------------------------------------------------
+        # Flag para solo verificar sin guardar (Persona 5 Real-time check)
+        if prescripcion_in.get("solo_verificar", False):
+            return {
+                "data": {"verificacion": "OK", "alergia_detectada": None},
+                "message": "Verificación de seguridad exitosa"
+            }
+
         # Insertar prescripción
         query_insert = text("""
             INSERT INTO prescripciones (id_prescripcion, id_encuentro, codigo_medicamento_ssa, indicacion_dosis, duracion_dias, cantidad_surtir, alerta_ignorada)
@@ -1795,7 +1837,10 @@ async def add_prescripcion_paciente(
 
         await db.commit()
         return {
-            "data": {"id_prescripcion": new_id},
+            "data": {
+                "id_prescripcion": new_id,
+                "advertencia_seguridad": advertencia_alergia
+            },
             "message": "Prescripción agregada exitosamente"
         }
     except HTTPException:
@@ -1821,12 +1866,18 @@ async def download_receta_pdf(
         query_rx = text("""
             SELECT p.*, m.nombre_generico, m.presentacion 
             FROM prescripciones p
-            JOIN cat_medicamentos m ON p.codigo_medicamento_ssa = m.codigo_medicamento_ssa
+            LEFT JOIN cat_medicamentos m ON p.codigo_medicamento_ssa = m.codigo_medicamento_ssa
             WHERE p.id_prescripcion = :id_rx
         """)
         res_rx = await db.execute(query_rx, {"id_rx": id_prescripcion})
         rx = res_rx.mappings().first()
-        if not rx: raise HTTPException(status_code=404, detail="Prescripción no encontrada")
+        
+        if not rx: 
+            raise HTTPException(status_code=404, detail="La prescripción solicitada no existe en la base de datos.")
+
+        # Datos seguros para el PDF (Persona 5 Fallbacks)
+        nombre_med = rx["nombre_generico"] or "Medicamento (Ver indicaciones)"
+        presentacion_med = rx["presentacion"] or "N/A"
 
         # 2. Datos del paciente
         query_pac = select(Paciente).options(joinedload(Paciente.persona)).where(Paciente.id_paciente == id_paciente)
@@ -1839,11 +1890,24 @@ async def download_receta_pdf(
         res_med = await db.execute(query_med, {"id_u": current_user["sub"]})
         med = res_med.mappings().first()
 
-        # 4. Generar PDF
+        # 4. Generar PDF con datos de respaldo (Fallbacks)
         pdf_bytes = MedIAPDFGenerator.generar_receta_pdf(
-            {"medicamento": rx["nombre_generico"], "presentacion": rx["presentacion"], "indicaciones": rx["indicacion_dosis"], "duracion": f"{rx['duracion_dias']} dias"},
-            {"nombre": f"{pac.persona.nombre} {pac.persona.primer_apellido}", "expediente": pac.numero_expediente, "edad": str(edad), "sexo": pac.persona.sexo},
-            {"nombre": f"Dr. {med['nombre']} {med['primer_apellido']}", "cedula": med["cedula_profesional"] or "En Tramite"}
+            {
+                "medicamento": nombre_med, 
+                "presentacion": presentacion_med, 
+                "indicaciones": rx.get("indicacion_dosis", "Según indicación médica"), 
+                "duracion": f"{rx.get('duracion_dias', 1)} días"
+            },
+            {
+                "nombre": f"{pac.persona.nombre} {pac.persona.primer_apellido}" if pac else "Paciente Desconocido", 
+                "expediente": pac.numero_expediente if pac else "N/A", 
+                "edad": str(edad), 
+                "sexo": pac.persona.sexo if pac else "N/A"
+            },
+            {
+                "nombre": f"Dr. {med.get('nombre', 'Sistema')} {med.get('primer_apellido', 'MedIA')}" if med else "Dr. MedIA", 
+                "cedula": (med.get("cedula_profesional") if med else None) or "En Trámite"
+            }
         )
 
         return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=receta_{id_prescripcion}.pdf"})

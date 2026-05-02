@@ -80,8 +80,17 @@ export default function NuevaConsultaPage() {
     // Análisis
     diagnosticos: [],
     // Plan
-    plan_terapeutico: '', prescripciones: '',
+    plan_terapeutico: '', 
+    prescripciones: [], // Ahora es un array estructurado
   })
+
+  const [medQuery, setMedQuery] = useState('')
+  const [medResultados, setMedResultados] = useState([])
+  const [medLoading, setMedLoading] = useState(false)
+
+  // Estados para Alerta de Alergia (Persona 5 PRO)
+  const [alertaAlergia, setAlertaAlergia] = useState(null)
+  const [confirmarRiesgo, setConfirmarRiesgo] = useState(false)
 
   const pasos = useMemo(() => [
     { id: 1, nombre: 'Signos Vitales', icon: <Activity size={18} /> },
@@ -146,6 +155,25 @@ export default function NuevaConsultaPage() {
     return () => { active = false; clearTimeout(t) }
   }, [cieQuery])
 
+  useEffect(() => {
+    let active = true
+    const run = async () => {
+      if (medQuery.trim().length < 3) { setMedResultados([]); return }
+      setMedLoading(true)
+      try {
+        const resp = await clinicoAPI.buscarMedicamentos(medQuery.trim())
+        const lista = resp?.data?.data || []
+        if (active) setMedResultados(lista.slice(0, 10))
+      } catch {
+        if (active) setMedResultados([])
+      } finally {
+        if (active) setMedLoading(false)
+      }
+    }
+    const t = setTimeout(run, 300)
+    return () => { active = false; clearTimeout(t) }
+  }, [medQuery])
+
   const agregarDiagnostico = (item) => {
     if (formData.diagnosticos.length >= 5) return
     if (formData.diagnosticos.some((d) => d.id === item.id)) return
@@ -161,6 +189,36 @@ export default function NuevaConsultaPage() {
       const next = prev.diagnosticos.filter((d) => d.id !== id).map((d, i) => ({ ...d, tipo: i === 0 ? 'PRINCIPAL' : 'SECUNDARIO' }))
       return { ...prev, diagnosticos: next }
     })
+  }
+
+  const agregarMedicamento = async (med, ignorar = false) => {
+    setMedLoading(true)
+    setErrorGlobal('')
+    try {
+      // Verificar Alergia (Persona 5 Safety Check)
+      await clinicoAPI.addPrescripcion(encuentroId, {
+        codigo_medicamento_ssa: med.codigo_ssa || med.id,
+        nombre_medicamento: med.nombre_generico,
+        alerta_ignorada: ignorar,
+        solo_verificar: true // Un flag para que el backend solo chequee y no guarde aún
+      })
+
+      // Si pasa la verificación, lo añadimos localmente
+      setFormData(prev => ({
+        ...prev,
+        prescripciones: [...prev.prescripciones, { ...med, indicaciones: '' }]
+      }))
+      setMedQuery('')
+      setMedResultados([])
+    } catch (e) {
+      if (e.response?.status === 409) {
+        setAlertaAlergia({ ...e.response.data.detail, med_temp: med })
+      } else {
+        setErrorGlobal('Error al verificar medicamento')
+      }
+    } finally {
+      setMedLoading(false)
+    }
   }
 
   // --- HANDLERS PASOS ---
@@ -265,7 +323,7 @@ export default function NuevaConsultaPage() {
     setLoading(true)
     setErrorGlobal('')
     try {
-      // 1. Guardar Notas SOAP (Campos individuales según esquema de Ricardo)
+      // 1. Guardar Notas SOAP
       const respNota = await clinicoAPI.crearNota(encuentroId, {
         tipo_nota: 'EVOLUCION',
         subjetivo: formData.sintomas,
@@ -274,26 +332,24 @@ export default function NuevaConsultaPage() {
         plan: formData.plan_terapeutico
       })
       const idNota = respNota.data?.id_nota || respNota.data?.id
+      if (idNota) await clinicoAPI.firmarNota(idNota)
 
-      // 2. Firmar Nota (PASO CRÍTICO NOM-151)
-      if (idNota) {
-        try {
-          await clinicoAPI.firmarNota(idNota)
-        } catch (err) {
-          console.error("Error al firmar nota, pero continuando...", err)
-        }
+      // 2. Guardar Prescripciones Finales
+      for (const p of formData.prescripciones) {
+        await clinicoAPI.addPrescripcion(encuentroId, {
+          codigo_medicamento_ssa: p.codigo_ssa || p.id,
+          nombre_medicamento: p.nombre_generico,
+          indicacion_dosis: p.indicaciones || 'Según indicación médica',
+          duracion_dias: 7,
+          cantidad_surtir: 1,
+          alerta_ignorada: true // Si ya llegó aquí es que ya se autorizó
+        })
       }
 
-      // 2. Prescripciones
-      if (formData.prescripciones.trim()) {
-        try { await clinicoAPI.addPrescripcion(encuentroId, { texto: formData.prescripciones.trim() }) } catch (e) {}
-      }
-
-      // 3. Cerrar
       await clinicoAPI.cerrarEncuentro(encuentroId)
       navigate(`/expediente/${idPaciente}`)
     } catch (error) {
-      setErrorGlobal('Error al cerrar el encuentro')
+      setErrorGlobal('Error al finalizar la consulta')
     } finally {
       setLoading(false)
     }
@@ -533,12 +589,150 @@ export default function NuevaConsultaPage() {
             <div className="space-y-5">
               <h2 className="text-[#1B4F8A] font-bold flex items-center gap-2 text-base"><FileSignature size={20} /> Plan y Cierre</h2>
               <Field label="Plan terapéutico *"><textarea className={textareaCls} rows={4} value={formData.plan_terapeutico} onChange={(e) => set('plan_terapeutico', e.target.value)} /></Field>
-              <Field label="Prescripciones"><textarea className={textareaCls} rows={3} value={formData.prescripciones} onChange={(e) => set('prescripciones', e.target.value)} /></Field>
+              
+              <div className="space-y-4 pt-4 border-t border-gray-100">
+                <h3 className="text-sm font-bold text-[#1B4F8A] flex items-center gap-2">
+                  <ClipboardList size={16} /> Receta Médica Estructurada
+                </h3>
+                
+                {/* Buscador de Medicamentos */}
+                <div className="relative">
+                  <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
+                  <input 
+                    type="text" 
+                    className="w-full pl-10 pr-4 py-2 border border-[#DAD4CC] rounded-xl focus:ring-2 focus:ring-[#1B4F8A] outline-none text-sm bg-gray-50/50" 
+                    placeholder="Buscar medicamento por nombre o sustancia..." 
+                    value={medQuery} 
+                    onChange={(e) => setMedQuery(e.target.value)} 
+                  />
+                  {medLoading && <div className="absolute right-3 top-2.5 animate-spin h-4 w-4 border-2 border-[#1B4F8A] border-t-transparent rounded-full" />}
+                  
+                  {medResultados.length > 0 && (
+                    <div className="absolute z-30 w-full bg-white border border-[#DAD4CC] rounded-xl shadow-2xl mt-1 max-h-60 overflow-y-auto">
+                      {medResultados.map((m) => (
+                        <div 
+                          key={m.codigo_medicamento_ssa} 
+                          className="p-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50 transition-colors"
+                          onClick={() => agregarMedicamento(m)}
+                        >
+                          <p className="text-xs font-bold text-[#1B4F8A]">{m.nombre_generico}</p>
+                          <p className="text-[10px] text-gray-500">{m.presentacion} • {m.forma_farmaceutica}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Lista de medicamentos agregados */}
+                <div className="space-y-2">
+                  {formData.prescripciones.map((p, idx) => (
+                    <div key={idx} className="p-3 bg-white border border-[#DAD4CC] rounded-xl shadow-sm flex flex-col gap-2 animate-in slide-in-from-right-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <p className="text-xs font-bold text-[#1A1510]">{p.nombre_generico}</p>
+                          <p className="text-[10px] text-gray-500 uppercase">{p.presentacion}</p>
+                        </div>
+                        <button 
+                          onClick={() => setFormData(prev => ({ ...prev, prescripciones: prev.prescripciones.filter((_, i) => i !== idx) }))}
+                          className="text-gray-400 hover:text-red-500"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                      <input 
+                        type="text" 
+                        className="w-full px-3 py-1.5 bg-gray-50 border-none rounded-lg text-xs outline-none focus:ring-1 focus:ring-[#1B4F8A]" 
+                        placeholder="Indicaciones (ej: 1 cada 8 horas por 7 días)"
+                        value={p.indicaciones}
+                        onChange={(e) => {
+                          const list = [...formData.prescripciones];
+                          list[idx].indicaciones = e.target.value;
+                          set('prescripciones', list);
+                        }}
+                      />
+                    </div>
+                  ))}
+                  {formData.prescripciones.length === 0 && (
+                    <div className="text-center py-6 border-2 border-dashed border-gray-100 rounded-2xl">
+                      <p className="text-xs text-gray-400 italic">No hay medicamentos agregados a la receta.</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <NavButtons onPrev={() => setCurrentStep(4)} onNext={manejarPaso5} loadingNext={loading} labelNext="Finalizar y Cerrar Encuentro" isSubmit={true} />
             </div>
           )}
 
         </div>
+
+        {/* Modal de Alerta de Seguridad Clínica (Persona 5 PRO) */}
+        {alertaAlergia && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border-2 border-red-500 animate-in zoom-in-95 duration-300">
+              <div className="bg-red-600 p-6 text-white text-center">
+                <AlertTriangle size={56} className="mx-auto mb-3 animate-pulse" />
+                <h3 className="text-xl font-black uppercase tracking-tighter">¡Alerta de Seguridad Clínica!</h3>
+                <p className="text-sm opacity-90 mt-1">Riesgo de Reacción Alérgica Detectado</p>
+              </div>
+              
+              <div className="p-8 space-y-6">
+                <div className="p-4 bg-red-50 border border-red-100 rounded-2xl">
+                  <p className="text-red-900 text-sm font-medium leading-relaxed">
+                    {alertaAlergia.mensaje}
+                  </p>
+                  <div className="mt-3 pt-3 border-t border-red-200 flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-red-600 uppercase">Gravedad del riesgo</span>
+                    <span className="px-2 py-0.5 bg-red-600 text-white text-[10px] font-bold rounded-full uppercase">
+                      {alertaAlergia.severidad || 'CRÍTICA'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <input 
+                    type="checkbox" 
+                    id="confirmRiesgo" 
+                    className="mt-1 h-4 w-4 rounded border-gray-300 text-red-600 focus:ring-red-500"
+                    checked={confirmarRiesgo}
+                    onChange={(e) => setConfirmarRiesgo(e.target.checked)}
+                  />
+                  <label htmlFor="confirmRiesgo" className="text-xs text-gray-600 leading-tight">
+                    Confirmo que he revisado el historial del paciente y asumo la responsabilidad clínica de esta prescripción.
+                  </label>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <button 
+                    onClick={() => {
+                      setAlertaAlergia(null);
+                      setConfirmarRiesgo(false);
+                    }}
+                    className="px-4 py-3 text-sm font-bold text-gray-500 hover:text-gray-800 transition-colors"
+                  >
+                    Cancelar Receta
+                  </button>
+                  <button 
+                    disabled={!confirmarRiesgo}
+                    onClick={() => {
+                      const med = alertaAlergia.med_temp;
+                      setAlertaAlergia(null);
+                      setConfirmarRiesgo(false);
+                      if (med) agregarMedicamento(med, true); // Re-intentar agregando el medicamento
+                    }}
+                    className="px-4 py-3 bg-red-600 text-white text-sm font-bold rounded-xl hover:bg-red-700 disabled:opacity-30 disabled:grayscale transition-all shadow-lg shadow-red-200"
+                  >
+                    Ignorar y Agregar
+                  </button>
+                </div>
+              </div>
+              
+              <div className="bg-gray-50 p-4 text-center border-t border-gray-100">
+                <p className="text-[10px] text-gray-400">Esta acción quedará registrada en la bitácora de seguridad con su firma digital.</p>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )

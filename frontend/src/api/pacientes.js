@@ -34,6 +34,8 @@ export const pacientesAPI = {
     getExpedienteCompleto: (id) => api.get(`/expediente/${id}`),
     // POST /expediente/:id/alergias — Agregar alergia
     addAlergia: (id, data) => api.post(`/expediente/${id}/alergias`, data),
+    // DELETE /pacientes/:id/alergias/:id_alergia — Eliminar alergia (soft delete)
+    deleteAlergia: (id_paciente, id_alergia, motivo) => api.delete(`/pacientes/${id_paciente}/alergias/${id_alergia}`, { data: { motivo_baja: motivo } }),
     // POST /expediente/:id/antecedentes/patologicos — Agregar antecedente
     addAntecedente: (id, data) => api.post(`/expediente/${id}/antecedentes/patologicos`, data),
     
