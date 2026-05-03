@@ -9,11 +9,11 @@ from typing import Optional
 class Settings(BaseSettings):
     # Entorno
     APP_ENV: str = "development"
-    APP_NAME: str = "MedIA-ECE"
+    APP_NAME: str = "MedSys-ECE"
     DEBUG: bool = True
 
     # Base de Datos
-    DATABASE_URL: str = "postgresql+asyncpg://media_dev:dev_pass_changeme@localhost:5432/media_db"
+    DATABASE_URL: str = "postgresql+asyncpg://MedSys_dev:dev_pass_changeme@localhost:5432/MedSys_db"
 
     # JWT
     JWT_SECRET_KEY: str = "d80f48e1a2dedd934220dad01652ccfc4fdb458317e915d560ca08c171567059"
@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     JWT_REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     # TOTP / 2FA
-    TOTP_ISSUER: str = "MedIA-ECE"
+    TOTP_ISSUER: str = "MedSys-ECE"
     TOTP_ENCRYPTION_KEY: str = "295u-mX7xG5ycaAPbwvjIfu-7zTE9kujPHt6osFueKU="
 
     # CORS

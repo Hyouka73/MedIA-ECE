@@ -118,9 +118,9 @@ export default function LoginPage() {
             <div className="max-w-md w-full bg-white rounded-xl shadow-lg border border-border p-8 overflow-hidden relative">
 
                 <div className="flex justify-center mb-6">
-                    <div className="flex items-center gap-2">
-                        <ShieldCheck size={32} className="text-primary" />
-                        <span className="text-2xl font-bold tracking-tight">Med<span className="text-primary">IA</span></span>
+                    <div className="flex items-center gap-3">
+                        <img src="/logo.png" alt="MedSys Logo" className="w-10 h-10 object-contain" />
+                        <span className="text-2xl font-bold tracking-tight">Med<span className="text-primary">Sys</span></span>
                     </div>
                 </div>
 
@@ -190,7 +190,7 @@ export default function LoginPage() {
                 )}
             </div>
             <p className="mt-8 text-xs text-text-secondary text-center max-w-sm">
-                Sistema de Expediente Clínico Electrónico MedIA. Acceso restringido y auditado.
+                Sistema de Expediente Clínico Electrónico MedSys. Acceso restringido y auditado.
             </p>
         </div>
     );

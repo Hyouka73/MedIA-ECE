@@ -94,13 +94,13 @@ export const exportAuditReport = async ({ pages, includeIncidents, token, limit,
           th { background: #F5F2EC; text-transform: uppercase; color: #5A5048; }
           .note { margin-top: 24px; padding: 12px 14px; border-left: 4px solid #D97706; background: #FFF8E8; font-size: 11px; color: #5A5048; }
           .page-break { page-break-before: always; }
-          @media print { body { padding: 0; } }
+          @MedSys print { body { padding: 0; } }
         </style>
       </head>
       <body>
         <div class="header">
           <div class="title">Reporte Forense de Auditoría</div>
-          <div class="subtitle">MedIA ECE Chiapas · Generado: ${formatDate(new Date().toISOString())}</div>
+          <div class="subtitle">MedSys ECE Chiapas · Generado: ${formatDate(new Date().toISOString())}</div>
           <div class="subtitle">Rol exportador: ${userRole || 'NO_IDENTIFICADO'} · Páginas exportadas: ${pages} · Registros incluidos: ${exportLogs.length}</div>
           <div class="subtitle">Trazabilidad legal, bitácora de accesos e incidentes para documentación institucional</div>
         </div>

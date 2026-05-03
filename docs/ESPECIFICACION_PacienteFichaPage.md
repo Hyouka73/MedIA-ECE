@@ -17,7 +17,7 @@ La página **PacienteFichaPage** es un formulario completo para crear nuevos pac
 
 ### Sistema de Tokens de Color
 
-Se implementó el sistema **MedIA Design System** conforme a [Doc7_UIUX_MedIA.docx.pdf]:
+Se implementó el sistema **MedSys Design System** conforme a [Doc7_UIUX_MedSys.docx.pdf]:
 
 ```javascript
 // Colores
@@ -43,7 +43,7 @@ Se implementó el sistema **MedIA Design System** conforme a [Doc7_UIUX_MedIA.do
 
 ### Router
 
-La página se accede mediante dos rutas:
+La página se accede MedSysnte dos rutas:
 
 ```javascript
 // Crear nueva figura
@@ -345,4 +345,4 @@ const handleSubmit = async (e) => {
 
 ---
 
-_Especificación v1.0 — Compatible con MedIA-ECE backend Q2 2026_
+_Especificación v1.0 — Compatible con MedSys-ECE backend Q2 2026_

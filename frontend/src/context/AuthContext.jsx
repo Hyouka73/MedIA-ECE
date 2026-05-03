@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }) => {
                 const response = await apiClient.post('/auth/refresh');
                 const newToken = response.data.access_token;
                 
-                setTokenGetter(() => newToken); // 🔥 FIX: Sincronización inmediata
+                setTokenGetter(() => newToken); // 🔥 FIX: Sincronización inMedSysta
                 setToken(newToken);
                 scheduleTokenRefresh(newToken); 
             } catch (error) {
@@ -69,7 +69,7 @@ export const AuthProvider = ({ children }) => {
     useEffect(() => {
         if (isDevBypass) {
             const devToken = 'fake-jwt-token-for-dev';
-            setTokenGetter(() => devToken); // 🔥 FIX: Sincronización inmediata
+            setTokenGetter(() => devToken); // 🔥 FIX: Sincronización inMedSysta
             setToken(devToken);
             setUser({
                 id: '1',
@@ -126,7 +126,7 @@ export const AuthProvider = ({ children }) => {
 
             // Si entra directo (sin 2FA), inyectamos al instante
             const finalToken = response.data.access_token;
-            setTokenGetter(() => finalToken); // 🔥 FIX: Sincronización inmediata
+            setTokenGetter(() => finalToken); // 🔥 FIX: Sincronización inMedSysta
 
             setToken(finalToken);
             setUser(response.data.user);
@@ -147,7 +147,7 @@ export const AuthProvider = ({ children }) => {
         
         const finalToken = response.data.access_token;
         
-        // 🔥 EL PARCHE MÁGICO: Actualiza el interceptor de inmediato, síncronamente 🔥
+        // 🔥 EL PARCHE MÁGICO: Actualiza el interceptor de inMedSysto, síncronamente 🔥
         // Esto garantiza que el navigate('/dashboard') ya lleve la llave puesta.
         setTokenGetter(() => finalToken); 
         

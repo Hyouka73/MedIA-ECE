@@ -7,7 +7,7 @@ import { canAccess } from '../../utils/permissions';
 
 /**
  * PacientesListPage — Página de Listado de Pacientes
- * Interfaz compatible con Tailwind CSS y arquitectura MedIA
+ * Interfaz compatible con Tailwind CSS y arquitectura MedSys
  */
 
 export default function PacientesListPage() {
@@ -86,7 +86,7 @@ export default function PacientesListPage() {
       ultimaConsulta: "28 May 2025",
       alergias: [
         { nombre: "Penicilina", severidad: "alta" },
-        { nombre: "Cefalosporinas", severidad: "media" },
+        { nombre: "Cefalosporinas", severidad: "MedSys" },
       ],
     },
     {
@@ -106,8 +106,8 @@ export default function PacientesListPage() {
       telefono: "55 5566-7788",
       ultimaConsulta: "01 Jun 2025",
       alergias: [
-        { nombre: "AINEs", severidad: "media" },
-        { nombre: "Aspirina", severidad: "media" },
+        { nombre: "AINEs", severidad: "MedSys" },
+        { nombre: "Aspirina", severidad: "MedSys" },
       ],
     },
     {
@@ -135,7 +135,7 @@ export default function PacientesListPage() {
       grupo_sanguineo: "B−",
       telefono: "55 8899-0011",
       ultimaConsulta: "20 May 2025",
-      alergias: [{ nombre: "Sulfas", severidad: "media" }],
+      alergias: [{ nombre: "Sulfas", severidad: "MedSys" }],
     },
   ];
 

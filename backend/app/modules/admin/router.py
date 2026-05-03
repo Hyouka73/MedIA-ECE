@@ -10,10 +10,15 @@ from app.core.security import hash_password
 from app.core.deps import require_role, get_db
 from app.schemas.admin_schemas import (
     UsuarioOut, UsuarioCreate, UsuarioUpdate,
-    EstablecimientoOut, RolOut
+    EstablecimientoOut, EstablecimientoCreate, EstablecimientoUpdate,
+    RolOut, EspecialidadOut, EspecialidadAdd
 )
-# Importamos desde el archivo central corregido
-from app.models.auth import User, Role, Establecimiento, Persona, UsuarioEstablecimiento
+# Importamos todos los modelos para asegurar que SQLAlchemy inicialice los mappers correctamente
+import app.models as models
+from app.models import (
+    User, Role, Establecimiento, Persona, 
+    UsuarioEstablecimiento, EstablecimientoEspecialidad, EspecialidadMedica
+)
 
 router = APIRouter()
 
@@ -27,8 +32,9 @@ async def list_usuarios(
     result = await db.execute(
         select(User).options(
             selectinload(User.persona),
-            selectinload(User.rol)  # <-- CORREGIDO: Antes decía role
-        ).where(User.activo == True)
+            selectinload(User.rol),
+            selectinload(User.establecimientos)
+        )
     )
     usuarios = result.scalars().all()
     # model_validate funciona porque UsuarioOut ahora recibe los campos de persona y rol
@@ -44,18 +50,25 @@ async def create_usuario(
 ):
     """Crea un nuevo usuario en el sistema junto con su persona asociada"""
     
-    # 1. Verificar si el email ya existe
+    # 1. Protección contra escalada de privilegios
+    if current_user["rol"] != "SUPERADMIN" and data.rol in ["SUPERADMIN", "OMNIADMIN"]:
+        raise HTTPException(
+            status_code=403, 
+            detail="No tiene permisos para asignar roles de alta jerarquía (SUPERADMIN/OMNIADMIN)"
+        )
+
+    # 2. Verificar si el email ya existe
     result = await db.execute(select(User).where(User.email == data.email))
     if result.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="El correo electrónico ya está registrado")
         
-    # 2. Buscar el rol por código
+    # 3. Buscar el rol por código
     rol_res = await db.execute(select(Role).where(Role.codigo == data.rol))
     rol_obj = rol_res.scalar_one_or_none()
     if not rol_obj:
         raise HTTPException(status_code=400, detail=f"El rol '{data.rol}' no existe en el sistema")
 
-    # 3. Crear Persona con datos demográficos obligatorios
+    # 4. Crear Persona con datos demográficos obligatorios
     from datetime import datetime
     import logging
     logger = logging.getLogger(__name__)
@@ -65,7 +78,6 @@ async def create_usuario(
     except ValueError:
         raise HTTPException(status_code=400, detail="Formato de fecha inválido. Use YYYY-MM-DD")
 
-    logger.info(f"Intentando crear Persona: {data.nombre} {data.primer_apellido}")
     nueva_persona = Persona(
         nombre=data.nombre,
         primer_apellido=data.primer_apellido,
@@ -77,14 +89,11 @@ async def create_usuario(
     
     try:
         await db.flush() # Para obtener el id_persona
-        logger.info(f"Persona creada con ID: {nueva_persona.id_persona}")
     except Exception as e:
         await db.rollback()
-        logger.error(f"FALLO EN FLUSH PERSONA: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Error de integridad al crear persona: {str(e)}")
     
-    # 4. Crear Usuario
-    logger.info(f"Intentando crear Usuario para email: {data.email}")
+    # 5. Crear Usuario
     nuevo_usuario = User(
         id_persona=nueva_persona.id_persona,
         email=data.email,
@@ -95,7 +104,7 @@ async def create_usuario(
     )
     db.add(nuevo_usuario)
     
-    # 5. Vincular con establecimiento si se proporcionó
+    # 6. Vincular con establecimiento si se proporcionó
     if data.id_establecimiento:
         await db.flush() # Para obtener el id_usuario
         relacion_estab = UsuarioEstablecimiento(
@@ -107,13 +116,10 @@ async def create_usuario(
     
     try:
         await db.commit()
-        logger.info("Commit de usuario exitoso")
-        await db.refresh(nuevo_usuario, attribute_names=["persona", "rol"])
+        await db.refresh(nuevo_usuario, attribute_names=["persona", "rol", "establecimientos"])
         return UsuarioOut.model_validate(nuevo_usuario)
     except Exception as e:
         await db.rollback()
-        import traceback
-        logger.error(f"FALLO EN COMMIT FINAL: {traceback.format_exc()}")
         raise HTTPException(status_code=400, detail=f"Error de integridad final: {str(e)}")
 
 
@@ -123,14 +129,15 @@ async def update_usuario(
     id_usuario: uuid.UUID,
     data: UsuarioUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: dict = Depends(require_role("SUPERADMIN"))
+    current_user: dict = Depends(require_role("SUPERADMIN", "ADMINISTRADOR"))
 ):
     """Actualiza datos de usuario, contraseña y persona"""
     result = await db.execute(
         select(User)
         .options(
             selectinload(User.persona),
-            selectinload(User.rol)  # <-- CORREGIDO: Antes decía role
+            selectinload(User.rol),
+            selectinload(User.establecimientos)
         )
         .where(User.id_usuario == id_usuario)
     )
@@ -141,9 +148,16 @@ async def update_usuario(
 
     update_data = data.model_dump(exclude_unset=True)
 
-    # 1. Gestión de ROL
+    # 1. Gestión de ROL + Protección contra escalada
     if "rol" in update_data:
         rol_codigo = update_data.pop("rol")
+        
+        if current_user["rol"] != "SUPERADMIN" and rol_codigo in ["SUPERADMIN", "OMNIADMIN"]:
+            raise HTTPException(
+                status_code=403, 
+                detail="No tiene permisos para asignar roles de alta jerarquía (SUPERADMIN/OMNIADMIN)"
+            )
+            
         rol_res = await db.execute(select(Role).where(Role.codigo == rol_codigo))
         rol_obj = rol_res.scalar_one_or_none()
         if not rol_obj:
@@ -156,32 +170,48 @@ async def update_usuario(
         for field in persona_fields:
             if field in update_data:
                 setattr(usuario.persona, field, update_data.pop(field))
-    else:
-        # Si por alguna razón no tiene objeto persona, limpiamos los campos para no tronar
-        for field in persona_fields:
-            update_data.pop(field, None)
 
     # 3. Gestión de CONTRASEÑA
     if "password" in update_data:
+        from app.core.security import hash_password
         plain = update_data.pop("password")
-        usuario.password_hash = pwd_context.hash(plain)
+        usuario.password_hash = hash_password(plain)
 
-    # 4. Resto de campos (email, activo, cedula, etc.)
+    # 4. Gestión de ESTABLECIMIENTO
+    if "id_establecimiento" in update_data:
+        new_estab_id = update_data.pop("id_establecimiento")
+        estab_res = await db.execute(
+            select(UsuarioEstablecimiento)
+            .where(UsuarioEstablecimiento.id_usuario == id_usuario)
+        )
+        relacion = estab_res.scalar_one_or_none()
+        
+        if new_estab_id:
+            if relacion:
+                relacion.id_establecimiento = new_estab_id
+            else:
+                nueva_rel = UsuarioEstablecimiento(
+                    id_usuario=id_usuario,
+                    id_establecimiento=new_estab_id,
+                    es_principal=True
+                )
+                db.add(nueva_rel)
+        elif relacion:
+            await db.delete(relacion)
+
+    # 5. Resto de campos (email, activo, cedula, etc.)
     for key, value in update_data.items():
         if hasattr(usuario, key):
             setattr(usuario, key, value)
 
     try:
         await db.commit()
-        # Refrescamos con las relaciones correctas
-        await db.refresh(usuario, attribute_names=["persona", "rol"]) 
+        await db.refresh(usuario, attribute_names=["persona", "rol", "establecimientos"]) 
         return UsuarioOut.model_validate(usuario)
 
     except Exception as e:
         await db.rollback()
-        import traceback 
-        logger.error(f"Error en update_usuario: {traceback.format_exc()}")
-        raise HTTPException(status_code=400, detail="Error al actualizar el usuario")
+        raise HTTPException(status_code=400, detail=f"Error al actualizar el usuario: {str(e)}")
 
 
 # ── GET /establecimientos ──────────────────────────────────────────────
@@ -190,9 +220,82 @@ async def list_establecimientos(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_role("SUPERADMIN", "ADMINISTRADOR"))
 ):
-    """Catálogo de establecimientos para asignación de usuarios"""
-    res = await db.execute(select(Establecimiento))
-    return res.scalars().all()
+    """Catálogo de establecimientos con conteo de especialidades"""
+    from sqlalchemy import func
+    
+    # Subconsulta para contar especialidades activas
+    subq = (
+        select(func.count(EstablecimientoEspecialidad.id_especialidad))
+        .where(EstablecimientoEspecialidad.id_establecimiento == Establecimiento.id_establecimiento)
+        .where(EstablecimientoEspecialidad.activa == True)
+        .scalar_subquery()
+    )
+    
+    res = await db.execute(
+        select(
+            Establecimiento.id_establecimiento,
+            Establecimiento.clues,
+            Establecimiento.nombre,
+            Establecimiento.nivel_atencion,
+            Establecimiento.id_localidad,
+            subq.label("num_especialidades")
+        )
+    )
+    
+    return [
+        EstablecimientoOut(
+            id_establecimiento=r.id_establecimiento,
+            clues=r.clues,
+            nombre=r.nombre,
+            nivel_atencion=r.nivel_atencion,
+            id_localidad=r.id_localidad,
+            num_especialidades=r.num_especialidades
+        ) for r in res.all()
+    ]
+
+
+@router.post("/establecimientos", response_model=EstablecimientoOut, status_code=status.HTTP_201_CREATED)
+async def create_establecimiento(
+    data: EstablecimientoCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_role("SUPERADMIN", "ADMINISTRADOR", "OMNIADMIN"))
+):
+    """Registra un nuevo establecimiento"""
+    nuevo = Establecimiento(**data.model_dump())
+    db.add(nuevo)
+    try:
+        await db.commit()
+        await db.refresh(nuevo)
+        return nuevo
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error al crear establecimiento: {str(e)}")
+
+
+@router.patch("/establecimientos/{id_establecimiento}", response_model=EstablecimientoOut)
+async def update_establecimiento(
+    id_establecimiento: uuid.UUID,
+    data: EstablecimientoUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_role("SUPERADMIN", "ADMINISTRADOR", "OMNIADMIN"))
+):
+    """Actualiza datos de un establecimiento"""
+    res = await db.execute(select(Establecimiento).where(Establecimiento.id_establecimiento == id_establecimiento))
+    estab = res.scalar_one_or_none()
+    if not estab:
+        raise HTTPException(status_code=404, detail="Establecimiento no encontrado")
+    
+    update_data = data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(estab, key, value)
+    
+    try:
+        await db.commit()
+        await db.refresh(estab)
+        return estab
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error al actualizar establecimiento: {str(e)}")
 
 
 # ── GET /roles ──────────────────────────────────────────────────────────
@@ -205,59 +308,92 @@ async def list_roles(
     res = await db.execute(select(Role))
     return res.scalars().all()
 
+# ── ESPECIALIDADES ───────────────────────────────────────────────────────
 
-# creacion de usuarios
+@router.get("/especialidades", response_model=List[EspecialidadOut])
+async def list_especialidades(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_role("SUPERADMIN", "ADMINISTRADOR", "OMNIADMIN"))
+):
+    """Catálogo global de especialidades médicas"""
+    res = await db.execute(select(EspecialidadMedica).order_by(EspecialidadMedica.nombre))
+    return res.scalars().all()
 
-# @router.post("/usuarios", response_model=UsuarioOut, status_code=status.HTTP_201_CREATED)
-# async def create_usuario(
-#     data: UsuarioCreate,
-#     db: AsyncSession = Depends(get_db),
-#     current_user: dict = Depends(require_role("SUPERADMIN"))
-# ):
-#     """Crea un nuevo usuario con rol y persona"""
+
+@router.get("/establecimientos/{id_establecimiento}/especialidades", response_model=List[EspecialidadOut])
+async def list_establecimiento_especialidades(
+    id_establecimiento: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_role("SUPERADMIN", "ADMINISTRADOR", "OMNIADMIN"))
+):
+    """Lista especialidades activas de un establecimiento específico"""
+    res = await db.execute(
+        select(EspecialidadMedica)
+        .join(EstablecimientoEspecialidad, EspecialidadMedica.id_especialidad == EstablecimientoEspecialidad.id_especialidad)
+        .where(EstablecimientoEspecialidad.id_establecimiento == id_establecimiento)
+        .where(EstablecimientoEspecialidad.activa == True)
+    )
+    return res.scalars().all()
+
+
+@router.post("/establecimientos/{id_establecimiento}/especialidades", status_code=status.HTTP_201_CREATED)
+async def add_especialidad_to_establecimiento(
+    id_establecimiento: uuid.UUID,
+    data: EspecialidadAdd,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_role("SUPERADMIN", "ADMINISTRADOR", "OMNIADMIN"))
+):
+    """Vincula una especialidad a un establecimiento"""
+    # Verificar si ya existe
+    res = await db.execute(
+        select(EstablecimientoEspecialidad)
+        .where(EstablecimientoEspecialidad.id_establecimiento == id_establecimiento)
+        .where(EstablecimientoEspecialidad.id_especialidad == data.id_especialidad)
+    )
+    rel = res.scalar_one_or_none()
     
-#     # 1. Validación de email único
-#     res = await db.execute(select(User).where(User.email == data.email))
-#     if res.scalar_one_or_none():
-#         raise HTTPException(status_code=400, detail="El email ya está registrado")
+    if rel:
+        if rel.activa:
+            return {"message": "La especialidad ya está activa en este establecimiento"}
+        rel.activa = True
+    else:
+        nueva_rel = EstablecimientoEspecialidad(
+            id_establecimiento=id_establecimiento,
+            id_especialidad=data.id_especialidad,
+            activa=True
+        )
+        db.add(nueva_rel)
+    
+    try:
+        await db.commit()
+        return {"message": "Especialidad añadida exitosamente"}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error al añadir especialidad: {str(e)}")
 
-#     # 2. Validación de rol existente
-#     rol_res = await db.execute(select(Role).where(Role.nombre == data.rol))
-#     rol_obj = rol_res.scalar_one_or_none()
-#     if not rol_obj:
-#         raise HTTPException(status_code=400, detail=f"El rol '{data.rol}' no existe")
 
-#     try:
-#         # 3. Creación de persona
-#         persona = Persona(
-#             nombre=data.nombre,
-#             primer_apellido=data.primer_apellido,
-#             segundo_apellido=data.segundo_apellido
-#         )
-#         db.add(persona)
-#         await db.flush()  # Obtenemos id_persona sin terminar la transacción
-
-#         # 4. Creación de usuario (Asegúrate de importar uuid)
-#         usuario = User(
-#             id_usuario=uuid.uuid4(),  # <--- Generamos el UUID manualmente
-#             email=data.email,
-#             password_hash=pwd_context.hash(data.password),
-#             id_rol=rol_obj.id_rol,
-#             id_persona=persona.id_persona,
-#             id_establecimiento=data.id_establecimiento, # <--- ¡No olvides este!
-#             cedula_profesional=data.cedula_profesional,
-#             activo=True
-#         )
-#         db.add(usuario)
-        
-#         # 5. Commit único para ambas tablas
-#         await db.commit()
-        
-#         # 6. Carga de relaciones para el response_model
-#         await db.refresh(usuario, attribute_names=["persona", "rol"]) 
-#         return UsuarioOut.model_validate(usuario)
-
-#     except Exception as e:
-#         await db.rollback()
-#         logger.error(f"Error al crear usuario: {str(e)}")
-#         raise HTTPException(status_code=500, detail="Error interno al procesar la creación")
+@router.delete("/establecimientos/{id_establecimiento}/especialidades/{id_especialidad}")
+async def remove_especialidad_from_establecimiento(
+    id_establecimiento: uuid.UUID,
+    id_especialidad: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_role("SUPERADMIN", "ADMINISTRADOR", "OMNIADMIN"))
+):
+    """Desvincula (desactiva) una especialidad de un establecimiento"""
+    res = await db.execute(
+        select(EstablecimientoEspecialidad)
+        .where(EstablecimientoEspecialidad.id_establecimiento == id_establecimiento)
+        .where(EstablecimientoEspecialidad.id_especialidad == id_especialidad)
+    )
+    rel = res.scalar_one_or_none()
+    
+    if not rel:
+        raise HTTPException(status_code=404, detail="Relación no encontrada")
+    
+    rel.activa = False
+    try:
+        await db.commit()
+        return {"message": "Especialidad removida exitosamente"}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error al remover especialidad: {str(e)}")

@@ -1,105 +1,73 @@
 import React from 'react';
-import { cn } from './Badge';
+import { AlertTriangle, X } from 'lucide-react';
+import { Dialog } from './Dialog';
+import { Button } from './Button';
 
 /**
- * ConfirmDialog — Modal de confirmación para acciones destructivas o irreversibles
- * Construido sobre el dialog nativo accesible del browser (backdrop nativo).
- *
- * Props:
- *   open:          bool
- *   onClose:       () => void        — llamado al cerrar sin confirmar
- *   onConfirm:     () => void        — llamado al confirmar
- *   title:         string
- *   description:   string | ReactNode
- *   confirmLabel:  string   (default: "Confirmar")
- *   cancelLabel:   string   (default: "Cancelar")
- *   variant:       "danger" | "primary"  (default: "danger")
- *   isLoading:     bool
+ * ConfirmDialog — Modal de confirmación con diseño institucional.
  */
-export function ConfirmDialog({
-    open,
-    onClose,
-    onConfirm,
-    title = '¿Estás seguro?',
-    description,
-    confirmLabel = 'Confirmar',
-    cancelLabel = 'Cancelar',
-    variant = 'danger',
-    isLoading = false,
+export function ConfirmDialog({ 
+  open, 
+  onClose, 
+  onConfirm, 
+  title = "Confirmar acción", 
+  description = "¿Está seguro de realizar esta acción?",
+  confirmText = "Confirmar",
+  cancelText = "Cancelar",
+  variant = "danger", // danger | primary | warning
+  loading = false
 }) {
-    if (!open) return null;
+  const variantStyles = {
+    danger: {
+      icon: <AlertTriangle className="text-red-600" size={24} />,
+      bg: "bg-red-50",
+      button: "danger"
+    },
+    primary: {
+      icon: <AlertTriangle className="text-blue-600" size={24} />,
+      bg: "bg-blue-50",
+      button: "primary"
+    },
+    warning: {
+      icon: <AlertTriangle className="text-amber-600" size={24} />,
+      bg: "bg-amber-50",
+      button: "warning"
+    }
+  };
 
-    const confirmCls = variant === 'danger'
-        ? "bg-[#BA2E45] border-[#BA2E45] text-white hover:brightness-105"
-        : "bg-primary border-primary text-white hover:brightness-105";
+  const current = variantStyles[variant] || variantStyles.danger;
 
-    return (
-        /* Backdrop */
-        <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-            style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
-            onClick={onClose}
-        >
-            {/* Panel */}
-            <div
-                className={cn(
-                    "relative w-full max-w-sm bg-white rounded-2xl shadow-2xl",
-                    "border border-border p-6 flex flex-col gap-4",
-                    "animate-in fade-in zoom-in-95 duration-150"
-                )}
-                onClick={e => e.stopPropagation()}
-            >
-                {/* Close button */}
-                <button
-                    type="button"
-                    onClick={onClose}
-                    className="absolute top-4 right-4 text-text-secondary hover:text-text-primary text-xl leading-none"
-                    aria-label="Cerrar"
-                >
-                    ×
-                </button>
-
-                {/* Icon for danger */}
-                {variant === 'danger' && (
-                    <div className="w-12 h-12 rounded-full bg-[#FEF0F3] border border-[#FBDAE0] flex items-center justify-center mx-auto">
-                        <span className="text-[#BA2E45] text-xl">!</span>
-                    </div>
-                )}
-
-                <div className="text-center">
-                    <h2 className="text-base font-bold text-text-primary leading-tight mb-1">
-                        {title}
-                    </h2>
-                    {description && (
-                        <p className="text-sm text-text-secondary leading-relaxed">
-                            {description}
-                        </p>
-                    )}
-                </div>
-
-                <div className="flex gap-2 mt-1">
-                    <button
-                        type="button"
-                        onClick={onClose}
-                        disabled={isLoading}
-                        className="flex-1 h-10 rounded-lg border border-border text-sm font-medium text-text-primary hover:bg-background transition-colors disabled:opacity-50"
-                    >
-                        {cancelLabel}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={onConfirm}
-                        disabled={isLoading}
-                        className={cn(
-                            "flex-1 h-10 rounded-lg border text-sm font-medium transition-all active:scale-[0.98]",
-                            "disabled:opacity-50 disabled:cursor-not-allowed",
-                            confirmCls
-                        )}
-                    >
-                        {isLoading ? '…' : confirmLabel}
-                    </button>
-                </div>
-            </div>
+  return (
+    <Dialog open={open} onClose={onClose} className="max-w-sm">
+      <div className="flex flex-col items-center text-center py-2">
+        <div className={`p-4 rounded-full ${current.bg} mb-4`}>
+          {current.icon}
         </div>
-    );
+        
+        <h3 className="text-lg font-bold text-gray-900 mb-2">{title}</h3>
+        <p className="text-sm text-gray-500 mb-8 px-2">
+          {description}
+        </p>
+
+        <div className="flex flex-col w-full gap-2">
+          <Button 
+            variant={current.button} 
+            onClick={onConfirm} 
+            loading={loading}
+            className="w-full justify-center py-3"
+          >
+            {confirmText}
+          </Button>
+          <Button 
+            variant="outline" 
+            onClick={onClose} 
+            disabled={loading}
+            className="w-full justify-center py-3 border-gray-200"
+          >
+            {cancelText}
+          </Button>
+        </div>
+      </div>
+    </Dialog>
+  );
 }

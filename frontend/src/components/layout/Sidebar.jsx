@@ -123,9 +123,12 @@ export default function Sidebar({ isMobileMenuOpen, setIsMobileMenuOpen }) {
     `}>
       {/* Header Logo */}
       <div className="h-14 flex items-center justify-between px-4 font-bold text-lg border-b border-sidebar-hover">
-        <span className="text-white">
-          Med<span className="text-primary-300">IA</span>
-        </span>
+        <div className="flex items-center gap-2">
+          <img src="/logo.png" alt="Logo" className="w-6 h-6 invert brightness-200" />
+          <span className="text-white">
+            Med<span className="text-primary-300">Sys</span>
+          </span>
+        </div>
         <button 
           onClick={() => setIsMobileMenuOpen(false)}
           className="md:hidden text-gray-400 hover:text-white"

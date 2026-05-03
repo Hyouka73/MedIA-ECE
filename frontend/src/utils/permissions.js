@@ -1,5 +1,5 @@
 /**
- * Utilería de permisos dinámica para MedIA.
+ * Utilería de permisos dinámica para MedSys.
  * Valida el acceso basándose en la matriz de permisos devuelta por el backend.
  * 
  * @param {Object} userPermissions - Matriz de permisos (user.permisos)
@@ -9,6 +9,11 @@
  */
 export function canAccess(userPermissions, moduleCode, requiredAction = 'puede_leer') {
     if (!userPermissions || !moduleCode) return false;
+
+    // Si es un array, basta con tener acceso a uno de los módulos
+    if (Array.isArray(moduleCode)) {
+        return moduleCode.some(m => canAccess(userPermissions, m, requiredAction));
+    }
 
     const modPerms = userPermissions[moduleCode];
     if (!modPerms) return false;

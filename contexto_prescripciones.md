@@ -32,7 +32,7 @@ Permite al médico ordenar estudios de **LABORATORIO**, **IMAGENOLOGÍA** u **OT
 - Inserta en `solicitudes_estudio` con fecha actual.
 
 ### GET `/{id_encuentro}/solicitudes-estudio`
-Recupera las solicitudes de un encuentro. Incluye un conteo dinámico (`num_resultados`) de los archivos/resultados ya cargados para cada solicitud mediante una subconsulta a `resultados_laboratorio`.
+Recupera las solicitudes de un encuentro. Incluye un conteo dinámico (`num_resultados`) de los archivos/resultados ya cargados para cada solicitud MedSysnte una subconsulta a `resultados_laboratorio`.
 
 ## 4. Schemas de Pydantic (`backend/app/schemas/encuentros.py`)
 Contratos de datos para las nuevas funcionalidades:
@@ -66,7 +66,7 @@ Para pacientes con historial extenso, el expediente cargaba lento debido a petic
 
 ### Limpieza de Logs y Carga de BD (Backend)
 - **Middleware de Auditoría:** Se configuró una lista `EXCLUDED_SUFFIXES_GET` en `audit.py`. Las lecturas rutinarias (GETs) de sub-recursos del expediente ya no generan un `INSERT` en la tabla `auditoria_accesos` de la BD (reduciendo ruido y consumo de IOPS), aunque se mantienen en el log forense persistente en archivo.
-- **SQLAlchemy Echo:** Se desactivó el log de queries SQL en consola mediante `DEBUG=False` en el archivo `.env` para mejorar la visibilidad de los logs de aplicación.
+- **SQLAlchemy Echo:** Se desactivó el log de queries SQL en consola MedSysnte `DEBUG=False` en el archivo `.env` para mejorar la visibilidad de los logs de aplicación.
 
 ---
 **Próximos Pasos (según Doc1 §S5):** Implementar el módulo de carga de resultados (PDF) conectando con Azure Blob Storage y validación SHA-256 (NOM-151).

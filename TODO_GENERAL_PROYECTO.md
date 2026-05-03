@@ -1,40 +1,36 @@
-# 🚀 TODO List: Finalización MedIA-ECE
-Este documento centraliza los pendientes críticos para alcanzar el cumplimiento total de las normas **NOM-024**, **NOM-004** y **NOM-151**, asegurando un sistema forense y clínicamente seguro.
+# 🚀 TODO List: Finalización y Blindaje MedIA-ECE
+> **Estado:** Auditoría Técnica Completada (Mayo 2026)
+> **Objetivo:** Cumplimiento total NOM-024, NOM-004 y NOM-151.
 
 ---
 
-## 🛠️ I. Infraestructura y Nube (Prioridad: Crítica)
-*El sistema debe dejar de ser una "isla local" para operar en la arquitectura escalable de Azure.*
+## 🛠️ I. Infraestructura y Datos (Cimientos Legales)
+- [x] **Alineación de BD (NOM-151):** Verificado. El sistema utiliza propiedades derivadas para `id_medico` y cuenta con `fecha_firma` y `pdf_hash` en la tabla `notas_medicas`.
+- [x] **Trigger de Inmutabilidad:** Verificado en `02_triggers.sql`. El trigger `tr_notes_protection` ya protege las notas contra ediciones post-firma.
+- [ ] **Azure Blob Storage:** Implementar `blob_service.py` para subir resultados de laboratorio externos y generar **SAS Tokens**.
+- [ ] **Hash Forense en Archivos:** Registrar el SHA-256 de cada PDF de laboratorio subido en la bitácora de auditoría.
 
-- [ ] **Migración a Azure Blob Storage:** Mover el almacenamiento de PDFs de Laboratorio de `/static/` a contenedores de Azure.
-- [ ] **Seguridad de Archivos (SAS Tokens):** Implementar la generación de tokens temporales (15 min) para la visualización de documentos externos.
-- [ ] **Configuración de Producción:** Preparar el `Dockerfile` y variables de entorno para el deploy en Azure App Service.
+## 📄 II. Documentación Clínica (Pulido y Calidad Visual)
+- [ ] **Rediseño Institucional de PDFs (Nota, Receta, Referencia):**
+    - [ ] Registrar y aplicar fuente **DM Sans** (vía `pdf.add_font`).
+    - [ ] Sustituir cuadros azules por Header oficial con Logos del Distrito I.
+    - [ ] Implementar maquetación profesional (columnas y espaciado legal).
+    - [ ] Asegurar que los datos derivados (Médico/Cédula) aparezcan en el sello de firma.
 
-## 📄 II. Documentación Clínica (Fábrica de PDFs)
-*Garantizar que el paciente pueda llevar sus documentos impresos con validez legal.*
+## 🛡️ III. Lógica de Negocio y Seguridad
+- [ ] **CORRECCIÓN CRÍTICA (acceso.py):** 
+    - [ ] Corregir nombres de tablas (`referencias` -> `referencias_medicas`).
+    - [ ] Corregir columnas (`id_especialista_receptor` -> `id_establecimiento_destino`).
+    - [ ] Sincronizar Regla 2 con la estructura real de `notas_medicas` (vía encuentro).
+- [ ] **Blindaje de Referencias:** Restringir el acceso para que solo el hospital destino pueda responder a la referencia.
+- [x] **Alerta de Alergia Crítica:** Backend ya devuelve 409 Conflict y bloquea si hay coincidencia (Verificado).
+- [ ] **Trazabilidad de Pasos:** Guardar timestamps automáticos por sección del stepper SOAP.
 
-- [ ] **PDF de Solicitud de Estudios:** Generar el formato para laboratorio y gabinete (incluyendo flag de "Urgente" y diagnóstico relacionado).
-- [ ] **PDF de Referencia Médica:** Generar el documento oficial para traslados entre unidades del Distrito de Salud I.
-- [ ] **Estándar Visual NOM:** Asegurar que todos los PDFs utilicen la tipografía DM Sans y el azul institucional (#1B4F8A) definido en el manual de identidad.
-
-## 🛡️ III. Lógica de Negocio y Seguridad Forense
-*Asegurar que las reglas de privacidad se cumplan a nivel de servidor (Backend).*
-
-- [ ] **Blindaje de Reglas 2 y 3:** Validar que un médico de una unidad distinta NO pueda leer notas SOAP a menos que exista una referencia activa y aceptada.
-- [ ] **Registro de Descarga en Auditoría:** Cada vez que alguien genere o descargue un PDF, debe quedar un rastro en `auditoria_accesos`.
-- [ ] **Verificación de Integridad:** Implementar la comparación del Hash SHA-256 al momento de abrir un archivo de laboratorio para detectar alteraciones.
-
-## 🎨 IV. Estabilización y UI/UX
-*Pulido final de la experiencia de usuario.*
-
-- [ ] **Polling de Alertas:** Asegurar que el indicador de "Incidente Crítico" en el sidebar se actualice automáticamente (cada 60s) para avisar al Auditor.
-- [ ] **Consistencia de Badge:** Revisar que todos los módulos (Admin, Audit, Lab) usen los mismos colores semánticos definidos en el manual (Rojo #DC2626 para críticos, etc.).
-- [ ] **Pruebas de Flujo de "Punta a Punta":** Validar que una consulta iniciada en recepción termine correctamente en farmacia con su receta descargable.
-
-## 🚀 V. Fase de Lanzamiento (Semana 8)
-- [ ] **Deploy a Producción:** Subida final a Azure.
-- [ ] **Limpieza de Base de Datos:** Ejecutar seeds finales y eliminar datos de prueba.
-- [ ] **Certificación Interna:** Revisión final de cumplimiento normativo antes de la demo.
+## 🎨 IV. Frontend y UX Clínica
+- [ ] **Bandeja de Entrada "Mis Referencias":** Crear vista filtrada para que el médico vea solo lo que le han enviado a su unidad/especialidad.
+- [ ] **Sello Visual de Firma:** Componente React para mostrar el estado "FIRMADO" con hash en el historial.
+- [ ] **Contexto en Header:** Mostrar el Número de Expediente en el `TopBar` durante la consulta.
+- [ ] **Semáforo de Signos Vitales:** Alertas visuales para rangos fuera de la normalidad.
 
 ---
 > "La seguridad del paciente es el corazón de MedIA. El cumplimiento forense es nuestra armadura." 🛡️🩺

@@ -145,7 +145,7 @@ export default function ExpedientePage() {
     grupo_sanguineo: 'O+',
     alergias: [
       { nombre: 'Penicilina', severidad: 'alta' },
-      { nombre: 'Cefalosporinas', severidad: 'media' },
+      { nombre: 'Cefalosporinas', severidad: 'MedSys' },
     ],
   })
 

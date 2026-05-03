@@ -1,6 +1,10 @@
-# MedIA — Expediente Clínico Electrónico
+# MedSys — Expediente Clínico Electrónico
 
-> **Repositorio:** https://github.com/Hyouka73/MedIA-ECE &nbsp;|&nbsp; **Rama de trabajo:** `develop`
+<p align="center">
+  <img src="frontend/public/logo.png" width="100" alt="MedSys Logo" />
+</p>
+
+> **Repositorio:** https://github.com/Hyouka73/MedSys-ECE &nbsp;|&nbsp; **Rama de trabajo:** `develop`
 
 ---
 
@@ -9,8 +13,8 @@
 ### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/Hyouka73/MedIA-ECE.git
-cd MedIA-ECE
+git clone https://github.com/Hyouka73/MedSys-ECE.git
+cd MedSys-ECE
 ```
 
 ### 2. Crear tu rama de trabajo (a partir de `develop`)
@@ -71,7 +75,7 @@ El Lead (P1) revisará y aprobará los PRs.
 
 **Distrito de Salud I · Tuxtla Gutiérrez, Chiapas**
 
-MedIA es un sistema de Expediente Clínico Electrónico (ECE) desarrollado para la UNACH. Cumple **NOM-004-SSA3-2012**, **NOM-024-SSA3-2012** y **NOM-151-SCFI-2016**.
+MedSys es un sistema de Expediente Clínico Electrónico (ECE) desarrollado para la UNACH. Cumple **NOM-004-SSA3-2012**, **NOM-024-SSA3-2012** y **NOM-151-SCFI-2016**.
 
 ## Arquitectura
 | Capa | Tecnología |
@@ -143,10 +147,10 @@ cd frontend; npm run dev
 ### 🛠️ Acceso a Adminer (Visualizar BD)
 Para ver las tablas y datos del ECE desde Adminer:
 - **Sistema:** `PostgreSQL`
-- **Servidor:** `media_db_dev` (nombre interno del contenedor)
-- **Usuario:** `media_dev`
+- **Servidor:** `MedSys_db_dev` (nombre interno del contenedor)
+- **Usuario:** `MedSys_dev`
 - **Contraseña:** `dev_pass_changeme`
-- **Base de Datos:** `media_db`
+- **Base de Datos:** `MedSys_db`
 
 ## Variables de Env (Locales)
 ```bash
@@ -154,11 +158,11 @@ Para ver las tablas y datos del ECE desde Adminer:
 backend/.env
 frontend/.env
 ```
-Los valores reales en producción se gestionan mediante **Azure Key Vault**.
+Los valores reales en producción se gestionan MedSysnte **Azure Key Vault**.
 
 ## Credenciales de Desarrollo
-- Email: `admin@media.local`  
-- Contraseña: `MedIA2026!`
+- Email: `admin@MedSys.local`  
+- Contraseña: `MedSys2026!`
 
 > **Nunca usar estas credenciales en producción.**
 
@@ -209,8 +213,8 @@ Si necesitas usar scripts de backend manualmente:
 ```
 
 ## Credenciales de Desarrollo
-- Usuario Superadmin por defecto: `admin@media.local`
-- Contraseña por defecto: `MedIA2026!` (Deberá cambiarse tras el primer ingreso).
+- Usuario Superadmin por defecto: `admin@MedSys.local`
+- Contraseña por defecto: `MedSys2026!` (Deberá cambiarse tras el primer ingreso).
 
 **Importante:** Nunca usar estas credenciales en producción.
 

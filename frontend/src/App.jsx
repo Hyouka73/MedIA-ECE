@@ -83,7 +83,7 @@ function App() {
                   <Route path="pacientes/:id/recetas" element={<RecetasTab />} />
                 </Route>
 
-                <Route element={<ProtectedRoute module="EXPEDIENTE" />}>
+                <Route element={<ProtectedRoute module={["EXPEDIENTE", "PACIENTES"]} />}>
                   <Route path="expediente/:id" element={<ExpedientePage />} />
                 </Route>
 

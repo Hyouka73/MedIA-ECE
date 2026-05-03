@@ -2,7 +2,7 @@ import asyncio
 import asyncpg
 from uuid import uuid4
 
-DATABASE_URL = "postgresql://media_dev:dev_pass_changeme@localhost:5432/media_db"
+DATABASE_URL = "postgresql://MedSys_dev:dev_pass_changeme@localhost:5432/MedSys_db"
 
 async def create_demo_patient():
     try:

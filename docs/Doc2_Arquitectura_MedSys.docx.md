@@ -3,7 +3,7 @@
 
 Facultad de Ciencias en Física y Matemáticas · IDTS
 
-**MedIA — Expediente Clínico Electrónico**
+**MedSys — Expediente Clínico Electrónico**
 
 Distrito de Salud I · Tuxtla Gutiérrez, Chiapas
 
@@ -70,32 +70,32 @@ El entorno de desarrollo local usa un único contenedor Docker para PostgreSQL. 
 
 **docker-compose.yml — PostgreSQL de Desarrollo**
 
-  \# docker-compose.yml — MedIA Development  
+  \# docker-compose.yml — MedSys Development  
   \# SOLO para desarrollo local. En producción usar Azure Database for PostgreSQL.  
   version: '3.9'  
   services:  
     postgres:  
       image: postgres:15-alpine  
-      container\_name: media\_db\_dev  
+      container\_name: MedSys\_db\_dev  
       restart: unless-stopped  
       environment:  
-        POSTGRES\_DB: ${POSTGRES\_DB:-media\_db}  
-        POSTGRES\_USER: ${POSTGRES\_USER:-media\_dev}  
+        POSTGRES\_DB: ${POSTGRES\_DB:-MedSys\_db}  
+        POSTGRES\_USER: ${POSTGRES\_USER:-MedSys\_dev}  
         POSTGRES\_PASSWORD: ${POSTGRES\_PASSWORD}  
       ports:  
         \- "5432:5432"  
       volumes:  
-        \- media\_postgres\_data:/var/lib/postgresql/data  
+        \- MedSys\_postgres\_data:/var/lib/postgresql/data  
         \- ./database/01\_schema.sql:/docker-entrypoint-initdb.d/01\_schema.sql  
         \- ./database/02\_triggers.sql:/docker-entrypoint-initdb.d/02\_triggers.sql  
         \- ./database/03\_seeds.sql:/docker-entrypoint-initdb.d/03\_seeds.sql  
       healthcheck:  
-        test: \['CMD-SHELL', 'pg\_isready \-U ${POSTGRES\_USER:-media\_dev}'\]  
+        test: \['CMD-SHELL', 'pg\_isready \-U ${POSTGRES\_USER:-MedSys\_dev}'\]  
         interval: 10s  
         timeout: 5s  
         retries: 5  
   volumes:  
-    media\_postgres\_data: {}
+    MedSys\_postgres\_data: {}
 
 **Importante:** Los scripts SQL en /docker-entrypoint-initdb.d/ se ejecutan automáticamente solo cuando el volumen está vacío (primera vez). Para re-inicializar: docker-compose down \-v && docker-compose up.
 
@@ -160,7 +160,7 @@ El entorno de desarrollo local usa un único contenedor Docker para PostgreSQL. 
   ├── database/  
   │   ├── 01\_schema.sql       \# CREATE TABLE de las 40 entidades \+ ENUMs \+ índices  
   │   ├── 02\_triggers.sql     \# 6 triggers: inmutabilidad, historial, bloqueo, incidentes  
-  │   └── 03\_seeds.sql        \# Catálogos INEGI, CIE-10, admin@media.local  
+  │   └── 03\_seeds.sql        \# Catálogos INEGI, CIE-10, admin@MedSys.local  
   │  
   ├── tests/  
   │   ├── conftest.py         \# Fixtures: AsyncSession de prueba, datos mock  
@@ -214,7 +214,7 @@ El entorno de desarrollo local usa un único contenedor Docker para PostgreSQL. 
   ├── vite.config.js          \# Proxy /api → backend (dev), Build settings  
   └── index.html              \# Entry point — carga el bundle Vite
 
-*Figura 3.1 y 3.2 — Estructura de carpetas del proyecto MedIA*
+*Figura 3.1 y 3.2 — Estructura de carpetas del proyecto MedSys*
 
 # **4\. Variables de Entorno (.env.example completo)**
 
@@ -223,18 +223,18 @@ El archivo .env.example documenta TODAS las variables de entorno requeridas sin 
 **Backend — .env.example**
 
   \# ══════════════════════════════════════════════════════════════  
-  \# MedIA — Backend Environment Variables  
+  \# MedSys — Backend Environment Variables  
   \# Copiar a .env y completar con valores reales.  
   \# NUNCA commitear el .env al repositorio.  
   \# ══════════════════════════════════════════════════════════════  
     
   \# ── ENTORNO ──────────────────────────────────────────────────  
   APP\_ENV=development                    \# development | staging | production  
-  APP\_NAME=MedIA-ECE  
+  APP\_NAME=MedSys-ECE  
   DEBUG=True                             \# False en producción  
     
   \# ── BASE DE DATOS ─────────────────────────────────────────────  
-  DATABASE\_URL=postgresql+asyncpg://media\_dev:PASSWORD@localhost:5432/media\_db  
+  DATABASE\_URL=postgresql+asyncpg://MedSys\_dev:PASSWORD@localhost:5432/MedSys\_db  
   \# En Azure: postgresql+asyncpg://USUARIO@SERVIDOR:PASSWORD@SERVIDOR.postgres.database.azure.com:5432/DBNAME?ssl=require  
     
   \# ── AUTENTICACIÓN JWT ─────────────────────────────────────────  
@@ -244,17 +244,17 @@ El archivo .env.example documenta TODAS las variables de entorno requeridas sin 
   JWT\_REFRESH\_TOKEN\_EXPIRE\_DAYS=7  
     
   \# ── 2FA / TOTP ────────────────────────────────────────────────  
-  TOTP\_ISSUER=MedIA-ECE  
+  TOTP\_ISSUER=MedSys-ECE  
   TOTP\_ENCRYPTION\_KEY=GENERAR\_CON\_Fernet.generate\_key().decode()  
   \# La clave Fernet cifra el totp\_secret almacenado en usuarios\_sistema  
     
   \# ── SEGURIDAD ─────────────────────────────────────────────────  
-  ALLOWED\_ORIGINS=http://localhost:5173,https://media.azurestaticapps.net  
+  ALLOWED\_ORIGINS=http://localhost:5173,https://MedSys.azurestaticapps.net  
   MAX\_LOGIN\_ATTEMPTS=5  
   ACCOUNT\_LOCKOUT\_MINUTES=30  
     
   \# ── AZURE BLOB STORAGE ────────────────────────────────────────  
-  AZURE\_STORAGE\_ACCOUNT\_NAME=mediaece  
+  AZURE\_STORAGE\_ACCOUNT\_NAME=MedSysece  
   AZURE\_STORAGE\_ACCOUNT\_KEY=CLAVE\_DE\_AZURE\_PORTAL  
   AZURE\_BLOB\_CONTAINER\_LAB=lab-results       \# PDFs de laboratorio externo  
   AZURE\_BLOB\_CONTAINER\_TUTORES=tutores-docs  \# Documentos de representantes legales  
@@ -266,27 +266,27 @@ El archivo .env.example documenta TODAS las variables de entorno requeridas sin 
   PDF\_HASH\_ALGORITHM=SHA256                  \# Req 1 Cómputo Forense  
     
   \# ── INFRAESTRUCTURA AZURE (Producción) ────────────────────────  
-  AZURE\_APP\_SERVICE\_URL=https://media-api.azurewebsites.net  
-  AZURE\_STATIC\_WEB\_APP\_URL=https://media.azurestaticapps.net  
+  AZURE\_APP\_SERVICE\_URL=https://MedSys-api.azurewebsites.net  
+  AZURE\_STATIC\_WEB\_APP\_URL=https://MedSys.azurestaticapps.net  
   APPLICATIONINSIGHTS\_CONNECTION\_STRING=DESDE\_AZURE\_PORTAL  
     
   \# ── POSTGRES LOCAL (Docker Compose) ───────────────────────────  
-  POSTGRES\_DB=media\_db  
-  POSTGRES\_USER=media\_dev  
+  POSTGRES\_DB=MedSys\_db  
+  POSTGRES\_USER=MedSys\_dev  
   POSTGRES\_PASSWORD=SOLO\_PARA\_DESARROLLO\_LOCAL
 
 **Frontend — .env.example**
 
   \# ══════════════════════════════════════════════════════════════  
-  \# MedIA — Frontend Environment Variables (Vite)  
+  \# MedSys — Frontend Environment Variables (Vite)  
   \# Solo variables VITE\_\* son accesibles en el navegador.  
   \# NUNCA colocar secrets aquí.  
   \# ══════════════════════════════════════════════════════════════  
     
   VITE\_API\_URL=http://localhost:8000         \# Backend en desarrollo  
-  \# En producción: https://media-api.azurewebsites.net  
+  \# En producción: https://MedSys-api.azurewebsites.net  
     
-  VITE\_APP\_NAME=MedIA  
+  VITE\_APP\_NAME=MedSys  
   VITE\_APP\_VERSION=1.0.0  
   VITE\_APP\_ENV=development  
     
@@ -298,8 +298,8 @@ El archivo .env.example documenta TODAS las variables de entorno requeridas sin 
 ## **5.1 Primera vez (setup completo)**
 
   \# 1\. Clonar el repositorio  
-  git clone https://github.com/unach-ece/media-ece.git  
-  cd media-ece  
+  git clone https://github.com/unach-ece/MedSys-ece.git  
+  cd MedSys-ece  
     
   \# 2\. Crear archivos de entorno  
   cp backend/.env.example backend/.env  
@@ -343,7 +343,7 @@ El archivo .env.example documenta TODAS las variables de entorno requeridas sin 
 
   \# Verificar PostgreSQL está listo  
   docker-compose ps          \# State: healthy  
-  docker exec media\_db\_dev psql \-U media\_dev \-d media\_db \-c '\\dt'  
+  docker exec MedSys\_db\_dev psql \-U MedSys\_dev \-d MedSys\_db \-c '\\dt'  
   \# Debe listar las 40 tablas  
     
   \# Verificar backend  
@@ -353,14 +353,14 @@ El archivo .env.example documenta TODAS las variables de entorno requeridas sin 
   \# Verificar usuario admin  
   curl \-X POST http://localhost:8000/auth/login \\  
     \-H 'Content-Type: application/json' \\  
-    \-d '{"username": "admin@media.local", "password": "MedIA2026\!"}'  
+    \-d '{"username": "admin@MedSys.local", "password": "MedSys2026\!"}'  
   \# Respuesta: {"access\_token": "...", "requires\_2fa": true}
 
-**Credenciales del seed:** admin@media.local / MedIA2026\! — CAMBIAR INMEDIATAMENTE después del primer login. El sistema forzará cambio de contraseña en el primer acceso.
+**Credenciales del seed:** admin@MedSys.local / MedSys2026\! — CAMBIAR INMedSysTAMENTE después del primer login. El sistema forzará cambio de contraseña en el primer acceso.
 
 # **6\. Arquitectura de Distribución (Cómputo Distribuido)**
 
-MedIA implementa una arquitectura de base de datos distribuida funcional mediante los servicios gestionados de Azure, sin implementar protocolos de replicación propios. Este enfoque sigue el principio de no duplicar capacidad ya provista por la plataforma.
+MedSys implementa una arquitectura de base de datos distribuida funcional MedSysnte los servicios gestionados de Azure, sin implementar protocolos de replicación propios. Este enfoque sigue el principio de no duplicar capacidad ya provista por la plataforma.
 
 ## **6.1 Topología de Distribución de Datos**
 
@@ -377,7 +377,7 @@ MedIA implementa una arquitectura de base de datos distribuida funcional mediant
 
 ## **6.2 Diagrama de Arquitectura (Descripción)**
 
-La arquitectura de MedIA se compone de tres capas con comunicación definida:
+La arquitectura de MedSys se compone de tres capas con comunicación definida:
 
 | Capa | Componentes y flujo de comunicación |
 | :---: | ----- |
@@ -393,7 +393,7 @@ La arquitectura de MedIA se compone de tres capas con comunicación definida:
 
 * Las escrituras clínicas se dirigen siempre al servidor primario (East US).
 
-* Los catálogos replicados en CDN se invalidan mediante llamada al endpoint POST /admin/cache/invalidate cuando el coordinador actualiza un catálogo.
+* Los catálogos replicados en CDN se invalidan MedSysnte llamada al endpoint POST /admin/cache/invalidate cuando el coordinador actualiza un catálogo.
 
 * El tiempo máximo de staleness de catálogos en CDN es de 24 horas, configurado en las reglas de caché de Azure Front Door.
 
