@@ -384,14 +384,28 @@ async def cerrar_encuentro(
 
         if not encuentro:
             raise HTTPException(status_code=404, detail="Encuentro no encontrado")
-        if str(encuentro[0]) != current_user["sub"]:
+        
+        id_medico_actual = encuentro[0]
+        # Si el encuentro tiene médico y no eres tú -> Prohibido
+        if id_medico_actual and str(id_medico_actual) != current_user["sub"]:
             raise HTTPException(status_code=403, detail="No autorizado (no es el autor)")
+        
         if encuentro[1] is not None:
             raise HTTPException(status_code=400, detail="Ya está cerrado")
 
+        # Actualizar con fecha de cierre e id_medico (por si estaba NULL)
         await db.execute(
-            text("UPDATE encuentros_clinicos SET fecha_cierre = :fecha WHERE id_encuentro = :id"),
-            {"id": str(id_encuentro), "fecha": datetime.now(timezone.utc)}
+            text("""
+                UPDATE encuentros_clinicos 
+                SET fecha_cierre = :fecha, 
+                    id_medico = COALESCE(id_medico, :id_u)
+                WHERE id_encuentro = :id
+            """),
+            {
+                "id": str(id_encuentro), 
+                "fecha": datetime.now(timezone.utc),
+                "id_u": current_user["sub"]
+            }
         )
         await db.commit()
 
@@ -467,31 +481,72 @@ async def add_prescripcion(
         codigo_medicamento = data.get("codigo_medicamento_ssa")
         alerta_ignorada = data.get("alerta_ignorada", False)
 
-        # 1. Obtener el id_paciente del encuentro
+        # 1. Obtener el id_paciente del encuentro y asegurar autoría (Persona 5)
         res_pac = await db.execute(
-            text("SELECT id_paciente FROM encuentros_clinicos WHERE id_encuentro = :id"),
-            {"id": str(id_encuentro)}
+            text("""
+                UPDATE encuentros_clinicos 
+                SET id_medico = COALESCE(id_medico, :id_u)
+                WHERE id_encuentro = :id
+                RETURNING id_paciente
+            """),
+            {"id": str(id_encuentro), "id_u": current_user["sub"]}
         )
         id_paciente = res_pac.scalar()
 
-        # 2. Buscar si existe una alergia registrada para este paciente y este medicamento
-        stmt_alergia = select(Alergia).where(
-            Alergia.id_paciente == id_paciente,
-            Alergia.codigo_medicamento_ssa == codigo_medicamento
-        )
-        res_alergia = await db.execute(stmt_alergia)
-        alergia_existente = res_alergia.scalar_one_or_none()
+        # 2. Buscar alergias registradas del paciente (Persona 5)
+        # Obtenemos el nombre del medicamento (preferencia al del frontend, fallback al catálogo)
+        nombre_medicamento_input = data.get("nombre_medicamento")
+        
+        if not nombre_medicamento_input:
+            res_med = await db.execute(
+                text("SELECT nombre_generico FROM cat_medicamentos WHERE codigo_medicamento_ssa = :cod"),
+                {"cod": codigo_medicamento}
+            )
+            nombre_medicamento = res_med.scalar() or ""
+        else:
+            nombre_medicamento = nombre_medicamento_input
 
-        if alergia_existente and not alerta_ignorada:
-            # BLOQUEO DE SEGURIDAD (Persona 5)
+        query_alergias = text("""
+            SELECT alergia, severidad 
+            FROM alergias 
+            WHERE id_paciente = :id_paciente AND eliminado_en IS NULL
+        """)
+        res_alergias = await db.execute(query_alergias, {"id_paciente": str(id_paciente)})
+        alergias_paciente = res_alergias.fetchall()
+
+        alergia_critica_detectada = None
+        nombre_med_upper = nombre_medicamento.upper().strip()
+        
+        if nombre_med_upper:  # Solo verificar si tenemos un nombre válido
+            for a_row in alergias_paciente:
+                a_texto = str(a_row[0]).strip().upper()
+                a_sev = str(a_row[1]).strip().upper()
+                if a_texto in nombre_med_upper or nombre_med_upper in a_texto:
+                    if a_sev == "CRITICA":
+                        alergia_critica_detectada = a_texto
+                        logger.info(f"ALERGIA DETECTADA: {a_texto} coincide con {nombre_med_upper}")
+                else:
+                    logger.debug(f"Comparando: '{a_texto}' con '{nombre_med_upper}' - No coincide")
+
+        # 3. Verificación de Alergia (Persona 5)
+        if alergia_critica_detectada and not alerta_ignorada:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail={
                     "error": "ALERTA_CRITICA_ALERGIA",
-                    "mensaje": f"El paciente tiene una alergia registrada a este medicamento ({codigo_medicamento}).",
-                    "id_medicamento": codigo_medicamento
+                    "mensaje": f"BLOQUEO DE SEGURIDAD: El paciente tiene una alergia CRÍTICA registrada a {alergia_critica_detectada}.",
+                    "id_medicamento": codigo_medicamento,
+                    "severidad": "CRITICA"
                 }
             )
+
+        # Flag para solo verificar sin guardar
+        if data.get("solo_verificar", False):
+            return {
+                "id_prescripcion": None,
+                "message": "Verificación de seguridad exitosa",
+                "data": {"verificacion": "OK"}
+            }
         # --------------------------------------------------------
 
         # Insertar prescripción

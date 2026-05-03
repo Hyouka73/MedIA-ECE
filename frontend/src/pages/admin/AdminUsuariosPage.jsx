@@ -31,6 +31,7 @@ function UsuarioModal({ usuario, token, onClose, onSaved }) {
     segundo_apellido: '',
     email: '',
     rol: '',
+    cedula_profesional: '',
     password: '',
     fecha_nacimiento: '',
     sexo: '',
@@ -55,6 +56,7 @@ function UsuarioModal({ usuario, token, onClose, onSaved }) {
         segundo_apellido: usuario.segundo_apellido || '',
         email: usuario.email || '',
         rol: usuario.rol || '',
+        cedula_profesional: usuario.cedula_profesional || '',
         password: '', 
         fecha_nacimiento: usuario.fecha_nacimiento || '',
         sexo: usuario.sexo || '',
@@ -108,6 +110,16 @@ function UsuarioModal({ usuario, token, onClose, onSaved }) {
           options={rolesDisponibles.map(r => ({ value: r.codigo, label: r.nombre }))}
           placeholder="Seleccionar rol"
         />
+
+        {(form.rol === 'MEDICO_GENERAL' || form.rol === 'ESPECIALISTA') && (
+          <Input 
+            label="Cédula Profesional *" 
+            value={form.cedula_profesional} 
+            onChange={set('cedula_profesional')} 
+            placeholder="Ej: 12345678"
+            required 
+          />
+        )}
 
         <Select
           label="Establecimiento Asignado"
