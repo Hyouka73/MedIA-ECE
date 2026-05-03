@@ -681,7 +681,7 @@ const AgendaScreen = () => {
                   }}>{h<10?"0"+h:h}:00</span>
                 </div>
               ))}
-              {/* Media hora */}
+              {/* MedSys hora */}
               {hours.map(h=>(
                 <div key={`${h}h`} style={{
                   position:"absolute",

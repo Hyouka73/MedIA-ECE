@@ -238,7 +238,7 @@ console.log("Encuentro expandido:", expandedEncuentro);
 ## 🆘 Soporte
 
 Para dudas sobre:
-- **Estilos MedIA**: Revisar [Doc7_UIUX_MedIA.pdf](./Doc7_UIUX_MedIA.docx.pdf)
+- **Estilos MedSys**: Revisar [Doc7_UIUX_MedSys.pdf](./Doc7_UIUX_MedSys.docx.pdf)
 - **Normativa NOM**: Consultar [NOTAS_PENDIENTES.md](./NOTAS_PENDIENTES.md)
 - **Datos backend**: Ver [pacientes.py](../backend/app/schemas/pacientes.py)
 

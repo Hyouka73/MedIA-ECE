@@ -9,7 +9,7 @@
 **Versión**: 1.0  
 **Fecha**: 8 de Abril, 2025
 
-La página **PacientesListPage** es el hub central para la visualización y gestión del listado de pacientes del sistema MedIA-ECE. Proporciona búsqueda en tiempo real, filtrado avanzado, paginación y acciones rápidas para acceder a expedientes clínicos.
+La página **PacientesListPage** es el hub central para la visualización y gestión del listado de pacientes del sistema MedSys-ECE. Proporciona búsqueda en tiempo real, filtrado avanzado, paginación y acciones rápidas para acceder a expedientes clínicos.
 
 ---
 
@@ -17,7 +17,7 @@ La página **PacientesListPage** es el hub central para la visualización y gest
 
 ### Sistema de Tokens de Color
 
-Se implementó el sistema de tokens **MedIA Design System** conforme al documento [Doc7_UIUX_MedIA.docx.pdf]:
+Se implementó el sistema de tokens **MedSys Design System** conforme al documento [Doc7_UIUX_MedSys.docx.pdf]:
 
 ```javascript
 // Colores Institucionales
@@ -113,7 +113,7 @@ El acceso a la página está restringido a los siguientes roles:
 | SUPERADMIN | Super administrador | Ver todo, exportar, gestionar |
 | OMNIADMIN | Admin universal | Acceso completo |
 
-**Validación**: Se verifica mediante `useAuth()` hook que consume `AuthContext`.
+**Validación**: Se verifica MedSysnte `useAuth()` hook que consume `AuthContext`.
 
 ```javascript
 const tieneAcceso = user && rolesPermitidos.includes(user.rol);
@@ -150,7 +150,7 @@ const pacientesFiltrados = pacientes.filter(p =>
 
 **Indicadores visuales**:
 - 🔴 **Rojo (error badge)**: Alergia de severidad ALTA
-- 🟡 **Ámbar (warning badge)**: Alergia de severidad MEDIA
+- 🟡 **Ámbar (warning badge)**: Alergia de severidad MedSys
 
 ### 3. Tabla Principal
 
@@ -162,7 +162,7 @@ const pacientesFiltrados = pacientes.filter(p =>
 | Edad | Número | Edad en años | 10% |
 | Grupo sangre | Badge | Tipo de sangre (O+, A-, AB+, etc.) | 12% |
 | Teléfono | Texto | Número con formato 📱 | 18% |
-| Alergias | Badge | Cantidad + severidad (alta/media) | 20% |
+| Alergias | Badge | Cantidad + severidad (alta/MedSys) | 20% |
 | Última consulta | Fecha | DD MMM YYYY (28 May 2025) | 12% |
 | Acciones | Botones | Ver expediente 📋 + Nueva consulta | 15% |
 
@@ -244,7 +244,7 @@ const pacientesFiltrados = pacientes.filter(p =>
       alergias: [
         {
           nombre: string,
-          severidad: "alta" | "media"
+          severidad: "alta" | "MedSys"
         }
       ]
     }
@@ -412,8 +412,8 @@ Ninguno al momento del lanzamiento.
 ## 👥 Contribuyentes
 
 - **Desarrollador**: GitHub Copilot
-- **Especificación**: Documento MedIA UX/UI (Doc7)
-- **Arquitectura**: Especificación MedIA (Doc2, Doc3)
+- **Especificación**: Documento MedSys UX/UI (Doc7)
+- **Arquitectura**: Especificación MedSys (Doc2, Doc3)
 
 ---
 

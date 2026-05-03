@@ -1,6 +1,6 @@
 
 
-**SISTEMA MedIA**
+**SISTEMA MedSys**
 
 Expediente Clínico Electrónico — Distrito de Salud I, Chiapas
 
@@ -18,21 +18,21 @@ Expediente Clínico Electrónico — Distrito de Salud I, Chiapas
 
 # **1\. Entornos del Sistema**
 
-MedIA opera en dos entornos bien diferenciados: desarrollo local con Docker Compose y producción en Microsoft Azure. Esta separación garantiza paridad de configuración y facilita la detección temprana de errores antes de cualquier despliegue a producción.
+MedSys opera en dos entornos bien diferenciados: desarrollo local con Docker Compose y producción en Microsoft Azure. Esta separación garantiza paridad de configuración y facilita la detección temprana de errores antes de cualquier despliegue a producción.
 
 ## **1.1 Variables de Entorno — Desarrollo vs. Producción**
 
-Las credenciales y configuraciones sensibles nunca se hardcodean en el código fuente. Todas se gestionan mediante archivos .env (desarrollo) o Azure App Service Settings (producción), conforme al Requisito Forense 8 del proyecto.
+Las credenciales y configuraciones sensibles nunca se hardcodean en el código fuente. Todas se gestionan MedSysnte archivos .env (desarrollo) o Azure App Service Settings (producción), conforme al Requisito Forense 8 del proyecto.
 
 | Variable | Desarrollo (.env) | Producción (Azure) |
 | :---- | :---- | :---- |
-| DATABASE\_URL | postgresql://media\_user:dev\_pass@postgres:5432/media\_dev | postgresql://\<admin\>:\<pass\>@media-pg.postgres.database.azure.com:5432/media\_prod?sslmode=require |
+| DATABASE\_URL | postgresql://MedSys\_user:dev\_pass@postgres:5432/MedSys\_dev | postgresql://\<admin\>:\<pass\>@MedSys-pg.postgres.database.azure.com:5432/MedSys\_prod?sslmode=require |
 | SECRET\_KEY | dev-secret-key-insegura-local | Generada con openssl rand \-hex 32, almacenada en Key Vault |
 | ENVIRONMENT | development | production |
 | AZURE\_STORAGE\_CONN\_STR | (no aplica) | DefaultEndpointsProtocol=https;AccountName=... |
-| TOTP\_ISSUER | MedIA-Dev | MedIA |
+| TOTP\_ISSUER | MedSys-Dev | MedSys |
 | JWT\_EXPIRATION\_MIN | 60 | 30 |
-| CORS\_ORIGINS | http://localhost:5173 | https://media-chiapas.azurestaticapps.net |
+| CORS\_ORIGINS | http://localhost:5173 | https://MedSys-chiapas.azurestaticapps.net |
 | BLOB\_SAS\_TTL\_MIN | N/A | 15 |
 | LOG\_LEVEL | DEBUG | WARNING |
 
@@ -45,26 +45,26 @@ El entorno de desarrollo se levanta con un único comando (docker compose up \-d
 ## **2.1 docker-compose.yml (desarrollo)**
 
 \# docker-compose.yml — Entorno de desarrollo  
-\# MedIA ECE Chiapas v1.0
+\# MedSys ECE Chiapas v1.0
 
 version: '3.9'
 
 services:  
   postgres:  
     image: postgres:15-alpine  
-    container\_name: media\_postgres  
+    container\_name: MedSys\_postgres  
     restart: unless-stopped  
     environment:  
-      POSTGRES\_USER: media\_user  
+      POSTGRES\_USER: MedSys\_user  
       POSTGRES\_PASSWORD: dev\_pass\_changeme  
-      POSTGRES\_DB: media\_dev  
+      POSTGRES\_DB: MedSys\_dev  
     volumes:  
       \- postgres\_data:/var/lib/postgresql/data  
       \- ./database:/docker-entrypoint-initdb.d:ro  
     ports:  
       \- '5432:5432'  
     healthcheck:  
-      test: \['CMD-SHELL', 'pg\_isready \-U media\_user \-d media\_dev'\]  
+      test: \['CMD-SHELL', 'pg\_isready \-U MedSys\_user \-d MedSys\_dev'\]  
       interval: 10s  
       timeout: 5s  
       retries: 5
@@ -76,7 +76,7 @@ services:
 
   adminer:  
     image: adminer:latest  
-    container\_name: media\_adminer  
+    container\_name: MedSys\_adminer  
     restart: unless-stopped  
     ports:  
       \- '8080:8080'  
@@ -152,7 +152,7 @@ version: '3.9'
 
 services:  
   backend:  
-    image: mediachiapas.azurecr.io/media-backend:latest  
+    image: MedSyschiapas.azurecr.io/MedSys-backend:latest  
     restart: always  
     env\_file: .env.prod  
     ports:  
@@ -167,7 +167,7 @@ services:
           memory: 512M
 
   frontend:  
-    image: mediachiapas.azurecr.io/media-frontend:latest  
+    image: MedSyschiapas.azurecr.io/MedSys-frontend:latest  
     restart: always  
     ports:  
       \- '80:80'  
@@ -183,7 +183,7 @@ La arquitectura de producción utiliza servicios gestionados de Azure para maxim
 
 ## **3.1 Servicios Azure Utilizados**
 
-| Servicio Azure | Uso en MedIA | Tier Recomendado |
+| Servicio Azure | Uso en MedSys | Tier Recomendado |
 | :---- | :---- | :---- |
 | Azure App Service | Backend FastAPI (API REST) | B1 (1 vCore, 1.75GB RAM) — Básico (prueba gratuita y demo) |
 | Static Web Apps | Frontend React/Vite compilado | Free (incluido en cuenta gratuita) |
@@ -198,7 +198,7 @@ La arquitectura de producción utiliza servicios gestionados de Azure para maxim
 
 \# Azure CLI — Crear grupo de recursos  
 az group create \\  
-  \--name rg-media-chiapas \\  
+  \--name rg-MedSys-chiapas \\  
   \--location eastus
 
 \# Nota: East US tiene menor latencia desde CDMX/Chiapas  
@@ -208,10 +208,10 @@ az group create \\
 
 \# Crear servidor PostgreSQL flexible  
 az postgres flexible-server create \\  
-  \--resource-group rg-media-chiapas \\  
-  \--name media-pg-server \\  
+  \--resource-group rg-MedSys-chiapas \\  
+  \--name MedSys-pg-server \\  
   \--location eastus \\  
-  \--admin-user mediaadmin \\  
+  \--admin-user MedSysadmin \\  
   \--admin-password '\<PASSWORD\_SEGURO\>' \\  
   \--sku-name Standard\_B1ms \\  
   \--tier Burstable \\  
@@ -222,14 +222,14 @@ az postgres flexible-server create \\
 
 \# Crear base de datos  
 az postgres flexible-server db create \\  
-  \--resource-group rg-media-chiapas \\  
-  \--server-name media-pg-server \\  
-  \--database-name media\_prod
+  \--resource-group rg-MedSys-chiapas \\  
+  \--server-name MedSys-pg-server \\  
+  \--database-name MedSys\_prod
 
 \# Habilitar firewall para App Service  
 az postgres flexible-server firewall-rule create \\  
-  \--resource-group rg-media-chiapas \\  
-  \--name media-pg-server \\  
+  \--resource-group rg-MedSys-chiapas \\  
+  \--name MedSys-pg-server \\  
   \--rule-name allow-app-service \\  
   \--start-ip-address 0.0.0.0 \\  
   \--end-ip-address 0.0.0.0
@@ -238,8 +238,8 @@ az postgres flexible-server firewall-rule create \\
 
 \# Crear cuenta de almacenamiento  
 az storage account create \\  
-  \--name mediablobstorage \\  
-  \--resource-group rg-media-chiapas \\  
+  \--name MedSysblobstorage \\  
+  \--resource-group rg-MedSys-chiapas \\  
   \--location eastus \\  
   \--sku Standard\_LRS \\  
   \--kind StorageV2 \\  
@@ -248,7 +248,7 @@ az storage account create \\
 \# Crear contenedor para archivos externos (laboratorio y tutores)  
 az storage container create \\  
   \--name documentos-externos \\  
-  \--account-name mediablobstorage \\  
+  \--account-name MedSysblobstorage \\  
   \--public-access off
 
 \# Los SAS tokens se generan desde el backend (15 min TTL)  
@@ -258,23 +258,23 @@ az storage container create \\
 
 \# Crear plan App Service  
 az appservice plan create \\  
-  \--resource-group rg-media-chiapas \\  
-  \--name media-backend-plan \\  
+  \--resource-group rg-MedSys-chiapas \\  
+  \--name MedSys-backend-plan \\  
   \--location eastus \\  
   \--sku B1 \\  
   \--is-linux
 
 \# Crear Web App con imagen Docker  
 az webapp create \\  
-  \--resource-group rg-media-chiapas \\  
-  \--plan media-backend-plan \\  
-  \--name media-backend-api \\  
-  \--deployment-container-image-name mediachiapas.azurecr.io/media-backend:latest
+  \--resource-group rg-MedSys-chiapas \\  
+  \--plan MedSys-backend-plan \\  
+  \--name MedSys-backend-api \\  
+  \--deployment-container-image-name MedSyschiapas.azurecr.io/MedSys-backend:latest
 
 \# Configurar variables de entorno  
 az webapp config appsettings set \\  
-  \--resource-group rg-media-chiapas \\  
-  \--name media-backend-api \\  
+  \--resource-group rg-MedSys-chiapas \\  
+  \--name MedSys-backend-api \\  
   \--settings \\  
     DATABASE\_URL='postgresql://...' \\  
     SECRET\_KEY='@Microsoft.KeyVault(...)' \\  
@@ -285,10 +285,10 @@ az webapp config appsettings set \\
 
 \# Crear Static Web App (deploy desde GitHub Actions)  
 az staticwebapp create \\  
-  \--resource-group rg-media-chiapas \\  
-  \--name media-frontend \\  
+  \--resource-group rg-MedSys-chiapas \\  
+  \--name MedSys-frontend \\  
   \--location eastus2 \\  
-  \--source https://github.com/equipo/media-chiapas \\  
+  \--source https://github.com/equipo/MedSys-chiapas \\  
   \--branch main \\  
   \--app-location /frontend \\  
   \--output-location dist \\  
@@ -334,11 +334,11 @@ La cuenta gratuita de Azure proporciona créditos de USD $200 durante 30 días y
 
 # **5\. Procedimiento PITR (Point-in-Time Recovery) en Azure PostgreSQL**
 
-Azure Database for PostgreSQL Flexible Server realiza respaldos completos automáticamente (una vez por semana) y WAL (Write-Ahead Log) cada 5 minutos, permitiendo restaurar a cualquier punto en el tiempo dentro del periodo de retención configurado (14 días en MedIA).
+Azure Database for PostgreSQL Flexible Server realiza respaldos completos automáticamente (una vez por semana) y WAL (Write-Ahead Log) cada 5 minutos, permitiendo restaurar a cualquier punto en el tiempo dentro del periodo de retención configurado (14 días en MedSys).
 
-## **5.1 Procedimiento de Recuperación mediante Azure Portal**
+## **5.1 Procedimiento de Recuperación MedSysnte Azure Portal**
 
-1. Acceder a Azure Portal: portal.azure.com → Grupo de recursos rg-media-chiapas → media-pg-server
+1. Acceder a Azure Portal: portal.azure.com → Grupo de recursos rg-MedSys-chiapas → MedSys-pg-server
 
 2. En el menú lateral, seleccionar Overview → Restore
 
@@ -348,7 +348,7 @@ Azure Database for PostgreSQL Flexible Server realiza respaldos completos autom�
 
    * Restore to: Seleccionar fecha y hora exacta del punto de recuperación (formato UTC)
 
-   * Server name: media-pg-server-restored (NUNCA sobrescribir el servidor de producción)
+   * Server name: MedSys-pg-server-restored (NUNCA sobrescribir el servidor de producción)
 
 4. Hacer clic en Review \+ Create → Create
 
@@ -357,7 +357,7 @@ Azure Database for PostgreSQL Flexible Server realiza respaldos completos autom�
 6. Una vez restaurado, ejecutar validaciones:
 
 \# Conectar al servidor restaurado y validar integridad  
-psql 'postgresql://mediaadmin:\<pass\>@media-pg-server-restored.postgres.database.azure.com/media\_prod'
+psql 'postgresql://MedSysadmin:\<pass\>@MedSys-pg-server-restored.postgres.database.azure.com/MedSys\_prod'
 
 \-- Verificar numero de registros críticos  
 SELECT COUNT(\*) FROM auditoria\_accesos;  
@@ -368,20 +368,20 @@ SELECT MAX(creado\_en) FROM encuentros\_clinicos;
 
 8. Documentar el incidente en bitacora\_recuperacion con: fecha\_inicio, fecha\_fin, punto\_restauracion, responsable, registros\_validados
 
-## **5.2 Procedimiento mediante Azure CLI**
+## **5.2 Procedimiento MedSysnte Azure CLI**
 
 \# Restaurar a punto en el tiempo (PITR)  
 az postgres flexible-server restore \\  
-  \--resource-group rg-media-chiapas \\  
-  \--name media-pg-server-restored \\  
-  \--source-server media-pg-server \\  
+  \--resource-group rg-MedSys-chiapas \\  
+  \--name MedSys-pg-server-restored \\  
+  \--source-server MedSys-pg-server \\  
   \--restore-time '2026-03-15T14:30:00Z' \\  
   \--location eastus
 
 \# Verificar estado de la restauracion  
 az postgres flexible-server show \\  
-  \--resource-group rg-media-chiapas \\  
-  \--name media-pg-server-restored \\  
+  \--resource-group rg-MedSys-chiapas \\  
+  \--name MedSys-pg-server-restored \\  
   \--query 'state'
 
 | Tabla de Seguimiento — bitacora\_recuperacion |
@@ -395,7 +395,7 @@ az postgres flexible-server show \\
 
 # **6\. Configuración de Azure Monitor para Alertas de Incidentes**
 
-Azure Monitor integra métricas de App Service, PostgreSQL y Blob Storage en un panel centralizado. Las alertas se configuran para notificar al equipo de seguridad (rol AUDITOR\_SEGURIDAD) y al superadmin ante eventos que requieren atención inmediata.
+Azure Monitor integra métricas de App Service, PostgreSQL y Blob Storage en un panel centralizado. Las alertas se configuran para notificar al equipo de seguridad (rol AUDITOR\_SEGURIDAD) y al superadmin ante eventos que requieren atención inMedSysta.
 
 ## **6.1 Alertas Configuradas**
 
@@ -412,20 +412,20 @@ Azure Monitor integra métricas de App Service, PostgreSQL y Blob Storage en un 
 
 \# Crear action group para notificaciones  
 az monitor action-group create \\  
-  \--resource-group rg-media-chiapas \\  
-  \--name media-alerts-team \\  
-  \--short-name media-alerts \\  
+  \--resource-group rg-MedSys-chiapas \\  
+  \--name MedSys-alerts-team \\  
+  \--short-name MedSys-alerts \\  
   \--email email=admin@unach.edu name=Administrador
 
 \# Crear alerta de CPU  
 az monitor metrics alert create \\  
-  \--resource-group rg-media-chiapas \\  
+  \--resource-group rg-MedSys-chiapas \\  
   \--name alert-cpu-backend \\  
-  \--scopes /subscriptions/\<SUB\_ID\>/resourceGroups/rg-media-chiapas/providers/Microsoft.Web/sites/media-backend-api \\  
+  \--scopes /subscriptions/\<SUB\_ID\>/resourceGroups/rg-MedSys-chiapas/providers/Microsoft.Web/sites/MedSys-backend-api \\  
   \--condition 'avg Percentage CPU \> 80' \\  
   \--window-size 5m \\  
   \--evaluation-frequency 1m \\  
-  \--action media-alerts-team \\  
+  \--action MedSys-alerts-team \\  
   \--severity 2
 
 ## **6.3 Log Analytics Workspace — Consultas Forenses**
@@ -440,11 +440,11 @@ AppRequests
 | where Count \> 10  
 | order by Count desc
 
-Esta consulta detecta IPs que generan más de 10 respuestas 403 en ventanas de 5 minutos, señal de posible ataque de fuerza bruta o escaneo de permisos. El resultado alimenta el módulo de incidentes de seguridad de MedIA.
+Esta consulta detecta IPs que generan más de 10 respuestas 403 en ventanas de 5 minutos, señal de posible ataque de fuerza bruta o escaneo de permisos. El resultado alimenta el módulo de incidentes de seguridad de MedSys.
 
 # **7\. Resumen de Arquitectura de Despliegue**
 
-La siguiente tabla consolida todos los componentes del sistema MedIA en producción, confirmando la consistencia entre la infraestructura Azure y el modelo de base de datos de 40 entidades descrito en el Reporte Técnico v3.
+La siguiente tabla consolida todos los componentes del sistema MedSys en producción, confirmando la consistencia entre la infraestructura Azure y el modelo de base de datos de 40 entidades descrito en el Reporte Técnico v3.
 
 | Componente | Tecnología | Servicio Azure | Estado |
 | :---- | :---- | :---- | :---- |

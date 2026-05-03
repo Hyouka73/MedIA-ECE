@@ -1,6 +1,6 @@
 me
 
-**SISTEMA MedIA**
+**SISTEMA MedSys**
 
 Expediente Clínico Electrónico — Distrito de Salud I, Chiapas
 
@@ -21,7 +21,7 @@ Expediente Clínico Electrónico — Distrito de Salud I, Chiapas
 
 # **1\. Paleta de Colores**
 
-La paleta de colores de MedIA está diseñada para uso en contexto hospitalario con turnos de 8 horas o más. Las decisiones cromáticas son respuestas directas a los requisitos normativos y de ergonomía visual del prototipo medsys-v2.jsx.
+La paleta de colores de MedSys está diseñada para uso en contexto hospitalario con turnos de 8 horas o más. Las decisiones cromáticas son respuestas directas a los requisitos normativos y de ergonomía visual del prototipo medsys-v2.jsx.
 
 ## **1.1 Tokens de Color Principales**
 
@@ -32,7 +32,7 @@ La paleta de colores de MedIA está diseñada para uso en contexto hospitalario 
 | \#1B4F8A | **Azul institucional** | Header, botones primarios, acentos | *Identidad institucional SSA. Contraste WCAG AA con texto blanco* |
 | \#2D8653 | **Verde éxito / firma** | Firma electrónica, estados exitosos | *Señal de acción completada. Evita verde saturado que fatiga la vista* |
 | \#D97706 | **Ámbar advertencia** | Alertas moderadas, validaciones | *Advertencia visible sin alarma clínica. Usada en alergias moderadas* |
-| \#DC2626 | **Rojo crítico / alerta** | Alergias graves, errores críticos | *Señal de riesgo clínico inmediato. Consistente con semáforo de salud* |
+| \#DC2626 | **Rojo crítico / alerta** | Alergias graves, errores críticos | *Señal de riesgo clínico inMedSysto. Consistente con semáforo de salud* |
 | \#1E293B | **Texto principal** | Texto de formularios y contenido | *Near-black sobre fondo cálido — más cómodo que negro puro \#000000* |
 | \#64748B | **Texto secundario** | Labels, subtítulos, meta-info | *Jerarquía visual sin saturar la pantalla de información secundaria* |
 
@@ -58,7 +58,7 @@ La paleta de colores de MedIA está diseñada para uso en contexto hospitalario 
 
 # **2\. Tipografía**
 
-La fuente seleccionada para MedIA es DM Sans, una tipografía sans-serif diseñada para alta densidad de información. Se importa desde Google Fonts y se usa en cinco pesos para establecer jerarquía visual.
+La fuente seleccionada para MedSys es DM Sans, una tipografía sans-serif diseñada para alta densidad de información. Se importa desde Google Fonts y se usa en cinco pesos para establecer jerarquía visual.
 
 | Peso | Nombre del peso | Uso principal | Contexto específico |
 | :---- | :---- | :---- | :---- |
@@ -76,7 +76,7 @@ Importación en index.html:
 
 ## **3.1 Estructura General de la Interfaz**
 
-MedIA usa un layout de tres zonas fijas: Sidebar izquierdo (ancho fijo 220px), TopBar horizontal superior (altura fija 56px) y Área de contenido principal (ocupa el espacio restante, scroll vertical).
+MedSys usa un layout de tres zonas fijas: Sidebar izquierdo (ancho fijo 220px), TopBar horizontal superior (altura fija 56px) y Área de contenido principal (ocupa el espacio restante, scroll vertical).
 
 | SIDEBAR — Especificaciones |
 | :---- |
@@ -111,7 +111,7 @@ MedIA usa un layout de tres zonas fijas: Sidebar izquierdo (ancho fijo 220px), T
 | Tablet | 768px–1023px | Sidebar colapsado a 56px con iconos. Contenido a 1 columna |
 | Móvil | \< 768px | Sidebar oculto (drawer hamburguesa). Solo para consultas emergentes — no diseño principal |
 
-*Nota: MedIA está diseñado principalmente para uso en computadoras de escritorio y laptops en las unidades médicas. El diseño responsivo para móvil es funcional pero no es el caso de uso principal.*
+*Nota: MedSys está diseñado principalmente para uso en computadoras de escritorio y laptops en las unidades médicas. El diseño responsivo para móvil es funcional pero no es el caso de uso principal.*
 
 # **4\. Módulos y Sus Pantallas**
 
@@ -298,9 +298,9 @@ Accesible para AUDITOR\_SEGURIDAD, ADMINISTRADOR y SUPERADMIN. Tiene dos sub-vis
 
 # **5\. Componentes shadcn/ui — Especificaciones**
 
-shadcn/ui provee los componentes base que se personalizan con los tokens de color de MedIA. Los siguientes componentes son los más relevantes para el sistema.
+shadcn/ui provee los componentes base que se personalizan con los tokens de color de MedSys. Los siguientes componentes son los más relevantes para el sistema.
 
-| Componente shadcn/ui | Uso en MedIA | Personalización |
+| Componente shadcn/ui | Uso en MedSys | Personalización |
 | :---- | :---- | :---- |
 | Button | Todas las acciones del sistema | Variantes: primary (\#1B4F8A), success (\#2D8653), destructive (\#DC2626), ghost, outline |
 | Input | Formularios de pacientes, usuarios, filtros | Border focus: \#1B4F8A, error: \#DC2626. Font: DM Sans 13px |
@@ -316,9 +316,9 @@ shadcn/ui provee los componentes base que se personalizan con los tokens de colo
 
 # **6\. Estados de Componentes**
 
-Cada componente interactivo en MedIA tiene cuatro estados bien definidos. La consistencia en los estados reduce la carga cognitiva del usuario médico.
+Cada componente interactivo en MedSys tiene cuatro estados bien definidos. La consistencia en los estados reduce la carga cognitiva del usuario médico.
 
-| Estado | Indicador visual | Ejemplo en MedIA | Acción del usuario |
+| Estado | Indicador visual | Ejemplo en MedSys | Acción del usuario |
 | :---- | :---- | :---- | :---- |
 | Loading / Cargando | Skeleton animation \+ spinner en botón | Cargando lista de pacientes, guardando nota SOAP | Esperar. Input deshabilitado durante carga |
 | Error | Border rojo \+ mensaje debajo del campo \+ Toast de error | CIE-10 no encontrado, campo requerido vacío, error de red | Corregir el campo o reintentar la acción |

@@ -1,4 +1,4 @@
-# Troubleshooting — Errores Comunes en MedIA-ECE
+# Troubleshooting — Errores Comunes en MedSys-ECE
 
 ## ❌ Error: Foreign Key Constraint Violation
 
@@ -30,7 +30,7 @@ curl -X POST "http://localhost:8000/api/personas" \
 **Opción 2: Consultar localidades válidas primero**
 ```bash
 # Consultar qué localidades existen
-psql -U postgres -d media_db_dev -c \
+psql -U postgres -d MedSys_db_dev -c \
   "SELECT id_localidad, nombre FROM cat_localidades LIMIT 10;"
 ```
 
@@ -59,19 +59,19 @@ Estas constraints se aplican a nivel de BD para garantizar integridad:
 
 ### Ver localidades disponibles
 ```bash
-docker exec media_db_dev psql -U postgres -d media_db_dev \
+docker exec MedSys_db_dev psql -U postgres -d MedSys_db_dev \
   -c "SELECT id_localidad, nombre, id_municipio FROM cat_localidades LIMIT 20;"
 ```
 
 ### Ver lenguas indígenas
 ```bash
-docker exec media_db_dev psql -U postgres -d media_db_dev \
+docker exec MedSys_db_dev psql -U postgres -d MedSys_db_dev \
   -c "SELECT id_lengua, nombre FROM cat_lenguas_indigenas;"
 ```
 
 ### Ver especialidades
 ```bash
-docker exec media_db_dev psql -U postgres -d media_db_dev \
+docker exec MedSys_db_dev psql -U postgres -d MedSys_db_dev \
   -c "SELECT id_especialidad, nombre FROM cat_especialidades_medicas;"
 ```
 

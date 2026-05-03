@@ -2,7 +2,7 @@
 
 ## 🎯 Objetivo Completado
 
-✅ **Desarrollar la página PacientesListPage.jsx** siguiendo las reglas de diseño y especificaciones técnicas del proyecto MedIA-ECE.
+✅ **Desarrollar la página PacientesListPage.jsx** siguiendo las reglas de diseño y especificaciones técnicas del proyecto MedSys-ECE.
 
 ---
 
@@ -25,7 +25,7 @@ Status: ✅ Completo y listo para producción
 - Control de acceso por rol
 - Manejo de estados (loading, error, empty)
 - Datos demo para fallback
-- Animaciones y transiciones MedIA
+- Animaciones y transiciones MedSys
 
 #### 2. **ESPECIFICACION_PacientesListPage.md** — Documentación Técnica
 ```
@@ -225,7 +225,7 @@ const [filterAlergias, setFilterAlergias] = useState("todos");
 ## ✨ Características Destacadas
 
 ### 🎨 Diseño
-- ✅ Consistencia 100% con MedIA Design System
+- ✅ Consistencia 100% con MedSys Design System
 - ✅ Componentes sin dependencias externas
 - ✅ CSS-in-JS inline para máxima portabilidad
 - ✅ Animaciones suave (fadeUp, hover)
@@ -286,8 +286,8 @@ Revisar [GUIA_RAPIDA_PacientesListPage.md](../docs/GUIA_RAPIDA_PacientesListPage
 ## 📚 Documentación Relacionada
 
 ### Referencias en Proyecto
-- [Doc7_UIUX_MedIA.docx.pdf](./Doc7_UIUX_MedIA.docx.pdf) — Design system
-- [Doc3_Modulos_API_MedIA.docx.pdf](./Doc3_Modulos_API_MedIA.docx.pdf) — Módulos API
+- [Doc7_UIUX_MedSys.docx.pdf](./Doc7_UIUX_MedSys.docx.pdf) — Design system
+- [Doc3_Modulos_API_MedSys.docx.pdf](./Doc3_Modulos_API_MedSys.docx.pdf) — Módulos API
 - [medsys-v2.jsx](./medsys-v2.jsx) — Componentes de referencia
 
 ### Documentación Nueva
@@ -349,11 +349,11 @@ Revisar [GUIA_RAPIDA_PacientesListPage.md](../docs/GUIA_RAPIDA_PacientesListPage
 
 ## 📊 Impacto
 
-**MedIA-ECE ahora tiene:**
+**MedSys-ECE ahora tiene:**
 - ✅ Página de gestión de pacientes completamente funcional
 - ✅ 1,250+ líneas de documentación técnica
 - ✅ 100% conforme a especificaciones
-- ✅ Listo para integración inmediata
+- ✅ Listo para integración inMedSysta
 - ✅ Escalable y mantenible
 
 ---
@@ -365,4 +365,4 @@ Revisar [GUIA_RAPIDA_PacientesListPage.md](../docs/GUIA_RAPIDA_PacientesListPage
 
 ---
 
-*Esta entrega incluye todo lo necesario para que PacientesListPage.jsx esté listo para ser utilizado en el proyecto MedIA-ECE de manera inmediata.*
+*Esta entrega incluye todo lo necesario para que PacientesListPage.jsx esté listo para ser utilizado en el proyecto MedSys-ECE de manera inMedSysta.*
