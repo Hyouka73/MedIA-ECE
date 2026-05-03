@@ -25,18 +25,13 @@ class UsuarioOut(BaseModel):
 
     @classmethod
     def model_validate(cls, obj, *args, **kwargs):
-        # Si el objeto viene de SQLAlchemy (tiene __tablename__)
         if hasattr(obj, '__tablename__'):
-            # Cálculo de estado de bloqueo
             bloqueado_hasta = getattr(obj, "bloqueado_hasta", None)
             esta_bloqueado = (
                 bloqueado_hasta is not None and
                 bloqueado_hasta > datetime.now(timezone.utc)
             )
-            
             ultimo_login = getattr(obj, "ultimo_login", None)
-            
-            # MAPE DE DATOS (Sincronizado con auth.py)
             data = {
                 "id_usuario":         obj.id_usuario,
                 "email":              obj.email,
@@ -55,8 +50,6 @@ class UsuarioOut(BaseModel):
                 "sexo":               obj.persona.sexo if obj.persona else None,
             }
             return cls(**data)
-        
-        # Si ya es un diccionario o objeto Pydantic
         return super().model_validate(obj, *args, **kwargs)
 
 
@@ -67,8 +60,8 @@ class UsuarioCreate(BaseModel):
     email: str
     password: str
     rol: str
-    fecha_nacimiento: str  # Formato YYYY-MM-DD
-    sexo: str             # H, M, X
+    fecha_nacimiento: str
+    sexo: str
     cedula_profesional: Optional[str] = None
     id_establecimiento: Optional[uuid.UUID] = None
 
@@ -83,21 +76,32 @@ class UsuarioUpdate(BaseModel):
     cedula_profesional: Optional[str]  = None
     id_establecimiento: Optional[uuid.UUID] = None
 
+# ── SCHEMAS DE ESTABLECIMIENTOS ──────────────────────────────────────────
+
+class EstablecimientoBase(BaseModel):
+    clues: str
+    nombre: str
+    nivel_atencion: Optional[int] = 1
+    id_localidad: Optional[str] = None
+
+class EstablecimientoCreate(EstablecimientoBase):
+    pass
+
+class EstablecimientoUpdate(BaseModel):
+    clues: Optional[str] = None
+    nombre: Optional[str] = None
+    nivel_atencion: Optional[int] = None
+    id_localidad: Optional[str] = None
 
 class EstablecimientoOut(BaseModel):
     id_establecimiento: uuid.UUID
-    clues:              str
-    nombre:             str
-    nivel_atencion:     Optional[int] = None
+    clues: str
+    nombre: str
+    nivel_atencion: Optional[int] = None
+    id_localidad: Optional[str] = None
 
     class Config:
         from_attributes = True
-
-
-class EstablecimientoUpdate(BaseModel):
-    nombre:         Optional[str] = None
-    nivel_atencion: Optional[int] = None
-
 
 class RolOut(BaseModel):
     id_rol:  int

@@ -10,7 +10,8 @@ from app.core.security import hash_password
 from app.core.deps import require_role, get_db
 from app.schemas.admin_schemas import (
     UsuarioOut, UsuarioCreate, UsuarioUpdate,
-    EstablecimientoOut, RolOut
+    EstablecimientoOut, EstablecimientoCreate, EstablecimientoUpdate,
+    RolOut
 )
 # Importamos desde el archivo central corregido
 from app.models.auth import User, Role, Establecimiento, Persona, UsuarioEstablecimiento
@@ -218,6 +219,50 @@ async def list_establecimientos(
     """Catálogo de establecimientos para asignación de usuarios"""
     res = await db.execute(select(Establecimiento))
     return res.scalars().all()
+
+
+@router.post("/establecimientos", response_model=EstablecimientoOut, status_code=status.HTTP_201_CREATED)
+async def create_establecimiento(
+    data: EstablecimientoCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_role("SUPERADMIN", "ADMINISTRADOR", "OMNIADMIN"))
+):
+    """Registra un nuevo establecimiento"""
+    nuevo = Establecimiento(**data.model_dump())
+    db.add(nuevo)
+    try:
+        await db.commit()
+        await db.refresh(nuevo)
+        return nuevo
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error al crear establecimiento: {str(e)}")
+
+
+@router.patch("/establecimientos/{id_establecimiento}", response_model=EstablecimientoOut)
+async def update_establecimiento(
+    id_establecimiento: uuid.UUID,
+    data: EstablecimientoUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_role("SUPERADMIN", "ADMINISTRADOR", "OMNIADMIN"))
+):
+    """Actualiza datos de un establecimiento"""
+    res = await db.execute(select(Establecimiento).where(Establecimiento.id_establecimiento == id_establecimiento))
+    estab = res.scalar_one_or_none()
+    if not estab:
+        raise HTTPException(status_code=404, detail="Establecimiento no encontrado")
+    
+    update_data = data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(estab, key, value)
+    
+    try:
+        await db.commit()
+        await db.refresh(estab)
+        return estab
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error al actualizar establecimiento: {str(e)}")
 
 
 # ── GET /roles ──────────────────────────────────────────────────────────

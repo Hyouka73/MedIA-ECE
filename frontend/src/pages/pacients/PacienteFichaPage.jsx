@@ -262,8 +262,9 @@ export default function PacienteFichaPage() {
       const pacienteResponse = await pacientesAPI.createPaciente(pacientePayload);
       const nuevoPaciente = pacienteResponse.data?.data;
       
-      setSuccessMsg("Paciente registrado exitosamente. Redirigiendo a antecedentes...");
-      setTimeout(() => navigate(`/pacientes/${nuevoPaciente.id_paciente}/antecedentes`), 1500);
+      setSuccessMsg("Paciente registrado exitosamente. Redirigiendo...");
+      const targetPath = user?.rol === "RECEPCIONISTA" ? "/pacientes" : `/pacientes/${nuevoPaciente.id_paciente}/antecedentes`;
+      setTimeout(() => navigate(targetPath), 1500);
     } catch (err) {
       console.error("Error guardando paciente:", err);
       
@@ -348,7 +349,8 @@ export default function PacienteFichaPage() {
         const nuevoPaciente = pacienteResponse.data?.data;
         
         setSuccessMsg("Paciente registrado exitosamente");
-        setTimeout(() => navigate(`/expediente/${nuevoPaciente.id_paciente}`), 1500);
+        const targetPath = user?.rol === "RECEPCIONISTA" ? "/pacientes" : `/expediente/${nuevoPaciente.id_paciente}`;
+        setTimeout(() => navigate(targetPath), 1500);
       }
     } catch (err) {
       console.error("Error guardando paciente:", err);

@@ -41,8 +41,8 @@ async def check_regla_1(id_paciente: UUID, id_usuario: UUID, db: AsyncSession) -
         result_rol = await db.execute(query_rol, {"id_usuario": str(id_usuario)})
         rol = result_rol.scalar()
         
-        if rol in ['SUPERADMIN', 'OMNIADMIN', 'ADMINISTRADOR']:
-            logger.info(f"check_regla_1: Acceso concedido a administrador {id_usuario}")
+        if rol in ['SUPERADMIN', 'OMNIADMIN', 'ADMINISTRADOR', 'RECEPCIONISTA']:
+            logger.info(f"check_regla_1: Acceso administrativo concedido a {rol} ({id_usuario})")
             return True
         
         # Para médicos, verificar encuentro ACTIVO (Req Forense)
