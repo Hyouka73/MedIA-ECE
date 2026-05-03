@@ -1934,7 +1934,11 @@ async def download_estudio_pdf(
         med = res_med.mappings().first()
 
         pdf_bytes = MedIAPDFGenerator.generar_solicitud_estudio_pdf(
-            {"tipo_estudio": est["tipo_estudio"], "indicacion": est["descripcion"], "urgente": False},
+            {
+                "tipo_estudio": est["tipo_estudio"],
+                "indicacion": est.get("indicacion_clinica") or est["descripcion"],
+                "urgente": bool(est.get("urgente", False))
+            },
             {"nombre": f"{pac.persona.nombre} {pac.persona.primer_apellido}", "expediente": pac.numero_expediente, "edad": str(edad), "sexo": pac.persona.sexo},
             {"nombre": f"Dr. {med['nombre']} {med['primer_apellido']}", "cedula": med["cedula_profesional"] or "En Tramite"}
         )
