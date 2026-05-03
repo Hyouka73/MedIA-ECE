@@ -1,18 +1,18 @@
-# docker-compose.yml — MedIA Development
+# docker-compose.yml — MedSys Development
 # SOLO para desarrollo local. En producción usar Azure Database for PostgreSQL.
 services:
   postgres:
     image: postgres:15-alpine
-    container_name: media_db_dev
+    container_name: MedSys_db_dev
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-media_db}
-      POSTGRES_USER: ${POSTGRES_USER:-media_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-MedSys_db}
+      POSTGRES_USER: ${POSTGRES_USER:-MedSys_dev}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dev_pass_changeme}
     ports:
       - "5432:5432"
     volumes:
-      - media_postgres_data:/var/lib/postgresql/data
+      - MedSys_postgres_data:/var/lib/postgresql/data
       - ./database/01_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql:ro
       - ./database/02_triggers.sql:/docker-entrypoint-initdb.d/02_triggers.sql:ro
       - ./database/03_seeds_geograficos.sql:/docker-entrypoint-initdb.d/03_seeds_geograficos.sql:ro
@@ -21,14 +21,14 @@ services:
       - ./database/06_seeds_superadmin.sql:/docker-entrypoint-initdb.d/06_seeds_superadmin.sql:ro
       - ./database/07_demo_data.sql:/docker-entrypoint-initdb.d/07_demo_data.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-media_dev} -d ${POSTGRES_DB:-media_db}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-MedSys_dev} -d ${POSTGRES_DB:-MedSys_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
 
   adminer:
     image: adminer:latest
-    container_name: media_adminer
+    container_name: MedSys_adminer
     restart: unless-stopped
     ports:
       - '8080:8080'
@@ -36,5 +36,5 @@ services:
       - postgres
 
 volumes:
-  media_postgres_data:
+  MedSys_postgres_data:
     driver: local

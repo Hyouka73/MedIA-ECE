@@ -1,11 +1,11 @@
 <#
 .SYNOPSIS
-    Script de inicialización para MedIA ECE en entorno Windows
+    Script de inicialización para MedSys ECE en entorno Windows
 .DESCRIPTION
     Este script automatiza el levantamiento de todo el entorno de desarrollo local.
 #>
 
-Write-Host "Iniciando Setup Automático de MedIA ECE..." -ForegroundColor Cyan
+Write-Host "Iniciando Setup Automático de MedSys ECE..." -ForegroundColor Cyan
 
 # 1. Variables de Entorno
 Write-Host "`n[1/4] Configurando variables de entorno..." -ForegroundColor Yellow

@@ -11,7 +11,7 @@
     },
     {
         "name": "DATABASE_URL",
-        "value": "postgresql+asyncpg://mediaadmin:M3di4#_26@media-pg-server.postgres.database.azure.com:5432/media_prod",
+        "value": "postgresql+asyncpg://MedSysadmin:M3di4#_26@MedSys-pg-server.postgres.database.azure.com:5432/MedSys_prod",
         "slotSetting": false
     },
     {
