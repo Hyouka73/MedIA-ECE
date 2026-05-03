@@ -156,6 +156,51 @@ class NotaSOAPService:
 
         return nota
 
+    @staticmethod
+    async def obtener_nota_para_pdf(
+        db: AsyncSession,
+        id_nota: UUID,
+    ) -> NotaMedica:
+        """
+        Obtiene nota SOAP con TODAS las relaciones anidadas para generar PDF.
+        Carga: encuentro → paciente, establecimiento, medico → persona, y soap_detalle
+        
+        Esta carga diferida permite que PDFGenerator acceda a todos los datos sin
+        hacer queries adicionales.
+        
+        Args:
+            db: Sesión de DB
+            id_nota: UUID de la nota
+            
+        Returns:
+            NotaMedica: Nota con todas las relaciones anidadas
+            
+        Raises:
+            HTTPException 404: Nota no encontrada
+        """
+        result = await db.execute(
+            select(NotaMedica)
+            .options(
+                joinedload(NotaMedica.encuentro)
+                    .joinedload(EncuentroClinico.paciente),
+                joinedload(NotaMedica.encuentro)
+                    .joinedload(EncuentroClinico.establecimiento),
+                joinedload(NotaMedica.encuentro)
+                    .joinedload(EncuentroClinico.medico)
+                    .joinedload(User.persona),
+                joinedload(NotaMedica.soap_detalle),
+            )
+            .where(NotaMedica.id_nota == id_nota)
+        )
+        nota = result.unique().scalar_one_or_none()
+
+        if not nota:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Nota no encontrada"
+            )
+
+        return nota
 
     @staticmethod
     async def actualizar_nota_soap(
