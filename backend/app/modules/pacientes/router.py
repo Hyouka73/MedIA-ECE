@@ -217,7 +217,7 @@ async def create_paciente(
                     )
             
             # Crear persona
-            id_persona = uuid.uuid4()
+            id_persona = uuid4()
             nueva_persona = Persona(
                 id_persona=id_persona,
                 nombre=sanitize_input(persona_data.nombre),
