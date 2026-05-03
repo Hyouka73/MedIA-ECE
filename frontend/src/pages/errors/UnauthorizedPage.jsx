@@ -89,7 +89,7 @@ export default function UnauthorizedPage() {
                     transition={{ delay: 0.6 }}
                     className="mt-6 text-center text-xs text-text-secondary"
                 >
-                    MedIA — Sistema de Gestión Clínica • 2026
+                    MedSys — Sistema de Gestión Clínica • 2026
                 </motion.p>
             </motion.div>
         </div>

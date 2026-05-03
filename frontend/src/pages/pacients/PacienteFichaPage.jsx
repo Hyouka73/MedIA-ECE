@@ -8,7 +8,7 @@ import { AlertCircle, ChevronLeft, Save, Languages } from 'lucide-react';
 /**
  * PacienteFichaPage — Formulario de Registro/Edición de Paciente
  * Permite crear un nuevo paciente o editar datos existentes.
- * Compatible con NOM-024-SSA3-2012 y diseño MedIA
+ * Compatible con NOM-024-SSA3-2012 y diseño MedSys
  */
 
 export default function PacienteFichaPage() {

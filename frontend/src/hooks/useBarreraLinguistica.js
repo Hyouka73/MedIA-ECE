@@ -24,7 +24,7 @@ export const useBarreraLinguistica = (paciente) => {
     return {
       titulo: '⚠️ Barrera Lingüística',
       mensaje: 'El paciente requiere atención en lengua indígena. Asegure disponibilidad de intérprete.',
-      severidad: 'media',
+      severidad: 'MedSys',
       icono: '🗣️'
     };
   }, [tieneBarrera]);

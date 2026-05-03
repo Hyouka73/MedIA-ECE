@@ -83,7 +83,7 @@ export function ToastProvider({ children }) {
         setToasts(prev => {
             const toast = prev.find(t => t.id === id);
             // Ejecutar callback si existe. Nunca correrá dos veces porque 
-            // inmediatemente después de esto el toast es removido del array.
+            // inMedSystemente después de esto el toast es removido del array.
             if (toast && toast.onExpire) {
                 toast.onExpire();
             }

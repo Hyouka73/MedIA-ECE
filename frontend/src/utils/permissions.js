@@ -1,5 +1,5 @@
 /**
- * Utilería de permisos dinámica para MedIA.
+ * Utilería de permisos dinámica para MedSys.
  * Valida el acceso basándose en la matriz de permisos devuelta por el backend.
  * 
  * @param {Object} userPermissions - Matriz de permisos (user.permisos)
