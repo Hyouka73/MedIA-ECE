@@ -11,6 +11,7 @@ from app.models.auth import Paciente, Persona, Lengua, Alergia
 from app.schemas.pacientes import (
     PacienteOut, PersonaOut
 )
+import uuid
 from uuid import UUID, uuid4
 from datetime import datetime, timezone, date
 from sqlalchemy import update
@@ -1720,14 +1721,18 @@ async def add_prescripcion_paciente(
         
         nombre_medicamento = medicamento_row[0]
         
-        # Verificar que el paciente tiene un encuentro activo
-        encuentro_activo = await db.scalar(
-            select(EncuentroClinico.id_encuentro)
-            .where(
-                EncuentroClinico.id_paciente == id_paciente,
-                EncuentroClinico.fecha_cierre == None
-            )
+        # Verificar que el paciente tiene un encuentro activo y reclamarlo si es necesario
+        res_enc = await db.execute(
+            text("""
+                UPDATE encuentros_clinicos 
+                SET id_medico = COALESCE(id_medico, :id_u)
+                WHERE id_paciente = :id_p AND fecha_cierre IS NULL
+                RETURNING id_encuentro
+            """),
+            {"id_p": str(id_paciente), "id_u": user_id_str}
         )
+        encuentro_activo = res_enc.scalar()
+        
         if not encuentro_activo:
             raise HTTPException(status_code=400, detail="El paciente no tiene un encuentro clínico activo. No se puede agregar prescripción.")
 

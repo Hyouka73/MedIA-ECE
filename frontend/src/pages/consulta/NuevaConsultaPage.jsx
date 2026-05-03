@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { clinicoAPI } from '../../api/clinico'
 import { useAuth } from '../../context/AuthContext'
+import RecetasTab from '../recetas/RecetasTab'
 
 const Field = ({ label, children, error, hint }) => (
   <div>
@@ -97,7 +98,8 @@ export default function NuevaConsultaPage() {
     { id: 2, nombre: 'Subjetivo', icon: <UserCircle size={18} /> },
     { id: 3, nombre: 'Objetivo', icon: <Stethoscope size={18} /> },
     { id: 4, nombre: 'Análisis', icon: <Search size={18} /> },
-    { id: 5, nombre: 'Plan y Cierre', icon: <ClipboardList size={18} /> },
+    { id: 5, nombre: 'Plan', icon: <ClipboardList size={18} /> },
+    { id: 6, nombre: 'Receta', icon: <FileSignature size={18} /> },
   ], [])
 
   const set = (key, value) => {
@@ -317,7 +319,7 @@ export default function NuevaConsultaPage() {
 
   const manejarPaso5 = async () => {
     if (!formData.plan_terapeutico.trim()) {
-      setErrorGlobal('El plan terapéutico es obligatorio para cerrar.')
+      setErrorGlobal('El plan terapéutico es obligatorio.')
       return
     }
     setLoading(true)
@@ -334,18 +336,19 @@ export default function NuevaConsultaPage() {
       const idNota = respNota.data?.id_nota || respNota.data?.id
       if (idNota) await clinicoAPI.firmarNota(idNota)
 
-      // 2. Guardar Prescripciones Finales
-      for (const p of formData.prescripciones) {
-        await clinicoAPI.addPrescripcion(encuentroId, {
-          codigo_medicamento_ssa: p.codigo_ssa || p.id,
-          nombre_medicamento: p.nombre_generico,
-          indicacion_dosis: p.indicaciones || 'Según indicación médica',
-          duracion_dias: 7,
-          cantidad_surtir: 1,
-          alerta_ignorada: true // Si ya llegó aquí es que ya se autorizó
-        })
-      }
+      setPasosCompletados(prev => [...prev, 5])
+      setCurrentStep(6)
+    } catch (error) {
+      setErrorGlobal('Error al guardar el plan terapéutico')
+    } finally {
+      setLoading(false)
+    }
+  }
 
+  const manejarPaso6 = async () => {
+    setLoading(true)
+    setErrorGlobal('')
+    try {
       await clinicoAPI.cerrarEncuentro(encuentroId)
       navigate(`/expediente/${idPaciente}`)
     } catch (error) {
@@ -587,80 +590,44 @@ export default function NuevaConsultaPage() {
           {/* PASO 5: Plan */}
           {currentStep === 5 && (
             <div className="space-y-5">
-              <h2 className="text-[#1B4F8A] font-bold flex items-center gap-2 text-base"><FileSignature size={20} /> Plan y Cierre</h2>
-              <Field label="Plan terapéutico *"><textarea className={textareaCls} rows={4} value={formData.plan_terapeutico} onChange={(e) => set('plan_terapeutico', e.target.value)} /></Field>
-              
-              <div className="space-y-4 pt-4 border-t border-gray-100">
-                <h3 className="text-sm font-bold text-[#1B4F8A] flex items-center gap-2">
-                  <ClipboardList size={16} /> Receta Médica Estructurada
-                </h3>
-                
-                {/* Buscador de Medicamentos */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-2.5 text-gray-400" size={16} />
-                  <input 
-                    type="text" 
-                    className="w-full pl-10 pr-4 py-2 border border-[#DAD4CC] rounded-xl focus:ring-2 focus:ring-[#1B4F8A] outline-none text-sm bg-gray-50/50" 
-                    placeholder="Buscar medicamento por nombre o sustancia..." 
-                    value={medQuery} 
-                    onChange={(e) => setMedQuery(e.target.value)} 
-                  />
-                  {medLoading && <div className="absolute right-3 top-2.5 animate-spin h-4 w-4 border-2 border-[#1B4F8A] border-t-transparent rounded-full" />}
-                  
-                  {medResultados.length > 0 && (
-                    <div className="absolute z-30 w-full bg-white border border-[#DAD4CC] rounded-xl shadow-2xl mt-1 max-h-60 overflow-y-auto">
-                      {medResultados.map((m) => (
-                        <div 
-                          key={m.codigo_medicamento_ssa} 
-                          className="p-3 hover:bg-blue-50 cursor-pointer border-b border-gray-50 transition-colors"
-                          onClick={() => agregarMedicamento(m)}
-                        >
-                          <p className="text-xs font-bold text-[#1B4F8A]">{m.nombre_generico}</p>
-                          <p className="text-[10px] text-gray-500">{m.presentacion} • {m.forma_farmaceutica}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+              <h2 className="text-[#1B4F8A] font-bold flex items-center gap-2 text-base"><ClipboardList size={20} /> Plan de Tratamiento</h2>
+              <Field label="Indicaciones del Plan Terapéutico *">
+                <textarea 
+                  className={textareaCls} 
+                  rows={8} 
+                  placeholder="Escriba el plan detallado, recomendaciones, dieta, etc."
+                  value={formData.plan_terapeutico} 
+                  onChange={(e) => set('plan_terapeutico', e.target.value)} 
+                />
+              </Field>
+              <NavButtons onPrev={() => setCurrentStep(4)} onNext={manejarPaso5} loadingNext={loading} labelNext="Guardar y Continuar a Receta" />
+            </div>
+          )}
 
-                {/* Lista de medicamentos agregados */}
-                <div className="space-y-2">
-                  {formData.prescripciones.map((p, idx) => (
-                    <div key={idx} className="p-3 bg-white border border-[#DAD4CC] rounded-xl shadow-sm flex flex-col gap-2 animate-in slide-in-from-right-2">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <p className="text-xs font-bold text-[#1A1510]">{p.nombre_generico}</p>
-                          <p className="text-[10px] text-gray-500 uppercase">{p.presentacion}</p>
-                        </div>
-                        <button 
-                          onClick={() => setFormData(prev => ({ ...prev, prescripciones: prev.prescripciones.filter((_, i) => i !== idx) }))}
-                          className="text-gray-400 hover:text-red-500"
-                        >
-                          <X size={14} />
-                        </button>
-                      </div>
-                      <input 
-                        type="text" 
-                        className="w-full px-3 py-1.5 bg-gray-50 border-none rounded-lg text-xs outline-none focus:ring-1 focus:ring-[#1B4F8A]" 
-                        placeholder="Indicaciones (ej: 1 cada 8 horas por 7 días)"
-                        value={p.indicaciones}
-                        onChange={(e) => {
-                          const list = [...formData.prescripciones];
-                          list[idx].indicaciones = e.target.value;
-                          set('prescripciones', list);
-                        }}
-                      />
-                    </div>
-                  ))}
-                  {formData.prescripciones.length === 0 && (
-                    <div className="text-center py-6 border-2 border-dashed border-gray-100 rounded-2xl">
-                      <p className="text-xs text-gray-400 italic">No hay medicamentos agregados a la receta.</p>
-                    </div>
-                  )}
-                </div>
+          {/* PASO 6: Receta */}
+          {currentStep === 6 && (
+            <div className="space-y-5">
+              <h2 className="text-[#1B4F8A] font-bold flex items-center gap-2 text-base"><FileSignature size={20} /> Recetas Médicas</h2>
+              <div className="border border-[#DAD4CC] rounded-xl overflow-hidden bg-gray-50">
+                <RecetasTab pacienteId={idPaciente} />
               </div>
-
-              <NavButtons onPrev={() => setCurrentStep(4)} onNext={manejarPaso5} loadingNext={loading} labelNext="Finalizar y Cerrar Encuentro" isSubmit={true} />
+              <div className="pt-4 border-t border-[#DAD4CC] flex justify-between items-center">
+                <button 
+                  type="button" 
+                  onClick={() => setCurrentStep(5)}
+                  className="flex items-center gap-1 text-sm text-[#5A5048] hover:text-[#1A1510] transition-colors"
+                >
+                  <ChevronLeft size={16} /> Anterior
+                </button>
+                <button 
+                  type="button" 
+                  onClick={manejarPaso6} 
+                  disabled={loading}
+                  className="bg-[#2D8653] hover:bg-[#236b41] text-white px-8 py-3 rounded-xl text-sm font-bold flex items-center gap-2 transition-all shadow-lg shadow-green-100"
+                >
+                  {loading ? 'Cerrando...' : 'Finalizar Consulta'} <CheckCircle2 size={18} />
+                </button>
+              </div>
             </div>
           )}
 
