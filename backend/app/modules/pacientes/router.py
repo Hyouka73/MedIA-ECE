@@ -1,29 +1,24 @@
-"""Pacientes module router"""
-from app.models.encuentros import EncuentroClinico
-from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request, Response
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
-from sqlalchemy import select, func, text
+from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy import select, func, text, update
 from app.modules.pacientes.utils.pdf_generator import MedIAPDFGenerator
 from app.core.deps import get_current_user, require_role
 from app.database.session import get_db
-from app.models.auth import Paciente, Persona, Lengua, Alergia
-from app.schemas.pacientes import (
-    PacienteOut, PersonaOut
+from app.models import (
+    Paciente, Persona, Lengua, Alergia, EncuentroClinico
 )
 from uuid import UUID, uuid4
 from datetime import datetime, timezone, date
-from sqlalchemy import update
 from pydantic import BaseModel as PydanticBaseModel
 from typing import Optional
 import logging
 import re
 from app.core.utils import sanitize_input
-from sqlalchemy.orm import joinedload, selectinload
 from app.services.acceso import check_regla_1
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request, Response
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.schemas.pacientes import PacienteOut, PersonaOut
 
 logger = logging.getLogger(__name__)
-
 router = APIRouter()
 
 def clean_phone(phone: Optional[str]) -> Optional[str]:

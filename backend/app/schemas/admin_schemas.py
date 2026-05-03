@@ -99,6 +99,7 @@ class EstablecimientoOut(BaseModel):
     nombre: str
     nivel_atencion: Optional[int] = None
     id_localidad: Optional[str] = None
+    num_especialidades: Optional[int] = 0
 
     class Config:
         from_attributes = True
@@ -110,3 +111,15 @@ class RolOut(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class EspecialidadOut(BaseModel):
+    id_especialidad: int
+    nombre: str
+
+    class Config:
+        from_attributes = True
+
+
+class EspecialidadAdd(BaseModel):
+    id_especialidad: int

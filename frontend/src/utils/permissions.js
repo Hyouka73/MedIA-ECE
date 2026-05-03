@@ -10,6 +10,11 @@
 export function canAccess(userPermissions, moduleCode, requiredAction = 'puede_leer') {
     if (!userPermissions || !moduleCode) return false;
 
+    // Si es un array, basta con tener acceso a uno de los módulos
+    if (Array.isArray(moduleCode)) {
+        return moduleCode.some(m => canAccess(userPermissions, m, requiredAction));
+    }
+
     const modPerms = userPermissions[moduleCode];
     if (!modPerms) return false;
 

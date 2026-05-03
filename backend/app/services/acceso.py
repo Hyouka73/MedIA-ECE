@@ -41,21 +41,19 @@ async def check_regla_1(id_paciente: UUID, id_usuario: UUID, db: AsyncSession) -
         result_rol = await db.execute(query_rol, {"id_usuario": str(id_usuario)})
         rol = result_rol.scalar()
         
-        if rol in ['SUPERADMIN', 'OMNIADMIN', 'ADMINISTRADOR', 'RECEPCIONISTA']:
-            logger.info(f"check_regla_1: Acceso administrativo concedido a {rol} ({id_usuario})")
+        if rol in ['SUPERADMIN', 'OMNIADMIN', 'ADMINISTRADOR', 'RECEPCIONISTA', 'MEDICO_GENERAL', 'ESPECIALISTA']:
+            logger.info(f"check_regla_1: Acceso concedido a {rol} ({id_usuario})")
             return True
         
-        # Para médicos, verificar encuentro ACTIVO (Req Forense)
+        # Para médicos, verificar que exista un encuentro ACTIVO en el sistema (Triaje o Consulta)
         query_encounter = text("""
             SELECT COUNT(*) as total 
             FROM encuentros_clinicos 
             WHERE id_paciente = :id_paciente 
-              AND id_medico = :id_usuario
               AND fecha_cierre IS NULL
         """)
         result = await db.execute(query_encounter, {
-            "id_paciente": str(id_paciente),
-            "id_usuario": str(id_usuario)
+            "id_paciente": str(id_paciente)
         })
         count = result.scalar() or 0
         

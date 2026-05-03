@@ -11,10 +11,14 @@ from app.core.deps import require_role, get_db
 from app.schemas.admin_schemas import (
     UsuarioOut, UsuarioCreate, UsuarioUpdate,
     EstablecimientoOut, EstablecimientoCreate, EstablecimientoUpdate,
-    RolOut
+    RolOut, EspecialidadOut, EspecialidadAdd
 )
-# Importamos desde el archivo central corregido
-from app.models.auth import User, Role, Establecimiento, Persona, UsuarioEstablecimiento
+# Importamos todos los modelos para asegurar que SQLAlchemy inicialice los mappers correctamente
+import app.models as models
+from app.models import (
+    User, Role, Establecimiento, Persona, 
+    UsuarioEstablecimiento, EstablecimientoEspecialidad, EspecialidadMedica
+)
 
 router = APIRouter()
 
@@ -216,9 +220,38 @@ async def list_establecimientos(
     db: AsyncSession = Depends(get_db),
     current_user: dict = Depends(require_role("SUPERADMIN", "ADMINISTRADOR"))
 ):
-    """Catálogo de establecimientos para asignación de usuarios"""
-    res = await db.execute(select(Establecimiento))
-    return res.scalars().all()
+    """Catálogo de establecimientos con conteo de especialidades"""
+    from sqlalchemy import func
+    
+    # Subconsulta para contar especialidades activas
+    subq = (
+        select(func.count(EstablecimientoEspecialidad.id_especialidad))
+        .where(EstablecimientoEspecialidad.id_establecimiento == Establecimiento.id_establecimiento)
+        .where(EstablecimientoEspecialidad.activa == True)
+        .scalar_subquery()
+    )
+    
+    res = await db.execute(
+        select(
+            Establecimiento.id_establecimiento,
+            Establecimiento.clues,
+            Establecimiento.nombre,
+            Establecimiento.nivel_atencion,
+            Establecimiento.id_localidad,
+            subq.label("num_especialidades")
+        )
+    )
+    
+    return [
+        EstablecimientoOut(
+            id_establecimiento=r.id_establecimiento,
+            clues=r.clues,
+            nombre=r.nombre,
+            nivel_atencion=r.nivel_atencion,
+            id_localidad=r.id_localidad,
+            num_especialidades=r.num_especialidades
+        ) for r in res.all()
+    ]
 
 
 @router.post("/establecimientos", response_model=EstablecimientoOut, status_code=status.HTTP_201_CREATED)
@@ -275,59 +308,92 @@ async def list_roles(
     res = await db.execute(select(Role))
     return res.scalars().all()
 
+# ── ESPECIALIDADES ───────────────────────────────────────────────────────
 
-# creacion de usuarios
+@router.get("/especialidades", response_model=List[EspecialidadOut])
+async def list_especialidades(
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_role("SUPERADMIN", "ADMINISTRADOR", "OMNIADMIN"))
+):
+    """Catálogo global de especialidades médicas"""
+    res = await db.execute(select(EspecialidadMedica).order_by(EspecialidadMedica.nombre))
+    return res.scalars().all()
 
-# @router.post("/usuarios", response_model=UsuarioOut, status_code=status.HTTP_201_CREATED)
-# async def create_usuario(
-#     data: UsuarioCreate,
-#     db: AsyncSession = Depends(get_db),
-#     current_user: dict = Depends(require_role("SUPERADMIN"))
-# ):
-#     """Crea un nuevo usuario con rol y persona"""
+
+@router.get("/establecimientos/{id_establecimiento}/especialidades", response_model=List[EspecialidadOut])
+async def list_establecimiento_especialidades(
+    id_establecimiento: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_role("SUPERADMIN", "ADMINISTRADOR", "OMNIADMIN"))
+):
+    """Lista especialidades activas de un establecimiento específico"""
+    res = await db.execute(
+        select(EspecialidadMedica)
+        .join(EstablecimientoEspecialidad, EspecialidadMedica.id_especialidad == EstablecimientoEspecialidad.id_especialidad)
+        .where(EstablecimientoEspecialidad.id_establecimiento == id_establecimiento)
+        .where(EstablecimientoEspecialidad.activa == True)
+    )
+    return res.scalars().all()
+
+
+@router.post("/establecimientos/{id_establecimiento}/especialidades", status_code=status.HTTP_201_CREATED)
+async def add_especialidad_to_establecimiento(
+    id_establecimiento: uuid.UUID,
+    data: EspecialidadAdd,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_role("SUPERADMIN", "ADMINISTRADOR", "OMNIADMIN"))
+):
+    """Vincula una especialidad a un establecimiento"""
+    # Verificar si ya existe
+    res = await db.execute(
+        select(EstablecimientoEspecialidad)
+        .where(EstablecimientoEspecialidad.id_establecimiento == id_establecimiento)
+        .where(EstablecimientoEspecialidad.id_especialidad == data.id_especialidad)
+    )
+    rel = res.scalar_one_or_none()
     
-#     # 1. Validación de email único
-#     res = await db.execute(select(User).where(User.email == data.email))
-#     if res.scalar_one_or_none():
-#         raise HTTPException(status_code=400, detail="El email ya está registrado")
+    if rel:
+        if rel.activa:
+            return {"message": "La especialidad ya está activa en este establecimiento"}
+        rel.activa = True
+    else:
+        nueva_rel = EstablecimientoEspecialidad(
+            id_establecimiento=id_establecimiento,
+            id_especialidad=data.id_especialidad,
+            activa=True
+        )
+        db.add(nueva_rel)
+    
+    try:
+        await db.commit()
+        return {"message": "Especialidad añadida exitosamente"}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error al añadir especialidad: {str(e)}")
 
-#     # 2. Validación de rol existente
-#     rol_res = await db.execute(select(Role).where(Role.nombre == data.rol))
-#     rol_obj = rol_res.scalar_one_or_none()
-#     if not rol_obj:
-#         raise HTTPException(status_code=400, detail=f"El rol '{data.rol}' no existe")
 
-#     try:
-#         # 3. Creación de persona
-#         persona = Persona(
-#             nombre=data.nombre,
-#             primer_apellido=data.primer_apellido,
-#             segundo_apellido=data.segundo_apellido
-#         )
-#         db.add(persona)
-#         await db.flush()  # Obtenemos id_persona sin terminar la transacción
-
-#         # 4. Creación de usuario (Asegúrate de importar uuid)
-#         usuario = User(
-#             id_usuario=uuid.uuid4(),  # <--- Generamos el UUID manualmente
-#             email=data.email,
-#             password_hash=pwd_context.hash(data.password),
-#             id_rol=rol_obj.id_rol,
-#             id_persona=persona.id_persona,
-#             id_establecimiento=data.id_establecimiento, # <--- ¡No olvides este!
-#             cedula_profesional=data.cedula_profesional,
-#             activo=True
-#         )
-#         db.add(usuario)
-        
-#         # 5. Commit único para ambas tablas
-#         await db.commit()
-        
-#         # 6. Carga de relaciones para el response_model
-#         await db.refresh(usuario, attribute_names=["persona", "rol"]) 
-#         return UsuarioOut.model_validate(usuario)
-
-#     except Exception as e:
-#         await db.rollback()
-#         logger.error(f"Error al crear usuario: {str(e)}")
-#         raise HTTPException(status_code=500, detail="Error interno al procesar la creación")
+@router.delete("/establecimientos/{id_establecimiento}/especialidades/{id_especialidad}")
+async def remove_especialidad_from_establecimiento(
+    id_establecimiento: uuid.UUID,
+    id_especialidad: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_role("SUPERADMIN", "ADMINISTRADOR", "OMNIADMIN"))
+):
+    """Desvincula (desactiva) una especialidad de un establecimiento"""
+    res = await db.execute(
+        select(EstablecimientoEspecialidad)
+        .where(EstablecimientoEspecialidad.id_establecimiento == id_establecimiento)
+        .where(EstablecimientoEspecialidad.id_especialidad == id_especialidad)
+    )
+    rel = res.scalar_one_or_none()
+    
+    if not rel:
+        raise HTTPException(status_code=404, detail="Relación no encontrada")
+    
+    rel.activa = False
+    try:
+        await db.commit()
+        return {"message": "Especialidad removida exitosamente"}
+    except Exception as e:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail=f"Error al remover especialidad: {str(e)}")

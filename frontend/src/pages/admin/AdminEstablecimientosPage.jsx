@@ -6,14 +6,161 @@ import { Input } from '../../components/ui/Input'
 import { Select } from '../../components/ui/Select'
 import { Badge } from '../../components/ui/Badge'
 import { Dialog } from '../../components/ui/Dialog'
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog'
 import { Spinner } from '../../components/ui/Spinner'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { useAuth } from '../../context/AuthContext'
-import { fetchEstablecimientos, crearEstablecimiento, editarEstablecimiento } from '../../api/admin_service'
+import { 
+  fetchEstablecimientos, 
+  crearEstablecimiento, 
+  editarEstablecimiento,
+  fetchCatalogoEspecialidades,
+  fetchEspecialidadesEstablecimiento,
+  addEspecialidadEstablecimiento,
+  removeEspecialidadEstablecimiento
+} from '../../api/admin_service'
 import api from '../../api/client'
 
 /* Configuración de variantes por Nivel de Atención */
 const NIVEL_VARIANT = { 1: 'blue', 2: 'success', 3: 'error' }
+
+function SpecialtiesManagementModal({ estab, onClose }) {
+  const [catalogo, setCatalogo] = useState([])
+  const [activas, setActivas] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [adding, setAdding] = useState(false)
+  const [selectedId, setSelectedId] = useState('')
+  const [confirming, setConfirming] = useState(null) // ID de especialidad a borrar
+
+  const cargar = useCallback(async () => {
+    try {
+      const [cat, act] = await Promise.all([
+        fetchCatalogoEspecialidades(),
+        fetchEspecialidadesEstablecimiento(estab.id_establecimiento)
+      ])
+      setCatalogo(cat)
+      setActivas(act)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
+  }, [estab.id_establecimiento])
+
+  useEffect(() => { cargar() }, [cargar])
+
+  async function handleAdd() {
+    if (!selectedId) return
+    setAdding(true)
+    try {
+      await addEspecialidadEstablecimiento(estab.id_establecimiento, parseInt(selectedId))
+      setSelectedId('')
+      cargar()
+    } catch (err) {
+      alert('Error al añadir especialidad')
+    } finally {
+      setAdding(false)
+    }
+  }
+
+  function handleRemove(idEsp) {
+    setConfirming(idEsp)
+  }
+
+  async function onConfirmRemove() {
+    if (!confirming) return
+    try {
+      await removeEspecialidadEstablecimiento(estab.id_establecimiento, confirming)
+      setConfirming(null)
+      cargar()
+    } catch (err) {
+      alert('Error al remover especialidad')
+    }
+  }
+
+  return (
+    <Dialog open={true} onClose={onClose} title={`Especialidades: ${estab.nombre}`}>
+      <div className="space-y-4 pt-2">
+        <div className="bg-blue-50 border border-blue-100 p-3 rounded-lg flex items-start gap-3">
+          <Layers className="text-blue-600 mt-1" size={18} />
+          <div>
+            <p className="text-xs font-bold text-blue-900">Configuración de Servicios</p>
+            <p className="text-[10px] text-blue-700">
+              Catálogo: {catalogo.length} disp. | Activas: {activas.length}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <Select 
+              value={selectedId}
+              onChange={e => setSelectedId(e.target.value)}
+              placeholder={loading ? "Cargando catálogo..." : "Seleccionar especialidad..."}
+              options={catalogo
+                .filter(c => !activas.some(a => a.id_especialidad === c.id_especialidad))
+                .map(c => ({ value: c.id_especialidad, label: c.nombre }))
+              }
+              disabled={loading}
+            />
+          </div>
+          <Button onClick={handleAdd} loading={adding} disabled={!selectedId} variant="primary">
+            Agregar
+          </Button>
+        </div>
+
+        <div className="border rounded-xl overflow-hidden bg-gray-50">
+          <div className="max-h-[300px] overflow-y-auto">
+            {loading ? (
+              <div className="p-10 flex justify-center"><Spinner /></div>
+            ) : activas.length === 0 ? (
+              <div className="p-8 text-center text-gray-400 text-xs">No hay especialidades registradas</div>
+            ) : (
+              <table className="w-full text-xs">
+                <thead className="bg-gray-100 border-b sticky top-0">
+                  <tr>
+                    <th className="text-left p-3 font-bold text-gray-600 uppercase tracking-wider">Especialidad</th>
+                    <th className="w-10"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y bg-white">
+                  {activas.map(esp => (
+                    <tr key={esp.id_especialidad} className="hover:bg-gray-50 group">
+                      <td className="p-3 font-medium text-gray-700">{esp.nombre}</td>
+                      <td className="p-2">
+                        <button 
+                          onClick={() => handleRemove(esp.id_especialidad)}
+                          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+
+        <div className="pt-4 border-t flex justify-end">
+          <Button variant="outline" onClick={onClose}>Cerrar</Button>
+        </div>
+      </div>
+
+      <ConfirmDialog 
+        open={confirming !== null}
+        onClose={() => setConfirming(null)}
+        onConfirm={onConfirmRemove}
+        title="¿Desvincular Especialidad?"
+        description="Esta acción quitará el servicio de la oferta médica de esta unidad. Podrá volver a agregarla después si es necesario."
+        confirmText="Sí, Desvincular"
+        cancelText="Mantener Especialidad"
+        variant="danger"
+      />
+    </Dialog>
+  )
+}
 
 function EstablecimientoModal({ estab, token, onClose, onSaved }) {
   const isEdit = Boolean(estab?.id_establecimiento)
@@ -145,6 +292,7 @@ export default function AdminEstablecimientosPage() {
   const [loading, setLoading] = useState(true)
   const [busqueda, setBusqueda] = useState('')
   const [modal, setModal] = useState(null)
+  const [specialtyModal, setSpecialtyModal] = useState(null)
 
   const cargar = useCallback(() => {
     if (!token) return
@@ -203,12 +351,17 @@ export default function AdminEstablecimientosPage() {
                   <Building2 size={20} />
                 </div>
                 <div className="flex gap-2">
-                   <Badge variant={NIVEL_VARIANT[e.nivel_atencion] ?? 'default'}>
+                    <Badge variant={NIVEL_VARIANT[e.nivel_atencion] ?? 'default'}>
                     Nivel {e.nivel_atencion}
                   </Badge>
-                  <button onClick={() => setModal(e)} className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-gray-100 rounded-md transition-all">
-                    <Pencil size={14} className="text-gray-500" />
-                  </button>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                    <button onClick={() => setSpecialtyModal(e)} className="p-1.5 hover:bg-blue-50 rounded-md text-blue-600 title='Especialidades'">
+                      <Layers size={14} />
+                    </button>
+                    <button onClick={() => setModal(e)} className="p-1.5 hover:bg-gray-100 rounded-md text-gray-500">
+                      <Pencil size={14} />
+                    </button>
+                  </div>
                 </div>
               </div>
               <h3 className="font-bold text-[#1E293B] mb-1">{e.nombre}</h3>
@@ -218,6 +371,10 @@ export default function AdminEstablecimientosPage() {
                 <div className="flex items-center gap-1">
                   <MapPin size={12} />
                   <span>Chiapas</span>
+                </div>
+                <div className="flex items-center gap-1 font-medium text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full">
+                  <Layers size={10} />
+                  <span>{e.num_especialidades || 0} especialidades</span>
                 </div>
               </div>
             </div>
@@ -231,6 +388,16 @@ export default function AdminEstablecimientosPage() {
           token={token} 
           onClose={() => setModal(null)} 
           onSaved={() => { setModal(null); cargar() }} 
+        />
+      )}
+
+      {specialtyModal !== null && (
+        <SpecialtiesManagementModal 
+          estab={specialtyModal} 
+          onClose={() => {
+            setSpecialtyModal(null)
+            cargar() // Refrescar conteos al cerrar
+          }} 
         />
       )}
 

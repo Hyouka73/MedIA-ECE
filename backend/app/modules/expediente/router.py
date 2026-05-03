@@ -6,7 +6,7 @@ Aplica reglas de acceso (Regla 1 principalmente)
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 from app.core.deps import get_current_user
 from app.database.session import get_db
 from app.models.auth import Paciente, Persona

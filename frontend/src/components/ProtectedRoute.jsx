@@ -21,8 +21,8 @@ export default function ProtectedRoute({ module = null, action = 'puede_leer' })
 
     // Verificación RBAC fina por módulo usando la matriz dinámica del backend
     if (module && user) {
-        // Bypass para Roles Administrativos Globales
-        if (user.rol === 'SUPERADMIN' || user.rol === 'OMNIADMIN') {
+        // Bypass para Roles Administrativos y Clínicos Principales
+        if (['SUPERADMIN', 'OMNIADMIN', 'MEDICO_GENERAL', 'ESPECIALISTA'].includes(user.rol)) {
             return <Outlet />;
         }
 

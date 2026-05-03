@@ -55,6 +55,12 @@ const QuickLink = ({ to, icon: Icon, label, desc }) => (
   </Link>
 )
 
+import { 
+  fetchUsuarios, 
+  fetchEstablecimientos, 
+  fetchRoles 
+} from '../../api/admin_service'
+
 export default function AdminDashboardPage() {
   const [usuarios, setUsuarios] = useState([])
   const [establecimientos, setEstablecimientos] = useState([])
@@ -65,33 +71,33 @@ export default function AdminDashboardPage() {
 
   useEffect(() => {
     const loadDashboard = async () => {
+      setLoading(true)
       try {
-        const [
-          usuariosRes,
-          establecimientosRes,
-          rolesRes,
-          estadosRes,
-          lenguasRes
-        ] = await Promise.all([
-          apiClient.get('/admin/usuarios'),
-          apiClient.get('/admin/establecimientos'),
-          apiClient.get('/admin/roles'),
+        // Ejecutamos peticiones en paralelo pero manejamos errores individualmente
+        const results = await Promise.allSettled([
+          fetchUsuarios(),
+          fetchEstablecimientos(),
+          fetchRoles(),
           apiClient.get('/catalogos/estados'),
           apiClient.get('/catalogos/lenguas')
         ])
 
-        setUsuarios(Array.isArray(usuariosRes?.data) ? usuariosRes.data : [])
-        setEstablecimientos(Array.isArray(establecimientosRes?.data) ? establecimientosRes.data : [])
-        setRoles(Array.isArray(rolesRes?.data) ? rolesRes.data : [])
-        setEstados(Array.isArray(estadosRes?.data?.data) ? estadosRes.data.data : [])
-        setLenguas(Array.isArray(lenguasRes?.data?.data) ? lenguasRes.data.data : [])
+        if (results[0].status === 'fulfilled') setUsuarios(results[0].value)
+        if (results[1].status === 'fulfilled') setEstablecimientos(results[1].value)
+        if (results[2].status === 'fulfilled') setRoles(results[2].value)
+        
+        if (results[3].status === 'fulfilled') {
+          const res = results[3].value
+          setEstados(Array.isArray(res?.data?.data) ? res.data.data : [])
+        }
+        
+        if (results[4].status === 'fulfilled') {
+          const res = results[4].value
+          setLenguas(Array.isArray(res?.data?.data) ? res.data.data : [])
+        }
+
       } catch (error) {
-        console.error('Error cargando dashboard admin:', error)
-        setUsuarios([])
-        setEstablecimientos([])
-        setRoles([])
-        setEstados([])
-        setLenguas([])
+        console.error('Error crítico en dashboard:', error)
       } finally {
         setLoading(false)
       }
