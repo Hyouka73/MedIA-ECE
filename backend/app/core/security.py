@@ -52,7 +52,7 @@ def get_fernet() -> Optional[Fernet]:
     La clave DEBE ser la misma siempre, definida en settings.
     """
     try:
-        encryption_key = getattr(settings, 'TOTP_ENCRYPTION_KEY', None)
+        encryption_key = getattr(settings, 'TOTP_ENCRYPTION_KEY', None) 
         
         if not encryption_key:
             print("ERROR: TOTP_ENCRYPTION_KEY no está configurada")
