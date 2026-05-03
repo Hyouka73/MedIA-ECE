@@ -77,7 +77,7 @@ export default function ErrorPage({ code = "404", title = "Página no encontrada
                     <div className="mt-12 pt-8 border-t border-border/50">
                         <div className="flex items-center justify-center gap-2 text-xs font-semibold text-text-secondary/60 uppercase tracking-widest">
                             <LifeBuoy size={12} />
-                            Soporte Técnico MedIA
+                            Soporte Técnico MedSys
                         </div>
                     </div>
                 </div>
@@ -88,7 +88,7 @@ export default function ErrorPage({ code = "404", title = "Página no encontrada
                     transition={{ delay: 0.6 }}
                     className="mt-6 text-center text-xs text-text-secondary"
                 >
-                    MedIA — Inteligencia Clínica para el Sector Salud
+                    MedSys — Inteligencia Clínica para el Sector Salud
                 </motion.p>
             </motion.div>
         </div>

@@ -5,7 +5,7 @@ import { pacientesAPI } from "../../api/pacientes";
 import { documentosAPI } from "../../api/documentos";
 import { Spinner } from "../../components/ui/Spinner";
 
-// ── Tokens MedIA (Doc 7) ──────────────────────────────────────────────────────
+// ── Tokens MedSys (Doc 7) ──────────────────────────────────────────────────────
 const T = {
   bg: "#EDEBE6",
   surface: "#FFFFFF",
@@ -604,7 +604,7 @@ export default function RecetasTab({ pacienteId: propPacienteId }) {
                 SHA-256: {Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)}...
               </div>
               <div style={{ fontSize: 12, color: T.text, marginTop: 2 }}>
-                Dr./Dra. Sistema MedIA · Cédula profesional: 00000000
+                Dr./Dra. Sistema MedSys · Cédula profesional: 00000000
               </div>
               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                 <button style={{ background: T.green, color: "#fff", border: "none", padding: "7px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600, fontFamily: "'DM Sans',sans-serif", cursor: "pointer" }}>

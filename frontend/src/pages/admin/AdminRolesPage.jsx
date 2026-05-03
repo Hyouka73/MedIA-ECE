@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { Badge } from '../../components/ui/Badge'
 import { Callout } from '../../components/ui/Callout'
 
-/* Definición de Módulos y Acciones del Sistema MedIA */
+/* Definición de Módulos y Acciones del Sistema MedSys */
 const MODULOS  = ['Dashboard', 'Pacientes', 'Expediente', 'Consulta', 'Referencias', 'Documentos', 'Auditoría', 'Administración']
 const ACCIONES = ['leer', 'crear', 'editar', 'eliminar']
 

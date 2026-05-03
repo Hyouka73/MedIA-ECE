@@ -4,7 +4,7 @@ const BASE_URL = "http://localhost:5173";
 
 /**
  * Helper to perform login with 2FA
- * MedIA has a dev_bypass for "000000" code in non-prod environments
+ * MedSys has a dev_bypass for "000000" code in non-prod environments
  */
 async function login(page, email, password) {
   await page.goto(`${BASE_URL}/login`);
@@ -14,7 +14,7 @@ async function login(page, email, password) {
   await page.fill('input[type="password"]', password);
   await page.click('button:has-text("Continuar")');
 
-  // 2. 2FA Step - MedIA uses 6 individual inputs in OtpInput
+  // 2. 2FA Step - MedSys uses 6 individual inputs in OtpInput
   // Wait for the OTP inputs to appear
   await page.waitForSelector('input[inputmode="numeric"]', { timeout: 15000 });
   
@@ -31,10 +31,10 @@ async function login(page, email, password) {
   await page.waitForURL('**/dashboard', { timeout: 20000 });
 }
 
-test.describe('MedIA Security Certification — Suite de Auditoría Forense', () => {
+test.describe('MedSys Security Certification — Suite de Auditoría Forense', () => {
 
   test('Prueba A: Muro de Fuego (RBAC) - Rol ENFERMERIA', async ({ page }) => {
-    await login(page, 'enfermera@media.local', 'Enfermera2026!');
+    await login(page, 'enfermera@MedSys.local', 'Enfermera2026!');
 
     // 1. Verificación de UI Dinámica (Sidebar)
     const sidebar = page.locator('aside');
@@ -57,7 +57,7 @@ test.describe('MedIA Security Certification — Suite de Auditoría Forense', ()
   });
 
   test('Prueba B: Integridad NOM-004 (Inmutabilidad) - Rol MEDICO', async ({ page }) => {
-    await login(page, 'medico_a@media.local', 'Medico2026!');
+    await login(page, 'medico_a@MedSys.local', 'Medico2026!');
     
     // 1. Navegar a Pacientes
     await page.goto(`${BASE_URL}/pacientes`);
@@ -108,7 +108,7 @@ test.describe('MedIA Security Certification — Suite de Auditoría Forense', ()
   });
 
   test('Prueba C: Sanitización XSS (Input Sanitization) - Rol RECEPCIONISTA', async ({ page }) => {
-    await login(page, 'recepcion@media.local', 'Recepcion2026!');
+    await login(page, 'recepcion@MedSys.local', 'Recepcion2026!');
     
     // 1. Inyectar payload en registro de paciente
     await page.goto(`${BASE_URL}/pacientes/nuevo`);
@@ -148,7 +148,7 @@ test.describe('MedIA Security Certification — Suite de Auditoría Forense', ()
   });
 
   test('Prueba D: Auditoría Forense y Trazabilidad - Rol ADMIN', async ({ page }) => {
-    await login(page, 'admin@media.local', 'Admin2026!');
+    await login(page, 'admin@MedSys.local', 'Admin2026!');
     
     await page.goto(`${BASE_URL}/audit/logs`);
     

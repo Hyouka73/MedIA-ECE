@@ -8,7 +8,7 @@ import { AlertCircle, ChevronLeft, Save, Heart, Stethoscope, Cigarette, Baby } f
 /**
  * PacienteAntecedentesPage — Segunda página del registro de pacientes
  * Permite agregar antecedentes heredofamiliares, patológicos, no patológicos y ginecoobstétricos
- * Compatible con NOM-024-SSA3-2012 y diseño MedIA
+ * Compatible con NOM-024-SSA3-2012 y diseño MedSys
  */
 
 
