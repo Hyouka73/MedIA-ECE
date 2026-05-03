@@ -25,13 +25,17 @@ class Prescripcion(Base):
 class SolicitudEstudio(Base):
     __tablename__ = "solicitudes_estudio"
     
-    id_solicitud    = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
-    id_encuentro     = Column(UUID(as_uuid=True), ForeignKey("encuentros_clinicos.id_encuentro"), nullable=False)
-    tipo_estudio    = Column(String(50), nullable=False) # LABORATORIO, IMAGENOLOGIA
-    descripcion     = Column(Text, nullable=False)
-    fecha_solicitud = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
+    id_solicitud          = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
+    id_encuentro          = Column(UUID(as_uuid=True), ForeignKey("encuentros_clinicos.id_encuentro"), nullable=False)
+    tipo_estudio          = Column(String(50), nullable=False)  # LABORATORIO, IMAGENOLOGIA
+    descripcion           = Column(Text, nullable=False)
+    urgente               = Column(Boolean, default=False)
+    indicacion_clinica    = Column(Text, nullable=True)
+    id_cie10_relacionado  = Column(String(10), ForeignKey("cat_cie10.codigo_cie"), nullable=True)
+    fecha_solicitud       = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
 
     encuentro = relationship("EncuentroClinico")
+    cie10 = relationship("CatCIE10")
     resultados = relationship("ResultadoLaboratorio", back_populates="solicitud")
 
 class ResultadoLaboratorio(Base):

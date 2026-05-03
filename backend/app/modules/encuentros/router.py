@@ -17,6 +17,7 @@ from app.schemas.encuentros import (
     EncuentroCreateIn, EncuentroOut, EncuentroDetalleOut,
     EncuentroCerrarIn, EncuentroPacienteOut
 ) 
+from app.schemas.laboratorio import SolicitudEstudioCreate
 
 from app.schemas.notas_soap import (
     NotaSOAPCreateIn, NotaSOAPUpdateIn, NotaSOAPOut,
@@ -580,8 +581,7 @@ async def add_prescripcion(
 
 
 
-
-# ─── ENDPOINTS DE RESPALDO (usando encuentro_service) ───────────────────
+# ─── ENDPOINTOS DE RESPALDO (usando encuentro_service) ───────────────────
 
 @router.post("/", response_model=EncuentroOut, status_code=201)
 async def crear_encuentro_bck(
