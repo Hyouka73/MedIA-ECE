@@ -336,6 +336,9 @@ CREATE TABLE solicitudes_estudio (
     id_encuentro UUID REFERENCES encuentros_clinicos(id_encuentro) ON DELETE CASCADE,
     tipo_estudio VARCHAR(50) NOT NULL, -- LABORATORIO, IMAGENOLOGIA
     descripcion TEXT NOT NULL,
+    urgente BOOLEAN DEFAULT FALSE NOT NULL,
+    indicacion_clinica TEXT,
+    id_cie10_relacionado VARCHAR(10) REFERENCES cat_cie10(codigo_cie) ON DELETE RESTRICT,
     fecha_solicitud TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
