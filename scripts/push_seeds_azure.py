@@ -2,9 +2,9 @@ import asyncio
 import asyncpg
 import os
 
-HOST = "media-pg-server.postgres.database.azure.com"
-DB = "media_prod"
-USER = "mediaadmin"
+HOST = "MedSys-pg-server.postgres.database.azure.com"
+DB = "MedSys_prod"
+USER = "MedSysadmin"
 PASS = "M3di4#_26"
 
 sql_files = [
@@ -21,7 +21,7 @@ async def run_sql_files():
         print("🔌 Conectando a Azure PostgreSQL...")
         # Flexible Server requiere SSL (require se manda en el context u omitimos para que lo maneje asyncpg)
         conn = await asyncpg.connect(host=HOST, database=DB, user=USER, password=PASS, ssl='require')
-        print("✅ Conectado a media_prod")
+        print("✅ Conectado a MedSys_prod")
 
         for file in sql_files:
             print(f"📄 Ejecutando {os.path.basename(file)}...")
