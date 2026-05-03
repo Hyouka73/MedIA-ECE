@@ -34,6 +34,7 @@ from app.modules.notas_soap.router import router as notas_router
 from app.modules.referencias.router import router as referencias_router
 from app.modules.documentos.router import router as documentos_router
 from app.modules.laboratorio.router import router as laboratorio_router
+from app.modules.solicitudes.router import router as solicitudes_router
 
 # RUTEADOR DE NOTAS SOAP
 from app.modules.notas_soap.router import router as notas_router  # Import DIRECTO
@@ -115,6 +116,8 @@ app.include_router(auditoria_router,   prefix="/api/auditoria",   tags=["Auditor
 app.include_router(referencias_router, prefix="/api/referencias", tags=["Referencias"])
 app.include_router(documentos_router,  prefix="/api/documentos",  tags=["Documentos"])
 app.include_router(laboratorio_router, prefix="/api/laboratorio", tags=["Laboratorio"])
+app.include_router(solicitudes_router, prefix="/api/solicitudes-estudio", tags=["Estudios"])
+
 
 # SEGURIDAD
 @app.get("/api/seguridad/logs-forenses", tags=["Auditoría"])
