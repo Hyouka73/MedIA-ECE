@@ -15,7 +15,7 @@ FORENSIC_LOG_FILE = os.path.join(LOGS_DIR, "auditoria_forense.log")
 # A signature secret to sign logs (could be in .env, using JWT_SECRET_KEY as fallback)
 FORENSIC_SECRET = getattr(settings, "JWT_SECRET_KEY", "default-forensic-secret")
 
-logger = logging.getLogger("media.forensics")
+logger = logging.getLogger("MedSys.forensics")
 
 def log_forensic_event(
     usuario: str, 
@@ -28,7 +28,7 @@ def log_forensic_event(
     """
     Req 1 - Logging Forense (Requerimientos proyecto finales.pdf)
     Registra toda acción en un archivo independiente, con timestamp ISO8601,
-    y protegido mediante firma digital (HMAC) para asegurar inmutabilidad manual.
+    y protegido MedSysnte firma digital (HMAC) para asegurar inmutabilidad manual.
     """
     timestamp = datetime.now(timezone.utc).isoformat()
     

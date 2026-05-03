@@ -1,5 +1,5 @@
 -- 01_schema.sql
--- MedIA ECE
+-- MedSys ECE
 -- Esquema principal de la base de datos (40 Entidades)
 -- NOM-004-SSA3-2012 y Cómputo Forense garantizados
 

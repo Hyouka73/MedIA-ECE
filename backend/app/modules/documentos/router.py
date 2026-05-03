@@ -2,7 +2,7 @@
 Documentos PDF (Módulo 12) — Router
 Endpoint que recopila documentos clínicos de un paciente desde las tablas reales.
 
-Según Doc3 Módulo 12, MedIA genera 4 documentos PDF on-demand:
+Según Doc3 Módulo 12, MedSys genera 4 documentos PDF on-demand:
   1. Nota SOAP firmada      → notas_medicas + notas_soap_detalle
   2. Receta médica          → prescripciones + cat_medicamentos
   3. Solicitud de laboratorio → solicitudes_estudio

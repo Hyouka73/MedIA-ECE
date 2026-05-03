@@ -1,7 +1,7 @@
 """
 Servicio de Notas SOAP
 Lógica CRUD para notas médicas SOAP con firma digital y enmiendas
-Garantiza inmutabilidad NOM-004 mediante triggers de BD
+Garantiza inmutabilidad NOM-004 MedSysnte triggers de BD
 """
 import hashlib
 from uuid import UUID
@@ -337,7 +337,7 @@ class NotaSOAPService:
         #
         # Si después quieren guardar esa info de forma persistente,
         # hay 2 opciones correctas:
-        # 1) agregar esas columnas mediante migración Alembic, o
+        # 1) agregar esas columnas MedSysnte migración Alembic, o
         # 2) derivarlas desde usuarios_sistema / encuentros_clinicos al consultar.
         #
         # fecha_firma sí existe en la BD, pero aquí no se asigna manualmente porque

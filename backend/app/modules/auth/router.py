@@ -1,5 +1,5 @@
 """
-Módulo de Autenticación — MedIA ECE
+Módulo de Autenticación — MedSys ECE
 Login Argon2id, 2FA TOTP, bloqueo por intentos, refresh tokens con whitelist en BD.
 Req Forense: 1 (logging), 4 (timestamps UTC), 5 (auth fuerte), 8 (sin hardcoding)
 """
