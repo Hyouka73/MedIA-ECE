@@ -1,27 +1,24 @@
-"""Pacientes module router"""
-from app.models.encuentros import EncuentroClinico
-from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, text
+from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy import select, func, text, update
+from app.modules.pacientes.utils.pdf_generator import MedIAPDFGenerator
 from app.core.deps import get_current_user, require_role
 from app.database.session import get_db
-from app.models.auth import Paciente, Persona, Lengua, Alergia
-from app.schemas.pacientes import (
-    PacienteOut, PersonaOut
+from app.models import (
+    Paciente, Persona, Lengua, Alergia, EncuentroClinico
 )
 from uuid import UUID, uuid4
 from datetime import datetime, timezone, date
-from sqlalchemy import update
 from pydantic import BaseModel as PydanticBaseModel
 from typing import Optional
 import logging
 import re
 from app.core.utils import sanitize_input
-from sqlalchemy.orm import joinedload, selectinload
 from app.services.acceso import check_regla_1
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request, Response
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.schemas.pacientes import PacienteOut, PersonaOut
 
 logger = logging.getLogger(__name__)
-
 router = APIRouter()
 
 def clean_phone(phone: Optional[str]) -> Optional[str]:
@@ -215,7 +212,7 @@ async def create_paciente(
                     )
             
             # Crear persona
-            id_persona = uuid.uuid4()
+            id_persona = uuid4()
             nueva_persona = Persona(
                 id_persona=id_persona,
                 nombre=sanitize_input(persona_data.nombre),
@@ -792,28 +789,33 @@ async def delete_alergia(
             raise HTTPException(status_code=404, detail="Alergia no encontrada")
 
         # Validar motivo_baja
-        if not motivo_baja or not motivo_baja.strip():
-            raise HTTPException(status_code=422, detail="motivo_baja es obligatorio para borrado lógico")
+        # Soft delete usando ORM con manejo robusto de UUID
+        user_id = current_user["sub"]
+        if isinstance(user_id, str):
+            user_id = UUID(user_id)
 
-        # Soft delete
-        query_delete = text("""
-            UPDATE alergias 
-            SET eliminado_en = :eliminado_en, eliminado_por = :eliminado_por, motivo_baja = :motivo_baja
-            WHERE id_alergia = :id_alergia
-        """)
+        stmt = (
+            update(Alergia)
+            .where(Alergia.id_alergia == id_alergia)
+            .where(Alergia.id_paciente == id_paciente)
+            .where(Alergia.eliminado_en == None)
+            .values(
+                eliminado_en=datetime.now(timezone.utc),
+                eliminado_por=user_id,
+                motivo_baja=sanitize_input(str(motivo_baja).strip())
+            )
+        )
 
-        await db.execute(query_delete, {
-            "id_alergia": str(id_alergia),
-            "eliminado_en": datetime.now(timezone.utc),
-            "eliminado_por": current_user["sub"],
-            "motivo_baja": sanitize_input(motivo_baja.strip())
-        })
+        result = await db.execute(stmt)
+        if result.rowcount == 0:
+            # Podría ser que no exista o que ya esté eliminado
+            raise HTTPException(status_code=404, detail="No se encontró la alergia activa para este paciente")
 
         await db.commit()
 
         return {
             "data": {"id_alergia": str(id_alergia)},
-            "message": "Alergia eliminada exitosamente (soft delete)"
+            "message": "Alergia dada de baja exitosamente"
         }
     except HTTPException:
         raise
@@ -1727,29 +1729,66 @@ async def add_prescripcion_paciente(
         # --- LÓGICA DE SEGURIDAD P5: VERIFICACIÓN DE ALERGIAS ---
         alerta_ignorada = prescripcion_in.get("alerta_ignorada", False)
         
-        # 1. Buscar todas las alergias de este paciente para cruce clínico
-        stmt_all = select(Alergia.alergia).where(Alergia.id_paciente == id_paciente)
-        res_all = await db.execute(stmt_all)
-        todas_las_alergias = [str(r[0]).strip().upper() for r in res_all.fetchall()]
+        # 1. Buscar todas las alergias de este paciente para cruce clínico (incluyendo severidad)
+        query_alergias = text("""
+            SELECT alergia, severidad 
+            FROM alergias 
+            WHERE id_paciente = :id_paciente AND eliminado_en IS NULL
+        """)
+        res_alergias = await db.execute(query_alergias, {"id_paciente": id_paciente})
+        alergias_paciente = res_alergias.fetchall()
 
-        # 2. Búsqueda de coincidencia inteligente (Persona 5)
-        alergia_detectada = None
-        for a in todas_las_alergias:
-            if a in nombre_medicamento.upper() or nombre_medicamento.upper() in a:
-                alergia_detectada = a
-                break
+        # 2. Búsqueda de coincidencia (Persona 5)
+        alergia_critica_detectada = None
+        alergia_moderada_detectada = None
+        
+        nombre_med_upper = nombre_medicamento.upper()
+        
+        for a_row in alergias_paciente:
+            a_texto = str(a_row[0]).strip().upper()
+            a_sev = str(a_row[1]).strip().upper()
+            
+            # Coincidencia si el medicamento contiene la sustancia alérgica o viceversa
+            if a_texto in nombre_med_upper or nombre_med_upper in a_texto:
+                if a_sev == "CRITICA":
+                    alergia_critica_detectada = a_texto
+                else:
+                    alergia_moderada_detectada = a_texto
 
-        if alergia_detectada and not alerta_ignorada:
-            logger.warning(f"SEGURIDAD CLÍNICA: Alergia a {alergia_detectada} detectada para el paciente {id_paciente}")
+        # Flag para solo verificar sin guardar
+        if prescripcion_in.get("solo_verificar", False):
+            return {
+                "data": {"verificacion": "OK", "alergia_detectada": None},
+                "message": "Verificación de seguridad exitosa"
+            }
+
+        # 3. Aplicar Reglas de Negocio (Doc1 §3.5)
+        if alergia_critica_detectada and not alerta_ignorada:
+            logger.warning(f"BLOQUEO DE SEGURIDAD: Alergia CRÍTICA a {alergia_critica_detectada} para el paciente {id_paciente}")
             raise HTTPException(
                 status_code=409,
                 detail={
                     "error": "ALERTA_CRITICA_ALERGIA",
-                    "mensaje": f"BLOQUEO DE SEGURIDAD: El paciente tiene una alergia registrada a {alergia_detectada}.",
-                    "id_medicamento": codigo_medicamento_ssa
+                    "mensaje": f"BLOQUEO DE SEGURIDAD: El paciente tiene una alergia CRÍTICA registrada a {alergia_critica_detectada}. No se puede recetar este medicamento sin autorización explícita.",
+                    "id_medicamento": codigo_medicamento_ssa,
+                    "severidad": "CRITICA"
                 }
             )
+        
+        # Flag de advertencia para el frontend (si es moderada o si la crítica fue ignorada)
+        advertencia_alergia = None
+        if alergia_critica_detectada and alerta_ignorada:
+            advertencia_alergia = f"Riesgo CRÍTICO asumido: Alergia a {alergia_critica_detectada} ignorada por el médico."
+        elif alergia_moderada_detectada:
+            advertencia_alergia = f"Advertencia de seguridad: El paciente tiene una alergia (Leve/Moderada) a {alergia_moderada_detectada}."
         # --------------------------------------------------------
+        # Flag para solo verificar sin guardar (Persona 5 Real-time check)
+        if prescripcion_in.get("solo_verificar", False):
+            return {
+                "data": {"verificacion": "OK", "alergia_detectada": None},
+                "message": "Verificación de seguridad exitosa"
+            }
+
         # Insertar prescripción
         query_insert = text("""
             INSERT INTO prescripciones (id_prescripcion, id_encuentro, codigo_medicamento_ssa, indicacion_dosis, duracion_dias, cantidad_surtir, alerta_ignorada)
@@ -1793,7 +1832,10 @@ async def add_prescripcion_paciente(
 
         await db.commit()
         return {
-            "data": {"id_prescripcion": new_id},
+            "data": {
+                "id_prescripcion": new_id,
+                "advertencia_seguridad": advertencia_alergia
+            },
             "message": "Prescripción agregada exitosamente"
         }
     except HTTPException:
@@ -1802,4 +1844,143 @@ async def add_prescripcion_paciente(
         logger.error(f"Error crítico al agregar prescripción para paciente {id_paciente}: {str(e)}", exc_info=True)
         await db.rollback()
         raise HTTPException(status_code=500, detail="Error interno al agregar prescripción")
+
+
+# ── ENDPOINTS DE DESCARGA PDF (NOM-004 / NOM-151) ──────────────────────────
+
+@router.get("/{id_paciente}/prescripciones/{id_prescripcion}/pdf")
+async def download_receta_pdf(
+    id_paciente: UUID,
+    id_prescripcion: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA", "ADMIN"]))
+):
+    """Genera y descarga el PDF de una prescripción específica"""
+    try:
+        # 1. Datos de la prescripción
+        query_rx = text("""
+            SELECT p.*, m.nombre_generico, m.presentacion 
+            FROM prescripciones p
+            LEFT JOIN cat_medicamentos m ON p.codigo_medicamento_ssa = m.codigo_medicamento_ssa
+            WHERE p.id_prescripcion = :id_rx
+        """)
+        res_rx = await db.execute(query_rx, {"id_rx": id_prescripcion})
+        rx = res_rx.mappings().first()
+        
+        if not rx: 
+            raise HTTPException(status_code=404, detail="La prescripción solicitada no existe en la base de datos.")
+
+        # Datos seguros para el PDF (Persona 5 Fallbacks)
+        nombre_med = rx["nombre_generico"] or "Medicamento (Ver indicaciones)"
+        presentacion_med = rx["presentacion"] or "N/A"
+
+        # 2. Datos del paciente
+        query_pac = select(Paciente).options(joinedload(Paciente.persona)).where(Paciente.id_paciente == id_paciente)
+        res_pac = await db.execute(query_pac)
+        pac = res_pac.scalar_one_or_none()
+        edad = datetime.now().year - pac.persona.fecha_nacimiento.year if pac and pac.persona.fecha_nacimiento else "N/A"
+
+        # 3. Datos del médico
+        query_med = text("SELECT nombre, primer_apellido, cedula_profesional FROM usuarios_sistema u JOIN personas p ON u.id_persona = p.id_persona WHERE u.id_usuario = :id_u")
+        res_med = await db.execute(query_med, {"id_u": current_user["sub"]})
+        med = res_med.mappings().first()
+
+        # 4. Generar PDF con datos de respaldo (Fallbacks)
+        pdf_bytes = MedIAPDFGenerator.generar_receta_pdf(
+            {
+                "medicamento": nombre_med, 
+                "presentacion": presentacion_med, 
+                "indicaciones": rx.get("indicacion_dosis", "Según indicación médica"), 
+                "duracion": f"{rx.get('duracion_dias', 1)} días"
+            },
+            {
+                "nombre": f"{pac.persona.nombre} {pac.persona.primer_apellido}" if pac else "Paciente Desconocido", 
+                "expediente": pac.numero_expediente if pac else "N/A", 
+                "edad": str(edad), 
+                "sexo": pac.persona.sexo if pac else "N/A"
+            },
+            {
+                "nombre": f"Dr. {med.get('nombre', 'Sistema')} {med.get('primer_apellido', 'MedIA')}" if med else "Dr. MedIA", 
+                "cedula": (med.get("cedula_profesional") if med else None) or "En Trámite"
+            }
+        )
+
+        return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=receta_{id_prescripcion}.pdf"})
+    except Exception as e:
+        logger.error(f"Error PDF Receta: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error al generar PDF de receta")
+
+
+@router.get("/{id_paciente}/estudios/{id_solicitud}/pdf")
+async def download_estudio_pdf(
+    id_paciente: UUID,
+    id_solicitud: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA", "ADMIN"]))
+):
+    """Genera y descarga el PDF de una solicitud de laboratorio"""
+    try:
+        query_est = text("SELECT * FROM solicitudes_estudio WHERE id_solicitud = :id_s")
+        res_est = await db.execute(query_est, {"id_s": id_solicitud})
+        est = res_est.mappings().first()
+        if not est: raise HTTPException(status_code=404, detail="Solicitud no encontrada")
+
+        query_pac = select(Paciente).options(joinedload(Paciente.persona)).where(Paciente.id_paciente == id_paciente)
+        res_pac = await db.execute(query_pac); pac = res_pac.scalar_one_or_none()
+        edad = datetime.now().year - pac.persona.fecha_nacimiento.year if pac and pac.persona.fecha_nacimiento else "N/A"
+
+        query_med = text("SELECT nombre, primer_apellido, cedula_profesional FROM usuarios_sistema u JOIN personas p ON u.id_persona = p.id_persona WHERE u.id_usuario = :id_u")
+        res_med = await db.execute(query_med, {"id_u": current_user["sub"]})
+        med = res_med.mappings().first()
+
+        pdf_bytes = MedIAPDFGenerator.generar_solicitud_estudio_pdf(
+            {"tipo_estudio": est["tipo_estudio"], "indicacion": est["descripcion"], "urgente": False},
+            {"nombre": f"{pac.persona.nombre} {pac.persona.primer_apellido}", "expediente": pac.numero_expediente, "edad": str(edad), "sexo": pac.persona.sexo},
+            {"nombre": f"Dr. {med['nombre']} {med['primer_apellido']}", "cedula": med["cedula_profesional"] or "En Tramite"}
+        )
+
+        return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=solicitud_{id_solicitud}.pdf"})
+    except Exception as e:
+        logger.error(f"Error PDF Estudio: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error al generar PDF de estudio")
+
+
+@router.get("/{id_paciente}/referencias/{id_referencia}/pdf")
+async def download_referencia_pdf(
+    id_paciente: UUID,
+    id_referencia: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: dict = Depends(require_role(["MEDICO_GENERAL", "ESPECIALISTA", "ADMIN"]))
+):
+    """Genera y descarga el PDF de una referencia médica"""
+    try:
+        query_ref = text("""
+            SELECT r.*, e.nombre as unidad_destino, esp.nombre as especialidad_nombre
+            FROM referencias_medicas r
+            JOIN establecimientos e ON r.id_establecimiento_destino = e.id_establecimiento
+            JOIN cat_especialidades_medicas esp ON r.id_especialidad_destino = esp.id_especialidad
+            WHERE r.id_referencia = :id_r
+        """)
+        res_ref = await db.execute(query_ref, {"id_r": id_referencia})
+        ref = res_ref.mappings().first()
+        if not ref: raise HTTPException(status_code=404, detail="Referencia no encontrada")
+
+        query_pac = select(Paciente).options(joinedload(Paciente.persona)).where(Paciente.id_paciente == id_paciente)
+        res_pac = await db.execute(query_pac); pac = res_pac.scalar_one_or_none()
+        edad = datetime.now().year - pac.persona.fecha_nacimiento.year if pac and pac.persona.fecha_nacimiento else "N/A"
+
+        query_med = text("SELECT nombre, primer_apellido, cedula_profesional FROM usuarios_sistema u JOIN personas p ON u.id_persona = p.id_persona WHERE u.id_usuario = :id_u")
+        res_med = await db.execute(query_med, {"id_u": current_user["sub"]})
+        med = res_med.mappings().first()
+
+        pdf_bytes = MedIAPDFGenerator.generar_referencia_pdf(
+            {"unidad_destino": ref["unidad_destino"], "especialidad": ref["especialidad_nombre"], "motivo": ref["motivo_referencia"]},
+            {"nombre": f"{pac.persona.nombre} {pac.persona.primer_apellido}", "expediente": pac.numero_expediente, "edad": str(edad), "sexo": pac.persona.sexo},
+            {"nombre": f"Dr. {med['nombre']} {med['primer_apellido']}", "cedula": med["cedula_profesional"] or "En Tramite"}
+        )
+
+        return Response(content=pdf_bytes, media_type="application/pdf", headers={"Content-Disposition": f"attachment; filename=referencia_{id_referencia}.pdf"})
+    except Exception as e:
+        logger.error(f"Error PDF Referencia: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Error al generar PDF de referencia")
     

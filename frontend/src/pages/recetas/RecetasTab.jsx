@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams } from "react-router-dom";
 import { clinicoAPI } from "../../api/clinico";
 import { pacientesAPI } from "../../api/pacientes";
+import { documentosAPI } from "../../api/documentos";
 import { Spinner } from "../../components/ui/Spinner";
 
 // ── Tokens MedIA (Doc 7) ──────────────────────────────────────────────────────
@@ -66,6 +67,11 @@ const IconAlert = ({ size = 24, color = "#fff" }) => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
   </svg>
 );
+const Download = ({ size = 13 }) => (
+  <svg width={size} height={size} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1M7 10l5 5m0 0l5-5m-5 5V3" />
+  </svg>
+);
 
 // ── Estilos comunes ───────────────────────────────────────────────────────────
 const s = {
@@ -99,7 +105,7 @@ const Field = ({ label, children, full }) => (
 );
 
 // ── Tarjeta de medicamento prescrito ─────────────────────────────────────────
-const RxCard = ({ item, index, onChange, onRemove, isHistorical }) => {
+const RxCard = ({ item, index, onChange, onRemove, onDownload, isHistorical }) => {
   const { drug, dosis, frecuencia, via, duracion, cantidad, indicEsp, fecha_prescripcion } = item;
 
   const update = (key) => (e) => onChange(item.id || item.id_prescripcion, key, e.target.value);
@@ -199,13 +205,22 @@ const RxCard = ({ item, index, onChange, onRemove, isHistorical }) => {
       )}
 
       {/* Footer */}
-      {!isHistorical && (
+      {!isHistorical ? (
         <div style={{ padding: "8px 14px", background: T.surface, borderTop: `1px solid ${T.border}`, display: "flex", justifyContent: "flex-end" }}>
           <button
             onClick={() => onRemove(item.id)}
             style={{ display: "flex", alignItems: "center", gap: 5, background: "transparent", color: T.red, border: `1px solid ${T.red}`, padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, fontFamily: "'DM Sans', sans-serif", cursor: "pointer" }}
           >
             <IconTrash size={12} /> Eliminar
+          </button>
+        </div>
+      ) : (
+        <div style={{ padding: "8px 14px", background: T.surface, borderTop: `1px solid ${T.border}`, display: "flex", justifyContent: "flex-end" }}>
+          <button
+            onClick={() => onDownload(item)}
+            style={{ display: "flex", alignItems: "center", gap: 5, background: "transparent", color: T.blue, border: `1px solid ${T.blue}`, padding: "5px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600, fontFamily: "'DM Sans', sans-serif", cursor: "pointer" }}
+          >
+            <Download size={12} /> Descargar PDF
           </button>
         </div>
       )}
@@ -438,6 +453,16 @@ export default function RecetasTab({ pacienteId: propPacienteId }) {
     alert("Proceso de firmado cancelado por seguridad clínica.");
   };
 
+  const handleDownloadPDF = async (item) => {
+    try {
+      const endpoint = `/pacientes/${pacienteId}/prescripciones/${item.id_prescripcion}/pdf`;
+      await documentosAPI.descargarPDF(endpoint);
+    } catch (err) {
+      console.error("Error descargando PDF:", err);
+      alert("No se pudo generar el PDF de la receta.");
+    }
+  };
+
   if (loading) {
     return (
       <div style={{ display: "flex", justifyContent: "center", alignItems: "center", padding: 60, width: "100%", flexDirection: "column", gap: 10 }}>
@@ -556,6 +581,7 @@ export default function RecetasTab({ pacienteId: propPacienteId }) {
                         item={item}
                         index={i}
                         isHistorical
+                        onDownload={handleDownloadPDF}
                       />
                     ))}
                   </div>

@@ -82,8 +82,8 @@ class PDFGenerator:
             pdf = FPDF()
             pdf.add_page()
             
-            # Configurar fuente (usaremos Arial ya que DM Sans no está disponible en FPDF por defecto)
-            pdf.set_font("Arial", "B", 14)
+            # Configurar fuente
+            pdf.set_font("helvetica", "B", 14)
             
             # Convertir fecha a CST
             fecha_consulta_cst = PDFGenerator.convertir_utc_a_cst(encuentro.fecha_inicio)
@@ -110,12 +110,12 @@ class PDFGenerator:
             # Header
             pdf.set_fill_color(27, 79, 138)  # Azul institucional
             pdf.cell(0, 10, "NOTA MEDICA - FORMATO SOAP", 0, 1, "C", fill=True)
-            pdf.set_font("Arial", "", 10)
+            pdf.set_font("helvetica", "", 10)
             pdf.cell(0, 8, "Sistema de Expediente Clinico Electronico MedIA", 0, 1, "C")
             pdf.ln(5)
             
             # Información del establecimiento y médico
-            pdf.set_font("Arial", "B", 10)
+            pdf.set_font("helvetica", "B", 10)
             pdf.cell(0, 8, f"Establecimiento (CLUES): {establecimiento.clues}", 0, 1)
             pdf.cell(0, 8, f"Nombre de la Unidad: {establecimiento.nombre}", 0, 1)
             pdf.cell(0, 8, f"Expediente No: {numero_expediente}", 0, 1)
@@ -135,30 +135,29 @@ class PDFGenerator:
             for titulo, contenido in secciones:
                 pdf.set_fill_color(27, 79, 138)
                 pdf.set_text_color(255, 255, 255)
-                pdf.set_font("Arial", "B", 12)
+                pdf.set_font("helvetica", "B", 12)
                 pdf.cell(0, 8, titulo, 0, 1, "L", fill=True)
                 pdf.set_text_color(0, 0, 0)
-                pdf.set_font("Arial", "", 10)
+                pdf.set_font("helvetica", "", 10)
                 pdf.set_fill_color(245, 242, 236)
-                pdf.multi_cell(0, 6, contenido, 0, 1, fill=True)
+                pdf.multi_cell(0, 6, contenido, border=0, align="L", fill=True)
                 pdf.ln(3)
             
             # Sello de firma
             pdf.ln(5)
             pdf.set_fill_color(45, 134, 83)  # Verde firma
             pdf.set_text_color(255, 255, 255)
-            pdf.set_font("Arial", "B", 10)
+            pdf.set_font("helvetica", "B", 10)
             pdf.cell(0, 8, "SELLO DE FIRMA DIGITAL (NOM-151)", 0, 1, "C", fill=True)
             pdf.set_text_color(0, 0, 0)
-            pdf.set_font("Arial", "", 9)
+            pdf.set_font("helvetica", "", 9)
             pdf.set_fill_color(245, 242, 236)
             pdf.cell(0, 6, f"Estado: FIRMADO INMUTABLE", 0, 1, fill=True)
             pdf.cell(0, 6, f"Hash SHA-256: {hash_contenido}", 0, 1, fill=True)
             pdf.cell(0, 6, f"Fecha de Firma: {fecha_str} {hora_str}", 0, 1, fill=True)
             
             # Obtener bytes del PDF
-            pdf_bytes = pdf.output(dest='S')
-            return pdf_bytes
+            return bytes(pdf.output())
             
         except Exception as e:
             raise RuntimeError(f"Error generando PDF: {str(e)}")

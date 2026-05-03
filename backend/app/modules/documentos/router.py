@@ -59,8 +59,8 @@ async def list_documentos(
                 m_per.nombre || ' ' || m_per.primer_apellido AS medico_nombre
             FROM notas_medicas nm
             JOIN encuentros_clinicos ec ON nm.id_encuentro = ec.id_encuentro
-            JOIN usuarios_sistema us ON ec.id_medico = us.id_usuario
-            JOIN personas m_per ON us.id_persona = m_per.id_persona
+            LEFT JOIN usuarios_sistema us ON ec.id_medico = us.id_usuario
+            LEFT JOIN personas m_per ON us.id_persona = m_per.id_persona
             LEFT JOIN notas_soap_detalle nsd ON nm.id_nota = nsd.id_nota
             WHERE ec.id_paciente = :id_paciente
             ORDER BY nm.fecha_creacion DESC
@@ -78,8 +78,8 @@ async def list_documentos(
                 "tipo_nota": r[4],
                 "descripcion": (r[5] or r[6] or "Nota clínica")[:120],
                 "medico": r[7],
-                "pdf_disponible": False,
-                "pdf_endpoint": f"/notas/{r[0]}/pdf",
+                "pdf_disponible": r[3] or False,  # Solo si está firmada (NOM-151)
+                "pdf_endpoint": f"/notas_soap/notas/{r[0]}/pdf",
             }
             for r in notas_rows
         ]
@@ -98,8 +98,8 @@ async def list_documentos(
                 m_per.nombre || ' ' || m_per.primer_apellido AS medico_nombre
             FROM prescripciones p
             JOIN encuentros_clinicos ec ON p.id_encuentro = ec.id_encuentro
-            JOIN usuarios_sistema us ON ec.id_medico = us.id_usuario
-            JOIN personas m_per ON us.id_persona = m_per.id_persona
+            LEFT JOIN usuarios_sistema us ON ec.id_medico = us.id_usuario
+            LEFT JOIN personas m_per ON us.id_persona = m_per.id_persona
             LEFT JOIN cat_medicamentos cm ON p.codigo_medicamento_ssa = cm.codigo_medicamento_ssa
             WHERE ec.id_paciente = :id_paciente
             ORDER BY ec.fecha_inicio DESC
@@ -119,8 +119,8 @@ async def list_documentos(
                 "cantidad": r[3],
                 "id_encuentro": str(r[6]),
                 "medico": r[8],
-                "pdf_disponible": False,
-                "pdf_endpoint": f"/encuentros/{r[6]}/prescripciones/pdf",
+                "pdf_disponible": True,
+                "pdf_endpoint": f"/pacientes/{id_pac}/prescripciones/{r[0]}/pdf",
             }
             for r in recetas_rows
         ]
@@ -137,8 +137,8 @@ async def list_documentos(
                 (SELECT COUNT(*) FROM resultados_laboratorio rl WHERE rl.id_solicitud = se.id_solicitud) AS num_resultados
             FROM solicitudes_estudio se
             JOIN encuentros_clinicos ec ON se.id_encuentro = ec.id_encuentro
-            JOIN usuarios_sistema us ON ec.id_medico = us.id_usuario
-            JOIN personas m_per ON us.id_persona = m_per.id_persona
+            LEFT JOIN usuarios_sistema us ON ec.id_medico = us.id_usuario
+            LEFT JOIN personas m_per ON us.id_persona = m_per.id_persona
             WHERE ec.id_paciente = :id_paciente
             ORDER BY se.fecha_solicitud DESC
         """)
@@ -155,8 +155,8 @@ async def list_documentos(
                 "medico": r[5],
                 "tiene_resultados": (r[6] or 0) > 0,
                 "num_resultados": r[6] or 0,
-                "pdf_disponible": False,
-                "pdf_endpoint": f"/solicitudes/{r[0]}/pdf",
+                "pdf_disponible": True,
+                "pdf_endpoint": f"/pacientes/{id_pac}/estudios/{r[0]}/pdf",
             }
             for r in solicitudes_rows
         ]
@@ -173,8 +173,8 @@ async def list_documentos(
                 m_per.nombre || ' ' || m_per.primer_apellido AS medico_nombre
             FROM referencias_medicas r
             JOIN encuentros_clinicos ec ON r.id_encuentro_origen = ec.id_encuentro
-            JOIN usuarios_sistema us ON ec.id_medico = us.id_usuario
-            JOIN personas m_per ON us.id_persona = m_per.id_persona
+            LEFT JOIN usuarios_sistema us ON ec.id_medico = us.id_usuario
+            LEFT JOIN personas m_per ON us.id_persona = m_per.id_persona
             LEFT JOIN establecimientos est ON r.id_establecimiento_destino = est.id_establecimiento
             LEFT JOIN cat_especialidades_medicas esp ON r.id_especialidad_destino = esp.id_especialidad
             WHERE ec.id_paciente = :id_paciente
@@ -194,8 +194,8 @@ async def list_documentos(
                 "establecimiento_destino": r[4],
                 "especialidad_destino": r[5],
                 "medico": r[6],
-                "pdf_disponible": False,
-                "pdf_endpoint": f"/referencias/{r[0]}/pdf",
+                "pdf_disponible": True,
+                "pdf_endpoint": f"/pacientes/{id_pac}/referencias/{r[0]}/pdf",
             }
             for r in referencias_rows
         ]

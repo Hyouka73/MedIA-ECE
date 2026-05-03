@@ -33,6 +33,7 @@ class User(Base):
 
     rol = relationship("Role")
     persona = relationship("Persona", back_populates="usuario")
+    establecimientos = relationship("UsuarioEstablecimiento", lazy="selectin")
 
 
 class Persona(Base):
@@ -103,8 +104,7 @@ class EstablecimientoEspecialidad(Base):
     __tablename__ = "establecimientos_especialidades"
     id_establecimiento = Column(UUID(as_uuid=True), ForeignKey("establecimientos.id_establecimiento"), primary_key=True)
     id_especialidad = Column(Integer, ForeignKey("cat_especialidades_medicas.id_especialidad"), primary_key=True)
-    activo = Column(Boolean, nullable=False, server_default="true")
-    fecha_habilitacion = Column(DateTime(timezone=True), server_default=func.now())
+    activa = Column(Boolean, nullable=False, server_default="true")
 
 
 class Paciente(Base):
