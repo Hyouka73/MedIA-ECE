@@ -1,6 +1,6 @@
 
 
-**SISTEMA MedIA**
+**SISTEMA MedSys**
 
 Expediente Clínico Electrónico — Distrito de Salud I, Chiapas
 
@@ -17,7 +17,7 @@ Expediente Clínico Electrónico — Distrito de Salud I, Chiapas
 
 # **Diagrama 1 — Arquitectura del Sistema**
 
-Este diagrama describe la topología completa de MedIA en producción, mostrando todos los componentes tecnológicos y sus relaciones de comunicación. Se organiza en cinco capas horizontales que representan el recorrido de una petición desde el navegador del usuario hasta la base de datos.
+Este diagrama describe la topología completa de MedSys en producción, mostrando todos los componentes tecnológicos y sus relaciones de comunicación. Se organiza en cinco capas horizontales que representan el recorrido de una petición desde el navegador del usuario hasta la base de datos.
 
 ## **Capa 1 — Usuarios y Dispositivos**
 
@@ -57,9 +57,9 @@ Esta capa contiene tres servicios de datos:
 
 * Azure Database for PostgreSQL (Flexible Server): base de datos principal con 40 tablas, triggers de auditoría inmutable, soft delete en 7 tablas clínicas y PITR con retención de 14 días.
 
-* Azure Blob Storage: repositorio exclusivo de archivos de origen externo — PDFs de resultados de laboratorio y documentos de tutores. Los documentos generados por el sistema (receta, nota SOAP, solicitud, referencia) se producen on-demand con WeasyPrint y NO se persisten en Blob. Acceso exclusivamente mediante SAS tokens generados por el backend. Nunca expuesto directamente al frontend.
+* Azure Blob Storage: repositorio exclusivo de archivos de origen externo — PDFs de resultados de laboratorio y documentos de tutores. Los documentos generados por el sistema (receta, nota SOAP, solicitud, referencia) se producen on-demand con WeasyPrint y NO se persisten en Blob. Acceso exclusivamente MedSysnte SAS tokens generados por el backend. Nunca expuesto directamente al frontend.
 
-* Azure Key Vault: almacenamiento seguro de todos los secretos del sistema (cadena de conexión BD, SECRET\_KEY JWT, credenciales de Blob Storage). El backend lee los secretos en tiempo de arranque mediante Managed Identity, sin credenciales hardcodeadas.
+* Azure Key Vault: almacenamiento seguro de todos los secretos del sistema (cadena de conexión BD, SECRET\_KEY JWT, credenciales de Blob Storage). El backend lee los secretos en tiempo de arranque MedSysnte Managed Identity, sin credenciales hardcodeadas.
 
 ## **Conexiones del Diagrama**
 
@@ -75,7 +75,7 @@ Esta capa contiene tres servicios de datos:
 
 # **Diagrama 2 — Casos de Uso por Rol**
 
-Este diagrama describe las acciones que puede realizar cada uno de los seis roles definidos en MedIA. Se organiza como un diagrama de casos de uso UML donde cada rol (actor) tiene una elipse de casos de uso asociados.
+Este diagrama describe las acciones que puede realizar cada uno de los seis roles definidos en MedSys. Se organiza como un diagrama de casos de uso UML donde cada rol (actor) tiene una elipse de casos de uso asociados.
 
 ## **Actor 1 — MEDICO\_GENERAL**
 
@@ -208,7 +208,7 @@ Este diagrama describe el proceso de autenticación de dos factores (2FA) que cu
 
 | ACTORES DEL FLUJO |
 | :---- |
-| *Usuario (cualquier rol) y Sistema MedIA (frontend React \+ backend FastAPI \+ BD PostgreSQL)* |
+| *Usuario (cualquier rol) y Sistema MedSys (frontend React \+ backend FastAPI \+ BD PostgreSQL)* |
 
 | Paso | Actor | Acción | Estado resultante |
 | :---- | :---- | :---- | :---- |
@@ -268,7 +268,7 @@ La referencia médica es el mecanismo normado para transferir la responsabilidad
 
 # **Diagrama 6 — Flujo de Incidente de Seguridad**
 
-Este diagrama describe el ciclo de vida completo de un incidente de seguridad en MedIA, desde su detección automática o manual hasta su cierre formal. Implementa los requisitos forenses 1, 5 y 7 del documento de Cómputo Forense y gestiona la tabla incidentes\_seguridad del modelo de datos.
+Este diagrama describe el ciclo de vida completo de un incidente de seguridad en MedSys, desde su detección automática o manual hasta su cierre formal. Implementa los requisitos forenses 1, 5 y 7 del documento de Cómputo Forense y gestiona la tabla incidentes\_seguridad del modelo de datos.
 
 ## **Fase 1 — Detección**
 
@@ -288,14 +288,14 @@ Un incidente de seguridad puede detectarse por cuatro vías:
 | :---- | :---- | :---- | :---- |
 | 1 | AUDITOR / SUPERADMIN | Recibe alerta. Accede al módulo Auditoría e inicia un nuevo incidente seleccionando 'Registrar incidente' | Formulario de incidente abierto |
 | 2 | AUDITOR / SUPERADMIN | Clasifica el incidente por tipo: ACCESO\_NO\_AUTORIZADO, MODIFICACION\_DATO\_CLINICO, INTENTO\_SQL\_INJECTION, BRUTE\_FORCE, FUGA\_INFORMACION, u OTRO | Tipo de incidente asignado |
-| 3 | AUDITOR / SUPERADMIN | Asigna nivel de severidad: CRITICO (riesgo inmediato a datos clínicos), ALTO (posible brecha), MEDIO (comportamiento anómalo), BAJO (observación preventiva) | Severidad asignada |
+| 3 | AUDITOR / SUPERADMIN | Asigna nivel de severidad: CRITICO (riesgo inMedSysto a datos clínicos), ALTO (posible brecha), MEDIO (comportamiento anómalo), BAJO (observación preventiva) | Severidad asignada |
 | 4 | Sistema | Crea registro en incidentes\_seguridad con estado \= ABIERTO, fecha\_deteccion \= NOW(), descripcion\_inicial. Registra en auditoria\_accesos tipo\_evento \= INCIDENTE\_CREADO | Incidente registrado con timestamp UTC inmutable |
 
 ## **Fase 3 — Contención**
 
 | Paso | Actor | Acción | Estado resultante |
 | :---- | :---- | :---- | :---- |
-| 1 | SUPERADMIN | Si el incidente es CRITICO o ALTO: invalida la sesión del usuario sospechoso desde el módulo Seguridad (sesiones activas). Crea registro en sesiones\_invalidas | Sesión del actor invalidada inmediatamente |
+| 1 | SUPERADMIN | Si el incidente es CRITICO o ALTO: invalida la sesión del usuario sospechoso desde el módulo Seguridad (sesiones activas). Crea registro en sesiones\_invalidas | Sesión del actor invalidada inMedSystamente |
 | 2 | SUPERADMIN | Si se identifica un patrón de IP maliciosa: configura regla en Azure Front Door para bloquear el rango de IP | Contención a nivel de infraestructura |
 | 3 | AUDITOR / SUPERADMIN | Documenta las acciones de contención en el campo acciones\_contencion del incidente. Cambia estado a EN\_INVESTIGACION | Evidencia de contención registrada |
 | 4 | Sistema | Todas las acciones de contención generan registros adicionales en auditoria\_accesos con nivel\_severidad correspondiente. La cadena de custodia digital queda íntegra | Trazabilidad forense garantizada — Req. Forense 3 |
@@ -305,7 +305,7 @@ Un incidente de seguridad puede detectarse por cuatro vías:
 | Paso | Actor | Acción | Estado resultante |
 | :---- | :---- | :---- | :---- |
 | 1 | AUDITOR / SUPERADMIN | Identifica la causa raíz del incidente revisando la bitácora. El campo modulo\_funcion en auditoria\_accesos permite identificar qué endpoint o función fue invocada | Causa raíz identificada — Req. Forense 3 |
-| 2 | Equipo técnico | Si la erradicación requiere cambio de código: se abre issue en GitHub, se desarrolla el fix, se despliega mediante CI/CD de GitHub Actions | Vulnerabilidad eliminada del código |
+| 2 | Equipo técnico | Si la erradicación requiere cambio de código: se abre issue en GitHub, se desarrolla el fix, se despliega MedSysnte CI/CD de GitHub Actions | Vulnerabilidad eliminada del código |
 | 3 | SUPERADMIN | Documenta la causa raíz y las acciones de erradicación en el campo causa\_raiz del incidente. Cambia estado a ERRADICADO | Documentación técnica del incidente completa |
 
 ## **Fase 5 — Cierre Formal**

@@ -9,7 +9,7 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 import logging
 
-logger = logging.getLogger("media.sanitize")
+logger = logging.getLogger("MedSys.sanitize")
 
 # Patrones SQL injection básicos
 SQL_INJECTION_PATTERNS = [

@@ -17,7 +17,7 @@ La página **ExpedientePage** proporciona una vista detallada del expediente cl�
 
 ### Sistema de Tokens de Color
 
-Se implementó el sistema de tokens **MedIA Design System** conforme a [Doc7_UIUX_MedIA.docx.pdf]:
+Se implementó el sistema de tokens **MedSys Design System** conforme a [Doc7_UIUX_MedSys.docx.pdf]:
 
 ```javascript
 // Colores Institucionales
@@ -56,7 +56,7 @@ Se implementó el sistema de tokens **MedIA Design System** conforme a [Doc7_UIU
 
 ### Router
 
-La página se accede mediante:
+La página se accede MedSysnte:
 ```javascript
 <Route path="/expediente/:id" element={<ExpedientePage />} />
 ```
@@ -392,4 +392,4 @@ const generarEncuentrosDemo = () => ([...])
 
 ---
 
-_Especificación v1.0 — Compatible con MedIA-ECE backend Q2 2026_
+_Especificación v1.0 — Compatible con MedSys-ECE backend Q2 2026_

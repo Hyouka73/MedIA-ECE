@@ -2,7 +2,7 @@ import asyncio
 import asyncpg
 
 async def check():
-    conn = await asyncpg.connect('postgresql://media_dev:dev_pass_changeme@localhost:5432/media_db')
+    conn = await asyncpg.connect('postgresql://MedSys_dev:dev_pass_changeme@localhost:5432/MedSys_db')
     result = await conn.fetchrow('SELECT * FROM pacientes WHERE id_paciente = $1', '48d6bb01-cf42-4797-ba38-7527936f8968')
     print('Paciente:', result)
     if result:

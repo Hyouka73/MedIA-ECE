@@ -1245,7 +1245,7 @@ const AuditoriaPage = () => {
                 color: #5A5048;
               }
               .page-break { page-break-before: always; }
-              @media print {
+              @MedSys print {
                 body { padding: 0; }
               }
             </style>
@@ -1253,7 +1253,7 @@ const AuditoriaPage = () => {
           <body>
             <div class="header">
               <div class="title">Reporte Forense de Auditoría</div>
-              <div class="subtitle">MedIA ECE Chiapas · Generado: ${formatDate(new Date().toISOString())}</div>
+              <div class="subtitle">MedSys ECE Chiapas · Generado: ${formatDate(new Date().toISOString())}</div>
               <div class="subtitle">Rol exportador: ${userRole || 'NO_IDENTIFICADO'} · Páginas exportadas: ${pages} · Registros incluidos: ${exportLogs.length}</div>
               <div class="subtitle">Trazabilidad legal, bitácora de accesos e incidentes para documentación institucional</div>
             </div>

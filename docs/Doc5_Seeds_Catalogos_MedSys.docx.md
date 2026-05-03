@@ -1,6 +1,6 @@
 
 
-**SISTEMA MedIA**
+**SISTEMA MedSys**
 
 Expediente Clínico Electrónico — Distrito de Salud I, Chiapas
 
@@ -17,7 +17,7 @@ Expediente Clínico Electrónico — Distrito de Salud I, Chiapas
 
 # **1\. Inventario de Catálogos del Sistema**
 
-MedIA requiere 11 catálogos que deben estar disponibles en la base de datos antes de que el sistema sea usable. Se dividen en tres categorías: catálogos externos de instituciones gubernamentales, catálogos del sistema (seeds fijos) y datos iniciales de configuración.
+MedSys requiere 11 catálogos que deben estar disponibles en la base de datos antes de que el sistema sea usable. Se dividen en tres categorías: catálogos externos de instituciones gubernamentales, catálogos del sistema (seeds fijos) y datos iniciales de configuración.
 
 | Catálogo | Fuente oficial | Registros aprox. | Frecuencia actualización | Responsable |
 | :---- | :---- | :---- | :---- | :---- |
@@ -39,7 +39,7 @@ MedIA requiere 11 catálogos que deben estar disponibles en la base de datos ant
 
 Fuente: INEGI Marco Geoestadístico Nacional. URL de descarga: https://www.inegi.org.mx/app/biblioteca/ficha.html?upc=702825292463
 
-Para MedIA solo es estrictamente necesario el registro del estado de Chiapas (clave '07'), aunque se siembra el catálogo completo para futuras expansiones del sistema a otros distritos sanitarios.
+Para MedSys solo es estrictamente necesario el registro del estado de Chiapas (clave '07'), aunque se siembra el catálogo completo para futuras expansiones del sistema a otros distritos sanitarios.
 
 \-- 02\_seeds\_geograficos.sql  
 \-- Fragmento: cat\_estados (primeros registros)  
@@ -202,7 +202,7 @@ ON CONFLICT (id\_especialidad) DO NOTHING;
 
 ## **4.1 cat\_modulos — 8 Módulos del Sistema**
 
-Este seed es fijo y refleja los módulos funcionales de MedIA. Cualquier cambio requiere una nueva versión del sistema (nunca se actualiza en producción directamente).
+Este seed es fijo y refleja los módulos funcionales de MedSys. Cualquier cambio requiere una nueva versión del sistema (nunca se actualiza en producción directamente).
 
 \-- cat\_modulos (seed fijo, no modificar en produccion)  
 INSERT INTO cat\_modulos (id\_modulo, nombre\_modulo, descripcion) VALUES  
@@ -430,7 +430,7 @@ La Persona 5 es responsable de la preparación de todos los archivos de seeds y 
 
 * \[ \] Ejecutar docker compose down \-v && docker compose up \-d
 
-* \[ \] Validar que PostgreSQL levantó sin errores: docker logs media\_postgres
+* \[ \] Validar que PostgreSQL levantó sin errores: docker logs MedSys\_postgres
 
 * \[ \] Ejecutar consultas de validación:
 

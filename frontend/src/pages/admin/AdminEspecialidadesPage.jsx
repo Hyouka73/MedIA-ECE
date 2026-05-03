@@ -7,7 +7,12 @@ import { Spinner } from '../../components/ui/Spinner'
 import { EmptyState } from '../../components/ui/EmptyState'
 import { Select } from '../../components/ui/Select'
 import { useAuth } from '../../context/AuthContext' // <--- IMPORTANTE para el token
-import { fetchEstablecimientos, fetchEspecialidades, toggleEspecialidad } from '../../api/admin_service'
+import { 
+  fetchEstablecimientos, 
+  fetchEspecialidadesEstablecimiento, 
+  addEspecialidadEstablecimiento,
+  removeEspecialidadEstablecimiento 
+} from '../../api/admin_service'
 
 export default function AdminEspecialidadesPage() {
   const navigate = useNavigate()
@@ -35,7 +40,7 @@ export default function AdminEspecialidadesPage() {
   useEffect(() => {
     if (!selected || !token) return
     setLoadingEsp(true)
-    fetchEspecialidades(selected, token) // Pasamos el token a la API
+    fetchEspecialidadesEstablecimiento(selected, token) // Pasamos el token a la API
       .then(data => setEspecialidades(Array.isArray(data) ? data : []))
       .catch(() => setEspecialidades([]))
       .finally(() => setLoadingEsp(false))
@@ -44,7 +49,11 @@ export default function AdminEspecialidadesPage() {
   const handleToggle = async (esp) => {
     try {
       // Registrar este cambio en el backend requiere autenticación
-      await toggleEspecialidad(selected, esp.id_especialidad, !esp.activa, token)
+      if (esp.activa) {
+        await removeEspecialidadEstablecimiento(selected, esp.id_especialidad)
+      } else {
+        await addEspecialidadEstablecimiento(selected, esp.id_especialidad)
+      }
       
       setEspecialidades(prev =>
         prev.map(e => e.id_especialidad === esp.id_especialidad ? { ...e, activa: !e.activa } : e)

@@ -4,7 +4,7 @@ Facultad de Ciencias en Física y Matemáticas · IDTS
 
 Ingeniería en Desarrollo y Tecnologías de Software
 
-**MedIA — Expediente Clínico Electrónico**
+**MedSys — Expediente Clínico Electrónico**
 
 *Distrito de Salud I · Tuxtla Gutiérrez, Chiapas*
 
@@ -56,7 +56,7 @@ La revisión de la división original detectó que el Lead asumió simultáneame
 
 ### **Setup inicial del repositorio (S1 — 2 días)**
 
-* Crear repositorio en GitHub Organization unach-media-ece con estructura de carpetas documentada en Doc4 §2.
+* Crear repositorio en GitHub Organization unach-MedSys-ece con estructura de carpetas documentada en Doc4 §2.
 
 * Subir docker-compose.yml de desarrollo tal como está especificado en Doc4 §2.1 (ya redactado, solo copiar y validar).
 
@@ -90,7 +90,7 @@ La revisión de la división original detectó que el Lead asumió simultáneame
 
 * Cargar secretos en Azure Key Vault usando Managed Identity (especificado en Doc6 §Capa 5).
 
-* Validar HTTPS, CORS (CORS\_ORIGINS=https://media-chiapas.azurestaticapps.net) y health check.
+* Validar HTTPS, CORS (CORS\_ORIGINS=https://MedSys-chiapas.azurestaticapps.net) y health check.
 
 **📎 Referencia:** *Infraestructura y deploy: Doc4 §3 y §4 — procedimiento completo con comandos az CLI.*
 
@@ -117,7 +117,7 @@ La revisión de la división original detectó que el Lead asumió simultáneame
 
 * Crear 05\_seeds\_catalogos.sql con: cat\_lenguas\_indigenas (Doc5 §3.3), cat\_especialidades\_medicas, los 6 roles, los 8 módulos del sistema y la matriz de \~192 permisos\_rol (Doc5 §4).
 
-* Crear 06\_seeds\_superadmin.sql: INSERT del usuario superadmin@media.local con contraseña hasheada con Argon2id (Doc5 §5 — se coordina con P1 para el hash inicial).
+* Crear 06\_seeds\_superadmin.sql: INSERT del usuario superadmin@MedSys.local con contraseña hasheada con Argon2id (Doc5 §5 — se coordina con P1 para el hash inicial).
 
 **📎 Referencia:** *SQL completo de estados y municipios: Doc5 §2.1 y §2.2 — fragmentos listos.*
 
@@ -153,7 +153,7 @@ La revisión de la división original detectó que el Lead asumió simultáneame
 
 * Implementar TopBar.jsx con altura 56px, fondo \#FFFFFF, border-bottom \#DAD4CC. Zona derecha: notificaciones \+ avatar \+ botón logout.
 
-* El layout envuelve a todas las páginas mediante ProtectedRoute — solo visible con JWT válido.
+* El layout envuelve a todas las páginas MedSysnte ProtectedRoute — solo visible con JWT válido.
 
 **📎 Referencia:** *Especificaciones exactas de Sidebar y TopBar: Doc7 §3.1 — dimensiones, colores y contenido.*
 
@@ -515,7 +515,7 @@ El plan mantiene los mismos hitos del Doc1 original pero redistribuye las activi
 
 * **P2 — AuthContext:** "Implementa el AuthContext de React según Doc2 §1.1 (JWT en memoria, NO localStorage) y el flujo de login de Doc3 §Módulo 1\. Sigue las convenciones de carpetas de Doc1 §6.2."
 
-* **P3 — Reglas de negocio:** "Implementa las 4 Reglas de Negocio de MedIA como funciones de service en FastAPI/SQLAlchemy. El flujo completo está en Doc6 §Diagrama 6\. Las tablas afectadas están en Doc3 §Módulo 3 y 4."
+* **P3 — Reglas de negocio:** "Implementa las 4 Reglas de Negocio de MedSys como funciones de service en FastAPI/SQLAlchemy. El flujo completo está en Doc6 §Diagrama 6\. Las tablas afectadas están en Doc3 §Módulo 3 y 4."
 
 * **P4 — Firma de nota:** "Implementa PATCH /notas/{id}/firmar en FastAPI según Doc3 §Módulo 6\. Debe calcular SHA-256 del contenido, activar el trigger tr\_notes\_protection y seguir el flujo del Doc6 §Diagrama 3, Pasos 9–12."
 
@@ -547,12 +547,12 @@ El plan mantiene los mismos hitos del Doc1 original pero redistribuye las activi
 | Frontend auditoría | auditoria\_accesos, incidentes\_seguridad, v\_auditoria\_estadistica | P5 | S7 |
 | Deploy Azure | — | P1 (configuración) \+ P3 (apoya backend) | S8 |
 
-| ✅ Resumen final P1 (Lead) coordina y hace el setup inicial — no más doble o triple jornada. P2 establece la base del frontend y los seeds, trabajo de alta prioridad del que depende todo el equipo. P3, P4 y P5 llevan cargas equivalentes en el backend y frontend clínico, y trabajan en paralelo mediante ramas de feature independientes con integración continua en develop (ver §7). Todas las tareas tienen referencia exacta al documento técnico que las especifica, para que el equipo pueda trabajar de forma autónoma. |
+| ✅ Resumen final P1 (Lead) coordina y hace el setup inicial — no más doble o triple jornada. P2 establece la base del frontend y los seeds, trabajo de alta prioridad del que depende todo el equipo. P3, P4 y P5 llevan cargas equivalentes en el backend y frontend clínico, y trabajan en paralelo MedSysnte ramas de feature independientes con integración continua en develop (ver §7). Todas las tareas tienen referencia exacta al documento técnico que las especifica, para que el equipo pueda trabajar de forma autónoma. |
 | :---- |
 
 # **7\. Flujo de Trabajo Git Paralelo — P3, P4 y P5**
 
-P3, P4 y P5 trabajan en paralelo desde la Semana 3 sin bloquearse entre sí. Cada persona mantiene su propia rama de feature, hace push cuando termina una tarea, y las integraciones ocurren en develop mediante Pull Requests aprobados por P1. El objetivo es reducir el cronograma de 6 a 3–4 semanas de desarrollo efectivo.
+P3, P4 y P5 trabajan en paralelo desde la Semana 3 sin bloquearse entre sí. Cada persona mantiene su propia rama de feature, hace push cuando termina una tarea, y las integraciones ocurren en develop MedSysnte Pull Requests aprobados por P1. El objetivo es reducir el cronograma de 6 a 3–4 semanas de desarrollo efectivo.
 
 ## **7.1 — Estructura de ramas**
 
@@ -611,4 +611,4 @@ Si dos personas modifican el mismo archivo (ej. models.py), el segundo en hacer 
 
 Hacer pull de develop al inicio de cada día de trabajo: git pull origin develop \--rebase. Esto mantiene las ramas individuales actualizadas con el trabajo integrado del resto.
 
-*Documento generado a partir de Doc1–Doc7 del proyecto MedIA · UNACH IDTS · Ciclo Enero–Junio 2026 · Versión 2.1*
+*Documento generado a partir de Doc1–Doc7 del proyecto MedSys · UNACH IDTS · Ciclo Enero–Junio 2026 · Versión 2.1*

@@ -1,5 +1,5 @@
 """
-MedIA ECE — FastAPI Backend
+MedSys ECE — FastAPI Backend
 Punto de entrada principal de la aplicación (Versión Unificada)
 """
 import os
@@ -34,6 +34,7 @@ from app.modules.notas_soap.router import router as notas_router
 from app.modules.referencias.router import router as referencias_router
 from app.modules.documentos.router import router as documentos_router
 from app.modules.laboratorio.router import router as laboratorio_router
+from app.modules.solicitudes.router import router as solicitudes_router
 
 # RUTEADOR DE NOTAS SOAP
 from app.modules.notas_soap.router import router as notas_router  # Import DIRECTO
@@ -42,7 +43,7 @@ from app.modules.notas_soap.router import router as notas_router  # Import DIREC
 limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
-    title="MedIA ECE API",
+    title="MedSys ECE API",
     description="Sistema de Expediente Clínico Electrónico — Distrito de Salud I · Tuxtla Gutiérrez, Chiapas",
     version="1.0.0",
     docs_url="/docs" if settings.APP_ENV != "production" else None,
@@ -115,6 +116,8 @@ app.include_router(auditoria_router,   prefix="/api/auditoria",   tags=["Auditor
 app.include_router(referencias_router, prefix="/api/referencias", tags=["Referencias"])
 app.include_router(documentos_router,  prefix="/api/documentos",  tags=["Documentos"])
 app.include_router(laboratorio_router, prefix="/api/laboratorio", tags=["Laboratorio"])
+app.include_router(solicitudes_router, prefix="/api/solicitudes-estudio", tags=["Estudios"])
+
 
 # SEGURIDAD
 @app.get("/api/seguridad/logs-forenses", tags=["Auditoría"])
@@ -135,4 +138,4 @@ if settings.APP_ENV != "production":
 
 @app.get("/", include_in_schema=False)
 async def root():
-    return {"status": "ok", "sistema": "MedIA ECE", "version": "1.0.0"}
+    return {"status": "ok", "sistema": "MedSys ECE", "version": "1.0.0"}

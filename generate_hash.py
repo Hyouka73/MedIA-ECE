@@ -1,7 +1,7 @@
 # # generate_hash.py
 # from argon2 import PasswordHasher
 # ph = PasswordHasher()
-# print(ph.hash("MedIA2026!"))
+# print(ph.hash("MedSys2026!"))
 # # temporal solo paara añadir un usuario enfermero a la DB, luego se eliminará este script.
 
 # # -- 1. Creamos la Persona
@@ -30,15 +30,15 @@
 # # VALUES (
 # #     gen_random_uuid(), 
 # #     'ID_PERSONA_GENERADA', 
-# #     'algo@media.com',
-# #     'AQUI VA EL HASH', -- Hash de "MedIA2026!"
+# #     'algo@MedSys.com',
+# #     'AQUI VA EL HASH', -- Hash de "MedSys2026!"
 # #     4, -- ID 4 es ENFERMERIA según tu tabla
 # #     true,
 # #     false
 # # );
 
-# #especialista@media.com
-# #enfermeria@media.com
+# #especialista@MedSys.com
+# #enfermeria@MedSys.com
 
 # ## Contexto del problema para tu compañero:
 

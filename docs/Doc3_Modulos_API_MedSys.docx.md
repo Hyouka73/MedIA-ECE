@@ -3,7 +3,7 @@
 
 Facultad de Ciencias en Física y Matemáticas · IDTS
 
-**MedIA — Expediente Clínico Electrónico**
+**MedSys — Expediente Clínico Electrónico**
 
 Distrito de Salud I · Tuxtla Gutiérrez, Chiapas
 
@@ -15,7 +15,7 @@ Distrito de Salud I · Tuxtla Gutiérrez, Chiapas
 
 # **Módulos y API REST — Referencia Técnica**
 
-Este documento describe cada módulo del sistema MedIA, sus endpoints REST, los schemas de request/response, las tablas de base de datos que afecta y las reglas de negocio que aplica. La base URL en desarrollo es http://localhost:8000. Todos los endpoints excepto /auth/login y /auth/refresh requieren el header Authorization: Bearer {access\_token}.
+Este documento describe cada módulo del sistema MedSys, sus endpoints REST, los schemas de request/response, las tablas de base de datos que afecta y las reglas de negocio que aplica. La base URL en desarrollo es http://localhost:8000. Todos los endpoints excepto /auth/login y /auth/refresh requieren el header Authorization: Bearer {access\_token}.
 
 **Convención de códigos HTTP usados:** 200 OK · 201 Created · 204 No Content · 400 Bad Request · 401 Unauthorized · 403 Forbidden · 404 Not Found · 422 Unprocessable Entity
 
@@ -219,9 +219,9 @@ notas\_medicas, notas\_soap\_detalle, notas\_enmienda, historial\_cambios, audit
 
 * NOM-004 § 5.10: inmutabilidad del acto médico firmado. Una vez esta\_firmada=TRUE, el trigger bloquea UPDATE a nivel de BD.
 
-* NOM-151: la firma electrónica simple se implementa mediante el flag esta\_firmada \+ timestamp del servidor. El PDF generado incluye cédula, nombre del médico y hash SHA-256 del contenido.
+* NOM-151: la firma electrónica simple se implementa MedSysnte el flag esta\_firmada \+ timestamp del servidor. El PDF generado incluye cédula, nombre del médico y hash SHA-256 del contenido.
 
-* Correcciones post-firma: SOLO mediante notas\_enmienda (Addendum). El error original permanece visible con el texto de corrección adjunto.
+* Correcciones post-firma: SOLO MedSysnte notas\_enmienda (Addendum). El error original permanece visible con el texto de corrección adjunto.
 
 * Gaps de NOTAS\_PENDIENTES.md implementados: (1) número de expediente en TopBar desde apertura del encuentro, (2) timestamp guardado automáticamente al avanzar cada paso del stepper, (3) sello visual de inmutabilidad post-firma.
 
@@ -410,7 +410,7 @@ referencias\_medicas, encuentros\_clinicos, establecimientos, cat\_especialidade
 
 ## **Módulo 12 — Generación de Documentos PDF**
 
-MedIA genera 4 documentos PDF a partir de datos ya registrados en la BD. Los documentos son generados on-demand por WeasyPrint y no se persisten en el sistema (excepción: resultados de laboratorio que llegan de fuente externa).
+MedSys genera 4 documentos PDF a partir de datos ya registrados en la BD. Los documentos son generados on-demand por WeasyPrint y no se persisten en el sistema (excepción: resultados de laboratorio que llegan de fuente externa).
 
 **Principio de diseño (NOM-151 \+ Req 1 Forense)**
 
@@ -427,7 +427,7 @@ MedIA genera 4 documentos PDF a partir de datos ya registrados en la BD. Los doc
 | **Solicitud de laboratorio** | GET /solicitudes/{id}/pdf | solicitudes\_estudio \+ encuentros\_clinicos \+ pacientes \+ personas \+ usuarios\_sistema |
 | **Referencia médica** | GET /referencias/{id}/pdf | referencias\_medicas \+ establecimientos (origen y destino) \+ pacientes \+ diagnosticos\_encuentro |
 
-*Tabla 12.1 — Documentos PDF generados por MedIA y sus fuentes de datos*
+*Tabla 12.1 — Documentos PDF generados por MedSys y sus fuentes de datos*
 
 ## **Módulo 13 — Auditoría y Seguridad**
 

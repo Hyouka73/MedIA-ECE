@@ -27,7 +27,7 @@ import {
 } from '../../utils/auditoria.utils';
 
 // Definir el tema personalizado con la Theming API de AG Grid v33+
-const mediaAuditTheme = themeQuartz.withParams({
+const MedSysAuditTheme = themeQuartz.withParams({
   backgroundColor: "#ffffff",
   foregroundColor: C.th,
   headerBackgroundColor: C.sf,
@@ -321,7 +321,7 @@ const AuditoriaPage = () => {
         { estado: nuevoEstado, notas: notas },
         { headers: { Authorization: `Bearer ${token}` } }
       );
-      // Actualizamos el estado local para reflejar el cambio inmediato
+      // Actualizamos el estado local para reflejar el cambio inMedSysto
       setLogSeleccionado({ 
         ...log, 
         resultado: nuevoEstado, 
@@ -515,7 +515,7 @@ const AuditoriaPage = () => {
         <div style={{ height: "calc(100vh - 240px)", background: "#fff", borderRadius: 16, border: `1px solid ${C.bd}`, overflow: "hidden" }}>
           <AgGridReact
             ref={gridRef}
-            theme={mediaAuditTheme}
+            theme={MedSysAuditTheme}
             rowData={logs}
             columnDefs={columnDefs}
             defaultColDef={defaultColDef}

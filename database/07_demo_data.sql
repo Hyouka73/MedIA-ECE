@@ -1,5 +1,5 @@
 -- 07_demo_data.sql
--- Datos de demostración para el sistema MedIA ECE
+-- Datos de demostración para el sistema MedSys ECE
 -- Inserta un Paciente de Prueba completo para agilizar el testing de P3
 
 -- 1. Persona de Prueba (Vinculada a Tuxtla Gutiérrez)

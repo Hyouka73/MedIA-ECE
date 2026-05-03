@@ -1,4 +1,4 @@
-# Implementación de Reglas de Negocio Clínicas — MedIA ECE
+# Implementación de Reglas de Negocio Clínicas — MedSys ECE
 
 **Fecha:** Abril 20, 2026  
 **Responsable:** Persona 3 (Backend Clínico)  

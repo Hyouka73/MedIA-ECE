@@ -66,16 +66,23 @@ export async function fetchRoles() {
 }
 
 // ── Especialidades ─────────────────────────────────────────
-export async function fetchEspecialidades(idEstab) {
+export async function fetchCatalogoEspecialidades() {
+  const { data } = await apiClient.get('/admin/especialidades')
+  return toArray(data)
+}
+
+export async function fetchEspecialidadesEstablecimiento(idEstab) {
   const { data } = await apiClient.get(`/admin/establecimientos/${idEstab}/especialidades`)
   return toArray(data)
 }
 
-export async function toggleEspecialidad(idEstab, idEsp, activa) {
-  const { data } = await apiClient.patch(
-    `/admin/establecimientos/${idEstab}/especialidades/${idEsp}`,
-    { activa }
-  )
+export async function addEspecialidadEstablecimiento(idEstab, idEsp) {
+  const { data } = await apiClient.post(`/admin/establecimientos/${idEstab}/especialidades`, { id_especialidad: idEsp })
+  return data
+}
+
+export async function removeEspecialidadEstablecimiento(idEstab, idEsp) {
+  const { data } = await apiClient.delete(`/admin/establecimientos/${idEstab}/especialidades/${idEsp}`)
   return data
 }
 

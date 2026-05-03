@@ -1,30 +1,25 @@
-"""Pacientes module router"""
-from app.models.encuentros import EncuentroClinico
-from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request, Response
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
-from sqlalchemy import select, func, text
+from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy import select, func, text, update
 from app.modules.pacientes.utils.pdf_generator import MedIAPDFGenerator
 from app.core.deps import get_current_user, require_role
 from app.database.session import get_db
-from app.models.auth import Paciente, Persona, Lengua, Alergia
-from app.schemas.pacientes import (
-    PacienteOut, PersonaOut
+from app.models import (
+    Paciente, Persona, Lengua, Alergia, EncuentroClinico
 )
 import uuid
 from uuid import UUID, uuid4
 from datetime import datetime, timezone, date
-from sqlalchemy import update
 from pydantic import BaseModel as PydanticBaseModel
 from typing import Optional
 import logging
 import re
 from app.core.utils import sanitize_input
-from sqlalchemy.orm import joinedload, selectinload
 from app.services.acceso import check_regla_1
+from fastapi import APIRouter, Depends, HTTPException, Query, Body, Request, Response
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.schemas.pacientes import PacienteOut, PersonaOut
 
 logger = logging.getLogger(__name__)
-
 router = APIRouter()
 
 def clean_phone(phone: Optional[str]) -> Optional[str]:
@@ -218,7 +213,7 @@ async def create_paciente(
                     )
             
             # Crear persona
-            id_persona = uuid.uuid4()
+            id_persona = uuid4()
             nueva_persona = Persona(
                 id_persona=id_persona,
                 nombre=sanitize_input(persona_data.nombre),
@@ -1944,7 +1939,11 @@ async def download_estudio_pdf(
         med = res_med.mappings().first()
 
         pdf_bytes = MedIAPDFGenerator.generar_solicitud_estudio_pdf(
-            {"tipo_estudio": est["tipo_estudio"], "indicacion": est["descripcion"], "urgente": False},
+            {
+                "tipo_estudio": est["tipo_estudio"],
+                "indicacion": est.get("indicacion_clinica") or est["descripcion"],
+                "urgente": bool(est.get("urgente", False))
+            },
             {"nombre": f"{pac.persona.nombre} {pac.persona.primer_apellido}", "expediente": pac.numero_expediente, "edad": str(edad), "sexo": pac.persona.sexo},
             {"nombre": f"Dr. {med['nombre']} {med['primer_apellido']}", "cedula": med["cedula_profesional"] or "En Tramite"}
         )

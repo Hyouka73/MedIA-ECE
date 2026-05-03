@@ -1,9 +1,9 @@
-# ══ MedIA ECE — Launcher de Desarrollo ════════════════════════════════════
+# ══ MedSys ECE — Launcher de Desarrollo ════════════════════════════════════
 # Abre 3 terminales independientes para cada servicio.
 # Asegúrate de haber corrido .\scripts\setup_windows.ps1 previamente.
 # ══════════════════════════════════════════════════════════════════════════
 
-Write-Host "Lanzando el entorno de desarrollo para MedIA ECE..." -ForegroundColor Cyan
+Write-Host "Lanzando el entorno de desarrollo para MedSys ECE..." -ForegroundColor Cyan
 
 # Terminal 1: Base de Datos (Docker)
 Write-Host "[1/3] Iniciando PostgreSQL..." -ForegroundColor Yellow

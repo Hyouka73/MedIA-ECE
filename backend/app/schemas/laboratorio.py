@@ -14,11 +14,20 @@ class ResultadoLaboratorioOut(BaseModel):
     class Config:
         from_attributes = True
 
+class SolicitudEstudioCreate(BaseModel):
+    tipo_estudio: str
+    urgente: bool = False
+    indicacion_clinica: Optional[str] = None
+    id_cie10_relacionado: Optional[str] = None
+
 class SolicitudEstudioOut(BaseModel):
     id_solicitud: UUID
     id_encuentro: UUID
     tipo_estudio: str
     descripcion: str
+    urgente: bool
+    indicacion_clinica: Optional[str] = None
+    id_cie10_relacionado: Optional[str] = None
     fecha_solicitud: datetime
 
     class Config:
