@@ -2,7 +2,7 @@
 
 ## 🎯 Objetivo Completado
 
-✅ **Desarrollar la página ExpedientePage.jsx** siguiendo las reglas de diseño, especificaciones técnicas y requisitos funcionales del proyecto MedIA-ECE.
+✅ **Desarrollar la página ExpedientePage.jsx** siguiendo las reglas de diseño, especificaciones técnicas y requisitos funcionales del proyecto MedSys-ECE.
 
 ---
 
@@ -25,7 +25,7 @@ Status: ✅ Completo y funcional
 - 5 pestañas: Antecedentes, Medicamentos, Estudios, Notas, Encuentros
 - Manejo de estados: loading, error, empty
 - Datos demo para testing y offline
-- Animaciones y transiciones MedIA
+- Animaciones y transiciones MedSys
 - Responsividad mobile-first
 
 #### 2. **ESPECIFICACION_ExpedientePage.md** — Documentación Técnica
@@ -38,7 +38,7 @@ Status: ✅ Completo
 
 **Secciones:**
 - Descripción general y propósito
-- Sistema de tokens de color MedIA
+- Sistema de tokens de color MedSys
 - Estructura de componentes y router
 - Datos consumidos de backend (schemas Pydantic)
 - Control de acceso y roles autorizados
@@ -198,7 +198,7 @@ Status: ✅ Actualizado
 | Context Auth | `useAuth()` con `AuthContext` | ✅ Integrado |
 | Axios (via client.js) | API calls | ✅ Funcional |
 | Lucide React | Iconos (14 tipos) | ✅ Implementado |
-| CSS-in-JS (inline styles) | Diseño MedIA | ✅ Aplicado |
+| CSS-in-JS (inline styles) | Diseño MedSys | ✅ Aplicado |
 
 ### APIs Consumidas
 
@@ -283,7 +283,7 @@ Fondos:
 - ✅ Responsive en mobile/tablet/desktop
 
 ### Diseño
-- ✅ Colores alineados a MedIA Design System
+- ✅ Colores alineados a MedSys Design System
 - ✅ Tipografía con jerarquía clara
 - ✅ Espaciado consistente (12px base)
 - ✅ Bordes y sombras sutiles
@@ -382,12 +382,12 @@ Flujo:
 
 ## 🏁 Conclusión
 
-✅ **ExpedientePage.jsx completamente desarrollada y documentada** según especificaciones del proyecto MedIA-ECE. 
+✅ **ExpedientePage.jsx completamente desarrollada y documentada** según especificaciones del proyecto MedSys-ECE. 
 
 La página es:
 - **Funcional**: Carga datos reales + demo fallback
 - **Segura**: Control de acceso por 7 roles
-- **Diseñada**: Alineada a MedIA Design System
+- **Diseñada**: Alineada a MedSys Design System
 - **Documentada**: 3 guías técnicas + este reporte
 - **Escalable**: Arquitectura lista para mantenimiento y futuras features
 

@@ -291,7 +291,7 @@ useEffect(() => {
 ## 🆘 Soporte
 
 Para dudas:
-- **Estilos UX**: [Doc7_UIUX_MedIA.pdf](./Doc7_UIUX_MedIA.docx.pdf)
+- **Estilos UX**: [Doc7_UIUX_MedSys.pdf](./Doc7_UIUX_MedSys.docx.pdf)
 - **Validaciones**: Regex en `validateForm()`
 - **Backend**: Revisar schemas en `pacientes.py`
 

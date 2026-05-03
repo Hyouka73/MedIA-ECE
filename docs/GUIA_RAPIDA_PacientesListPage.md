@@ -256,7 +256,7 @@ const handleVerExpediente = async (id) => {
 ## Enlaces Útiles
 
 - 📖 [Especificación Completa](./ESPECIFICACION_PacientesListPage.md)
-- 🎨 [Diseño MedIA](./Doc7_UIUX_MedIA.docx.pdf)
+- 🎨 [Diseño MedSys](./Doc7_UIUX_MedSys.docx.pdf)
 - 🔌 [API Reference](../backend/app/modules/pacientes/router.py)
 - 🛠 [AuthContext](../frontend/src/context/AuthContext.jsx)
 

@@ -2,7 +2,7 @@
 
 ## ✅ Resumen Ejecutivo
 
-Se ha completado el desarrollo de **PacientesListPage.jsx**, una página de gestión integral de pacientes para el sistema MedIA-ECE que sigue las especificaciones técnicas y de diseño del proyecto.
+Se ha completado el desarrollo de **PacientesListPage.jsx**, una página de gestión integral de pacientes para el sistema MedSys-ECE que sigue las especificaciones técnicas y de diseño del proyecto.
 
 **Estado**: 🟢 **COMPLETADO Y LISTO PARA PRODUCCIÓN**  
 **Fecha**: 8 de Abril, 2025  
@@ -38,7 +38,7 @@ Se ha completado el desarrollo de **PacientesListPage.jsx**, una página de gest
 
 ## 🎨 Especificaciones Implementadas
 
-### ✅ Sistema de Diseño (MedIA Design System)
+### ✅ Sistema de Diseño (MedSys Design System)
 
 - ✅ **Tokens de color**: 8 colores primarios + 8 semánticos + 5 fondos
 - ✅ **Tipografía DM Sans**: 6 pesos, 11-17px
@@ -79,7 +79,7 @@ Se ha completado el desarrollo de **PacientesListPage.jsx**, una página de gest
 ```
 
 ### Validación
-- ✅ Verifica mediante `useAuth()` hook
+- ✅ Verifica MedSysnte `useAuth()` hook
 - ✅ Redirige con mensaje si no tiene acceso
 - ✅ Manejo de usuario no autenticado
 
@@ -118,7 +118,7 @@ Se ha completado el desarrollo de **PacientesListPage.jsx**, una página de gest
 
 ### 2. Filtrado Inteligente
 - Dropdown con 3 opciones
-- Indicadores visuales (🔴 alta / 🟡 media)
+- Indicadores visuales (🔴 alta / 🟡 MedSys)
 - Badges con colores semánticos
 - Reset al cambiar filtro
 
@@ -177,10 +177,10 @@ Incluye 6 pacientes de demostración para fallback:
 
 1. **García Hernández, Rosa M.** - 47 años, O+, 2 alergias (alta)
 2. **Martínez López, Juan C.** - 32 años, A+, sin alergias
-3. **Ramos Torres, Elena** - 65 años, B+, 2 alergias (media)
+3. **Ramos Torres, Elena** - 65 años, B+, 2 alergias (MedSys)
 4. **Jiménez Soto, Pedro A.** - 28 años, AB−, sin alergias
 5. **Vázquez Cruz, María F.** - 53 años, O−, 1 alergia (alta)
-6. **Pérez Domínguez, Luis A.** - 61 años, B−, 1 alergia (media)
+6. **Pérez Domínguez, Luis A.** - 61 años, B−, 1 alergia (MedSys)
 
 ---
 
@@ -280,7 +280,7 @@ Backend (integración):
 
 Diseño:
 - DM Sans font
-- MedIA Design Tokens
+- MedSys Design Tokens
 - Responsive CSS
 ```
 
@@ -292,7 +292,7 @@ Diseño:
 
 1. **100% funcional**: Todas las funcionalidades implementadas
 2. **Especificación completa**: Documentación exhaustiva
-3. **Diseño consistente**: Sigue MedIA Design System
+3. **Diseño consistente**: Sigue MedSys Design System
 4. **Accesible**: Control de acceso por rol integrado
 5. **Escalable**: Componentes reutilizables y mantenibles
 6. **Demo incluida**: Datos fallback para pruebas
@@ -329,9 +329,9 @@ Diseño:
 
 ## 📚 Referencias
 
-- **Especificación MedIA**: `docs/Doc7_UIUX_MedIA.docx.pdf`
-- **Arquitectura**: `docs/Doc2_Arquitectura_MedIA.docx.pdf`
-- **Módulos API**: `docs/Doc3_Modulos_API_MedIA.docx.pdf`
+- **Especificación MedSys**: `docs/Doc7_UIUX_MedSys.docx.pdf`
+- **Arquitectura**: `docs/Doc2_Arquitectura_MedSys.docx.pdf`
+- **Módulos API**: `docs/Doc3_Modulos_API_MedSys.docx.pdf`
 - **Medsys Referencia**: `docs/medsys-v2.jsx`
 
 ---
@@ -344,7 +344,7 @@ Diseño:
 3. Implement exportación CSV real
 4. Testing en navegadores
 
-### Mediano plazo (1 mes)
+### MedSysno plazo (1 mes)
 1. Agregar filtros avanzados (diagnóstico, medicamentos)
 2. Importación de pacientes (CSV)
 3. Reportes por período
@@ -375,9 +375,9 @@ Para preguntas o reportar problemas:
 |------|---------|
 | **Funcionalidad** | +1 página crítica completada |
 | **Documentación** | +650 líneas de código calidad producción |
-| **Consistencia** | Implementa 100% especificación MedIA |
+| **Consistencia** | Implementa 100% especificación MedSys |
 | **Mantenibilidad** | 650% documentado con guías |
-| **UI/UX** | Sigue 100% design system MedIA |
+| **UI/UX** | Sigue 100% design system MedSys |
 | **Seguridad** | Control de acceso por rol integrado |
 | **Performance** | O(n) con debounce ready |
 
@@ -390,4 +390,4 @@ Para preguntas o reportar problemas:
 
 ---
 
-*Este reporte confirma que PacientesListPage.jsx ha sido completado según especificaciones técnicas y está listo para ser integrado en el pipeline de desarrollo del proyecto MedIA-ECE.*
+*Este reporte confirma que PacientesListPage.jsx ha sido completado según especificaciones técnicas y está listo para ser integrado en el pipeline de desarrollo del proyecto MedSys-ECE.*

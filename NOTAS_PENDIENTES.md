@@ -1,4 +1,4 @@
-# NOTAS_PENDIENTES.md — MedIA ECE
+# NOTAS_PENDIENTES.md — MedSys ECE
 
 > Bloqueantes detectados durante revisiones de PRs y coordinación técnica.
 
