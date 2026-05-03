@@ -9,7 +9,7 @@ from starlette.requests import Request
 from sqlalchemy import text
 import logging
 
-logger = logging.getLogger("media.audit")
+logger = logging.getLogger("MedSys.audit")
 
 
 class AuditMiddleware(BaseHTTPMiddleware):

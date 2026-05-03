@@ -2,7 +2,7 @@ import asyncio
 import asyncpg
 import os
 
-DATABASE_URL = "postgresql://media_dev:dev_pass_changeme@localhost:5432/media_db"
+DATABASE_URL = "postgresql://MedSys_dev:dev_pass_changeme@localhost:5432/MedSys_db"
 
 sql_files = [
     "database/01_schema.sql",
@@ -17,7 +17,7 @@ async def run_sql_files():
     try:
         print("🔌 Conectando a PostgreSQL local...")
         conn = await asyncpg.connect(DATABASE_URL)
-        print("✅ Conectado a media_db")
+        print("✅ Conectado a MedSys_db")
 
         for file in sql_files:
             print(f"📄 Ejecutando {os.path.basename(file)}...")

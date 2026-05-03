@@ -3,7 +3,7 @@ from fastapi import APIRouter, HTTPException
 
 router = APIRouter()
 
-# Localizamos la carpeta 'logs' que está en la raíz de MedIA-ECE
+# Localizamos la carpeta 'logs' que está en la raíz de MedSys-ECE
 LOGS_DIR = os.path.join(os.getcwd(), 'logs')
 FORENSIC_LOG_FILE = os.path.join(LOGS_DIR, "auditoria_forense.log")
 

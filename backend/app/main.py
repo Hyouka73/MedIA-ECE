@@ -1,5 +1,5 @@
 """
-MedIA ECE — FastAPI Backend
+MedSys ECE — FastAPI Backend
 Punto de entrada principal de la aplicación (Versión Unificada)
 """
 import os
@@ -42,7 +42,7 @@ from app.modules.notas_soap.router import router as notas_router  # Import DIREC
 limiter = Limiter(key_func=get_remote_address)
 
 app = FastAPI(
-    title="MedIA ECE API",
+    title="MedSys ECE API",
     description="Sistema de Expediente Clínico Electrónico — Distrito de Salud I · Tuxtla Gutiérrez, Chiapas",
     version="1.0.0",
     docs_url="/docs" if settings.APP_ENV != "production" else None,
@@ -135,4 +135,4 @@ if settings.APP_ENV != "production":
 
 @app.get("/", include_in_schema=False)
 async def root():
-    return {"status": "ok", "sistema": "MedIA ECE", "version": "1.0.0"}
+    return {"status": "ok", "sistema": "MedSys ECE", "version": "1.0.0"}
