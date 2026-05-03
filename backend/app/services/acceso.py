@@ -46,12 +46,15 @@ async def check_regla_1(id_paciente: UUID, id_usuario: UUID, db: AsyncSession) -
             return True
         
         # Para médicos, verificar encuentro ACTIVO (Req Forense)
+        # ✅ MEJORA: Permitir acceso si hay encuentro activo del paciente en el mismo establecimiento,
+        # incluso si id_medico es NULL (triaje) o si el médico actual está atendiendo.
         query_encounter = text("""
             SELECT COUNT(*) as total 
-            FROM encuentros_clinicos 
-            WHERE id_paciente = :id_paciente 
-              AND id_medico = :id_usuario
-              AND fecha_cierre IS NULL
+            FROM encuentros_clinicos e
+            JOIN usuarios_establecimientos ue ON e.id_establecimiento = ue.id_establecimiento
+            WHERE e.id_paciente = :id_paciente 
+              AND e.fecha_cierre IS NULL
+              AND ue.id_usuario = :id_usuario
         """)
         result = await db.execute(query_encounter, {
             "id_paciente": str(id_paciente),
@@ -61,7 +64,7 @@ async def check_regla_1(id_paciente: UUID, id_usuario: UUID, db: AsyncSession) -
         
         allowed = count > 0
         if not allowed:
-            logger.warning(f"check_regla_1: ACCESO DENEGADO. El médico {id_usuario} no tiene un encuentro ACTIVO con el paciente {id_paciente}")
+            logger.warning(f"check_regla_1: ACCESO DENEGADO. El usuario {id_usuario} no tiene un encuentro ACTIVO o establecimiento compartido con el paciente {id_paciente}")
         return allowed
         
     except Exception as e:

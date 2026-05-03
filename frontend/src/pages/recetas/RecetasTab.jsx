@@ -289,7 +289,7 @@ const SearchDropdown = ({ query, onSelect }) => {
 };
 
 // ── Componente principal ──────────────────────────────────────────────────────
-export default function RecetasTab({ pacienteId: propPacienteId }) {
+export default function RecetasTab({ pacienteId: propPacienteId, isEmbedded = false }) {
   const { id: paramPacienteId } = useParams();
   const pacienteId = propPacienteId || paramPacienteId;
 
@@ -473,28 +473,31 @@ export default function RecetasTab({ pacienteId: propPacienteId }) {
   }
 
   return (
-    <div style={{ fontFamily: "'DM Sans', sans-serif", background: T.bg, minHeight: "100vh", padding: 20 }}>
+    <div style={{ fontFamily: "'DM Sans', sans-serif", background: isEmbedded ? "transparent" : T.bg, minHeight: isEmbedded ? "auto" : "100vh", padding: isEmbedded ? 0 : 20 }}>
 
       {/* TopBar — NOM-004 art. 5.1 + NOM-024 */}
-      <div style={{ background: T.surface, borderBottom: `1px solid ${T.border}`, height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", borderRadius: "8px 8px 0 0" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: T.muted }}>
-          <span>Pacientes</span>
-          <span style={{ color: T.border }}>/</span>
-          <span>Expediente</span>
-          <span style={{ color: T.border }}>/</span>
-          <span style={{ color: T.text, fontWeight: 600 }}>Recetas e Historial</span>
-          <span style={{ background: T.blue, color: "#fff", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 4, letterSpacing: ".3px" }}>
-            {pacienteId ? `PAC-${pacienteId.slice(0, 8)}` : "EXP-CONSULTA"}
-          </span>
+      {!isEmbedded && (
+        <div style={{ background: T.surface, borderBottom: `1px solid ${T.border}`, height: 56, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "0 20px", borderRadius: "8px 8px 0 0" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: T.muted }}>
+            <span>Pacientes</span>
+            <span style={{ color: T.border }}>/</span>
+            <span>Expediente</span>
+            <span style={{ color: T.border }}>/</span>
+            <span style={{ color: T.text, fontWeight: 600 }}>Recetas e Historial</span>
+            <span style={{ background: T.blue, color: "#fff", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 4, letterSpacing: ".3px" }}>
+              {pacienteId ? `PAC-${pacienteId.slice(0, 8)}` : "EXP-CONSULTA"}
+            </span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: T.muted }}>
+            <IconClock size={13} />
+            {new Date().toLocaleDateString("es-MX", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: T.muted }}>
-          <IconClock size={13} />
-          {new Date().toLocaleDateString("es-MX", { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-        </div>
-      </div>
+      )}
 
       {/* Contenido principal */}
-      <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderTop: "none", borderRadius: "0 0 8px 8px", padding: 20 }}>
+      <div style={{ background: T.surface, border: isEmbedded ? "none" : `1px solid ${T.border}`, borderTop: "none", borderRadius: isEmbedded ? 0 : "0 0 8px 8px", padding: isEmbedded ? 10 : 20 }}>
+
 
         {/* Encabezado sección */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
