@@ -48,6 +48,10 @@ class VerifyTOTPRequest(BaseModel):
     code: str
 
 
+class ConfirmTOTPRequest(BaseModel):
+    code: str
+
+
 # ── Helpers ──────────────────────────────────────────────────
 async def _get_role_code(db: AsyncSession, id_rol: int) -> str:
     role = (await db.execute(select(Role).where(Role.id_rol == id_rol))).scalar_one_or_none()
@@ -220,7 +224,7 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
     # REGLA: Pedir 2FA si tiene TOTP configurado Y (es nueva IP O fue desbloqueada)
     es_ip_conocida = await _is_ip_trusted(db, user.id_usuario, ip_cliente)
     
-    if user.totp_secret and (not es_ip_conocida or fue_desbloqueada):
+    if user.totp_secret and user.totp_confirmed and (not es_ip_conocida or fue_desbloqueada):
         temp_token = create_access_token(
             {"sub": str(user.id_usuario), "rol": "PENDING_2FA", "email": user.email},
             expires_delta=300
@@ -269,7 +273,7 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
         "access_token": token,
         "token_type": "bearer",
         "requires_2fa": False,
-        "totp_configured": bool(user.totp_secret),
+        "totp_configured": bool(user.totp_secret and user.totp_confirmed),
         "user": _build_user_response(user, rol_codigo, user_context)
     })
     _set_refresh_cookie(response, refresh)
@@ -323,7 +327,11 @@ async def verify_2fa(request: Request, data: VerifyTOTPRequest, db: AsyncSession
             detail=f"Código incorrecto. {settings.MAX_LOGIN_ATTEMPTS - intentos} intento(s) restante(s)."
         )
 
-    await db.execute(update(User).where(User.id_usuario == user.id_usuario).values(intentos_fallidos=0))
+    await db.execute(
+        update(User)
+        .where(User.id_usuario == user.id_usuario)
+        .values(intentos_fallidos=0, totp_confirmed=True)
+    )
     await db.commit()
 
     rol_codigo = await _get_role_code(db, user.id_rol)
@@ -366,7 +374,7 @@ async def verify_2fa(request: Request, data: VerifyTOTPRequest, db: AsyncSession
 
 # ── POST /auth/2fa/setup ──────────────────────────────────────
 @router.post("/2fa/setup")
-@limiter.limit("2/minute")
+@limiter.limit("10/minute")
 async def setup_2fa(
     request: Request, 
     db: AsyncSession = Depends(get_db),
@@ -388,6 +396,7 @@ async def setup_2fa(
     raw_secret = generate_totp_secret()
     user.totp_secret = encrypt_secret(raw_secret)
     user.requires_2fa = True
+    user.totp_confirmed = False
     
     await db.commit()
     await db.refresh(user)
@@ -399,11 +408,39 @@ async def setup_2fa(
     )
     
     return {
-        "detail": "Configuración de 2FA iniciada",
         "provisioning_uri": provisioning_uri,
-        "secret_key": raw_secret,
-        "message": "Escanee el código QR o ingrese la clave manualmente en su app de autenticación."
+        "secret_key": raw_secret
     }
+
+
+# ── POST /auth/2fa/confirm ────────────────────────────────────
+@router.post("/2fa/confirm")
+async def confirm_2fa(
+    request: Request,
+    data: ConfirmTOTPRequest,
+    db: AsyncSession = Depends(get_db),
+    payload: dict = Depends(get_current_user)
+):
+    """
+    Confirma el setup inicial del TOTP mediante el primer código válido.
+    """
+    user_id = payload.get("sub")
+    query = select(User).where(User.id_usuario == user_id)
+    user = (await db.execute(query)).scalar_one_or_none()
+
+    if not user or not user.totp_secret:
+        raise HTTPException(status_code=400, detail="El 2FA no ha sido iniciado")
+
+    # Descifrar y verificar el código
+    raw_secret = decrypt_secret(user.totp_secret)
+    if not verify_totp(raw_secret, data.code):
+        raise HTTPException(status_code=400, detail="Código de verificación incorrecto")
+
+    # Si es correcto, confirmar permanentemente
+    user.totp_confirmed = True
+    await db.commit()
+
+    return {"success": True, "detail": "2FA confirmado y activado correctamente"}
 
 
 # ── POST /auth/refresh ────────────────────────────────────────

@@ -15,6 +15,8 @@ export default function Setup2FA() {
     const [setupData, setSetupData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [copied, setCopied] = useState(false);
+    const [verificationCode, setVerificationCode] = useState('');
+    const [verifying, setVerifying] = useState(false);
 
     useEffect(() => {
         const fetchSetup = async () => {
@@ -40,10 +42,25 @@ export default function Setup2FA() {
         toast('Clave copiada al portapapeles', 'success');
     };
 
-    const handleComplete = () => {
-        updateUser({ totp_configured: true });
-        toast('2FA configurado correctamente', 'success');
-        navigate('/dashboard');
+    const handleComplete = async () => {
+        if (verificationCode.length !== 6) {
+            toast('Por favor, ingresa los 6 dígitos de tu app', 'warning');
+            return;
+        }
+
+        setVerifying(true);
+        try {
+            await apiClient.post('/auth/2fa/confirm', { code: verificationCode });
+            updateUser({ totp_configured: true });
+            toast('2FA configurado y confirmado correctamente', 'success');
+            navigate('/dashboard');
+        } catch (err) {
+            console.error('2FA Confirmation Error:', err);
+            const detail = err.response?.data?.detail || 'Código incorrecto. Intenta de nuevo.';
+            toast(detail, 'error');
+        } finally {
+            setVerifying(false);
+        }
     };
 
     if (loading) {
@@ -106,16 +123,36 @@ export default function Setup2FA() {
                                 {copied ? <Check size={18} /> : <Copy size={18} />}
                             </button>
                         </div>
-                        <p className="text-[10px] text-text-secondary mt-2 leading-relaxed">
-                            Guarda esta llave en un lugar seguro. Te servirá si pierdes acceso a tu dispositivo.
+                    </div>
+
+                    {/* Paso 3: Verificación Obligatoria */}
+                    <div className="bg-primary/5 rounded-xl p-6 border border-primary/10">
+                        <div className="text-xs font-bold text-primary uppercase tracking-widest mb-3">Paso 3: Confirmar Código</div>
+                        <input 
+                            type="text" 
+                            maxLength={6}
+                            placeholder="000000"
+                            value={verificationCode}
+                            onChange={(e) => setVerificationCode(e.target.value.replace(/\D/g, ''))}
+                            className="w-full text-center text-3xl font-bold tracking-[0.5em] py-3 border-2 border-primary/20 rounded-xl focus:border-primary outline-none transition-all placeholder:text-slate-200"
+                        />
+                        <p className="text-[10px] text-text-secondary mt-3 text-center leading-relaxed">
+                            Ingresa el código de 6 dígitos que aparece en tu aplicación para confirmar.
                         </p>
                     </div>
 
-                    <Button full size="lg" onClick={handleComplete} className="group">
-                        ¡Listo, ya lo tengo! <ChevronRight size={18} className="ml-2 group-hover:translate-x-1 transition-transform" />
+                    <Button 
+                        full 
+                        size="lg" 
+                        onClick={handleComplete} 
+                        className="group"
+                        loading={verifying}
+                    >
+                        {verifying ? 'Verificando...' : 'Confirmar y Finalizar'} <ChevronRight size={18} className="ml-2 group-hover:translate-x-1 transition-transform" />
                     </Button>
                 </div>
             </div>
+
             
             <p className="mt-8 text-xs text-text-secondary text-center max-w-sm">
                 Al completar este paso, tu cuenta estará protegida con autenticación multifactor (MFA).
