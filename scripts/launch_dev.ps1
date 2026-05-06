@@ -11,7 +11,7 @@ Start-Process powershell.exe -ArgumentList "-NoExit", "-Command", "docker compos
 
 # Terminal 2: Backend (FastAPI + Uvicorn)
 Write-Host "[2/3] Iniciando Backend API..." -ForegroundColor Yellow
-$backendCmd = ".\venv\Scripts\Activate.ps1; uvicorn app.main:app --reload --port 8000"
+$backendCmd = ".\.venv\Scripts\Activate.ps1; uvicorn app.main:app --reload --port 8000"
 Start-Process powershell.exe -ArgumentList "-NoExit", "-Command", "$backendCmd" -WorkingDirectory (Join-Path (Get-Location) "backend") -Wait:$false
 
 # Terminal 3: Frontend (React + Vite)
