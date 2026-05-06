@@ -23,10 +23,10 @@ import AdminEspecialidadesPage from './pages/admin/AdminEspecialidadesPage'
 import AdminRolesPage from './pages/admin/AdminRolesPage'
 
 // Pacientes
-import PacientesListPage from './pages/Pacients/PacientesListPage';
-import ExpedientePage from './pages/Pacients/ExpedientePage';
-import PacienteFichaPage from './pages/Pacients/PacienteFichaPage';
-import PacienteAntecedentesPage from './pages/Pacients/PacienteAntecedentesPage';
+import PacientesListPage from './pages/pacients/PacientesListPage';
+import ExpedientePage from './pages/pacients/ExpedientePage';
+import PacienteFichaPage from './pages/pacients/PacienteFichaPage';
+import PacienteAntecedentesPage from './pages/pacients/PacienteAntecedentesPage';
 
 // Auditoría
 import AuditoriaPage from './pages/audit/AuditoriaPage';
