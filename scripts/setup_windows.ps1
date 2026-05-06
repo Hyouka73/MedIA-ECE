@@ -62,7 +62,7 @@ if (Test-Path "backend\requirements.txt") {
 Write-Host "`n[5/5] Ejecutando seed de datos de prueba..." -ForegroundColor Yellow
 Push-Location backend
 & ".\.venv\Scripts\Activate.ps1"
-python -m seeds.seed_medico_pruebas
+python -m app.database.set_medico_pruebas
 if ($LASTEXITCODE -eq 0) {
     Write-Host " -> Seed ejecutado correctamente." -ForegroundColor Green
     Write-Host "    Email:    dr.martinez.pruebas@medsys.local" -ForegroundColor DarkGray
