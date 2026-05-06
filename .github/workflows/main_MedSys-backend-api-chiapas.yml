@@ -90,33 +90,7 @@ jobs:
           export DATABASE_URL="${DB_URL//#/%23}"
           export PYTHONPATH=$(pwd)
           
-          # 🚨 RESET OPCIONAL DE BASE DE DATOS
-          if [[ "${{ github.event.head_commit.message }}" == *"[reset-db]"* ]]; then
-            echo "--- ⚠️ RESET-DB DETECTADO ⚠️ ---"
-            echo "Limpiando esquema public en la base de datos de producción..."
-            python3 - << 'EOF'
-          import os, asyncio
-          from sqlalchemy.ext.asyncio import create_async_engine
-          from sqlalchemy import text
 
-          async def reset():
-              url = os.getenv('DATABASE_URL')
-              if not url:
-                  print("Error: DATABASE_URL no encontrada en el entorno.")
-                  return
-              
-              engine = create_async_engine(url)
-              async with engine.begin() as conn:
-                  await conn.execute(text('DROP SCHEMA public CASCADE'))
-                  await conn.execute(text('CREATE SCHEMA public'))
-                  await conn.execute(text('GRANT ALL ON SCHEMA public TO public'))
-                  print('Esquema public reseteado exitosamente.')
-              await engine.dispose()
-
-          if __name__ == '__main__':
-              asyncio.run(reset())
-          EOF
-          fi
 
           echo "Corriendo: alembic upgrade head"
           python3 -m alembic upgrade head
