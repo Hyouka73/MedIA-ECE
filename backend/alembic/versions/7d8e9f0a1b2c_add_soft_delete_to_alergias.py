@@ -45,18 +45,10 @@ def upgrade() -> None:
         GROUP BY fecha, nivel_severidad, tipo_evento;
     """)
 
-    # 4. Agregar columnas de Soft Delete a alergias si no existen
-    conn = op.get_bind()
-    from sqlalchemy.engine.reflection import Inspector
-    inspector = Inspector.from_engine(conn)
-    columns = [c['name'] for c in inspector.get_columns('alergias')]
-    
-    if 'eliminado_en' not in columns:
-        op.add_column('alergias', sa.Column('eliminado_en', sa.DateTime(timezone=True), nullable=True))
-    if 'eliminado_por' not in columns:
-        op.add_column('alergias', sa.Column('eliminado_por', sa.UUID(), nullable=True))
-    if 'motivo_baja' not in columns:
-        op.add_column('alergias', sa.Column('motivo_baja', sa.String(length=255), nullable=True))
+    # 4. Agregar columnas de Soft Delete a alergias si no existen usando SQL nativo
+    op.execute("ALTER TABLE alergias ADD COLUMN IF NOT EXISTS eliminado_en TIMESTAMP WITH TIME ZONE")
+    op.execute("ALTER TABLE alergias ADD COLUMN IF NOT EXISTS eliminado_por UUID")
+    op.execute("ALTER TABLE alergias ADD COLUMN IF NOT EXISTS motivo_baja VARCHAR(255)")
 
 
 def downgrade() -> None:
@@ -89,15 +81,7 @@ def downgrade() -> None:
         GROUP BY fecha, nivel_severidad, tipo_evento;
     """)
 
-    # 4. Eliminar columnas de Soft Delete si existen
-    conn = op.get_bind()
-    from sqlalchemy.engine.reflection import Inspector
-    inspector = Inspector.from_engine(conn)
-    columns = [c['name'] for c in inspector.get_columns('alergias')]
-
-    if 'motivo_baja' in columns:
-        op.drop_column('alergias', 'motivo_baja')
-    if 'eliminado_por' in columns:
-        op.drop_column('alergias', 'eliminado_por')
-    if 'eliminado_en' in columns:
-        op.drop_column('alergias', 'eliminado_en')
+    # 4. Eliminar columnas de Soft Delete si existen usando SQL nativo
+    op.execute("ALTER TABLE alergias DROP COLUMN IF EXISTS motivo_baja")
+    op.execute("ALTER TABLE alergias DROP COLUMN IF EXISTS eliminado_por")
+    op.execute("ALTER TABLE alergias DROP COLUMN IF EXISTS eliminado_en")
