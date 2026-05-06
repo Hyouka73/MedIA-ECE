@@ -100,6 +100,7 @@ CREATE TABLE usuarios_sistema (
     intentos_fallidos INT DEFAULT 0,
     bloqueado_hasta TIMESTAMPTZ,
     activo BOOLEAN DEFAULT TRUE,
+    totp_confirmed BOOLEAN DEFAULT FALSE,
     fecha_creacion TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     ultimo_login TIMESTAMPTZ
 );
