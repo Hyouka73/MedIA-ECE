@@ -280,9 +280,41 @@ def upgrade() -> None:
     op.drop_constraint(op.f('roles_codigo_key'), 'roles', type_='unique')
     op.create_index(op.f('ix_roles_id_rol'), 'roles', ['id_rol'], unique=False)
     op.create_unique_constraint(op.f('uq_roles_codigo'), 'roles', ['codigo'])
-    op.drop_index(op.f('ix_sesiones_activas_fecha_expira'), table_name='sesiones_activas')
-    op.drop_index(op.f('ix_sesiones_activas_id_usuario'), table_name='sesiones_activas')
-    op.drop_constraint(op.f('sesiones_activas_id_usuario_fkey'), 'sesiones_activas', type_='foreignkey')
+    # Drop indexes idempotently — safe to call even if they don't exist
+    conn = op.get_bind()
+    conn.execute(sa.text(
+        "DROP INDEX IF EXISTS ix_sesiones_activas_fecha_expira"
+    ))
+    conn.execute(sa.text(
+        "DROP INDEX IF EXISTS ix_sesiones_activas_id_usuario"
+    ))
+
+    # Drop the FK constraint on sesiones_activas.id_usuario idempotently.
+    # The constraint name varies per environment (Alembic vs PostgreSQL auto-naming),
+    # so we discover and drop it dynamically instead of hard-coding the name.
+    conn.execute(sa.text("""
+        DO $$
+        DECLARE
+            constraint_name TEXT;
+        BEGIN
+            SELECT tc.constraint_name
+              INTO constraint_name
+              FROM information_schema.table_constraints tc
+              JOIN information_schema.key_column_usage kcu
+                ON tc.constraint_name = kcu.constraint_name
+               AND tc.table_schema    = kcu.table_schema
+             WHERE tc.constraint_type = 'FOREIGN KEY'
+               AND tc.table_name      = 'sesiones_activas'
+               AND kcu.column_name    = 'id_usuario'
+             LIMIT 1;
+
+            IF constraint_name IS NOT NULL THEN
+                EXECUTE format('ALTER TABLE sesiones_activas DROP CONSTRAINT %I', constraint_name);
+            END IF;
+        END;
+        $$;
+    """))
+
     op.create_foreign_key(op.f('fk_sesiones_activas_id_usuario_usuarios_sistema'), 'sesiones_activas', 'usuarios_sistema', ['id_usuario'], ['id_usuario'])
     op.drop_constraint(op.f('signos_vitales_id_encuentro_fkey'), 'signos_vitales', type_='foreignkey')
     op.drop_constraint(op.f('signos_vitales_id_enfermero_fkey'), 'signos_vitales', type_='foreignkey')
