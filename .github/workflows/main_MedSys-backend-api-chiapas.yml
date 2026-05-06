@@ -24,16 +24,13 @@ jobs:
         with:
           python-version: '3.11'
 
-      # 🛠️ Local Build Section (Optional)
-      # The following section in your workflow is designed to catch build issues early on the client side, before deployment. This can be helpful for debugging and validation. However, if this step significantly increases deployment time and early detection is not critical for your workflow, you may remove this section to streamline the deployment process.
       - name: Create and Start virtual environment and Install dependencies
         run: |
           cd backend
           python -m venv antenv
           source antenv/bin/activate
           pip install -r requirements.txt
-                
-      # By default, when you enable GitHub CI/CD integration through the Azure portal, the platform automatically sets the SCM_DO_BUILD_DURING_DEPLOYMENT application setting to true. This triggers the use of Oryx, a build engine that handles application compilation and dependency installation (e.g., pip install) directly on the platform during deployment. Hence, we exclude the antenv virtual environment directory from the deployment artifact to reduce the payload size. 
+
       - name: Upload artifact for deployment jobs
         uses: actions/upload-artifact@v4
         with:
@@ -41,12 +38,6 @@ jobs:
           path: |
             backend/
             !backend/antenv/
-
-      # 🚫 Opting Out of Oryx Build
-      # If you prefer to disable the Oryx build process during deployment, follow these steps:
-      # 1. Remove the SCM_DO_BUILD_DURING_DEPLOYMENT app setting from your Azure App Service Environment variables.
-      # 2. Refer to sample workflows for alternative deployment strategies: https://github.com/Azure/actions-workflow-samples/tree/master/AppService
-      
 
   deploy:
     runs-on: ubuntu-latest
@@ -56,11 +47,15 @@ jobs:
       contents: read #This is required for actions/checkout
 
     steps:
+      - name: Checkout (needed for database SQL files)
+        uses: actions/checkout@v4
+
       - name: Download artifact from build job
         uses: actions/download-artifact@v4
         with:
           name: python-app
-      
+          path: backend_artifact/
+
       - name: Login to Azure
         uses: azure/login@v2
         with:
@@ -68,33 +63,96 @@ jobs:
           tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_A8A1DB2572A744BFB631B09901CA4452 }}
           subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_28B19D00C1B94655B81C8DE6353A0A69 }}
 
-      - name: Run Database Migrations (Alembic)
+      - name: Reset and seed database via psql
         run: |
-          # El artefacto se extrae en la raíz del workspace, no hay subcarpeta backend
-          
-          # Instalar dependencias completas para evitar ModuleNotFoundError
-          python3 -m pip install --upgrade pip
-          python3 -m pip install -r requirements.txt
+          set -e
 
-          # Configurar variables de entorno directamente para Azure
+          # ── 1. Obtener DATABASE_URL del App Service ─────────────────────────────
           RG="rg-media-chiapas"
-          echo "Obteniendo DATABASE_URL de Azure (RG: $RG)..."
-          DB_URL=$(az webapp config appsettings list --name media-backend-api-chiapas --resource-group $RG --query "[?name=='DATABASE_URL'].value" -o tsv)
-          
+          APP="media-backend-api-chiapas"
+
+          echo "Obteniendo DATABASE_URL de Azure App Service..."
+          DB_URL=$(az webapp config appsettings list \
+            --name "$APP" --resource-group "$RG" \
+            --query "[?name=='DATABASE_URL'].value" -o tsv)
+
           if [ -z "$DB_URL" ]; then
-            echo "Error: No se pudo obtener DATABASE_URL del App Service. Revisar permisos del Service Principal."
+            echo "ERROR: No se pudo obtener DATABASE_URL. Revisar permisos del Service Principal."
             exit 1
           fi
 
-          # Escapar caracteres PostgreSQL (# -> %23)
-          export DATABASE_URL="${DB_URL//#/%23}"
-          export PYTHONPATH=$(pwd)
-          
+          # ── 2. Convertir URL de SQLAlchemy a psql estándar ─────────────────────
+          # Formato entrada:  postgresql+asyncpg://user:pass@host:port/db
+          # Formato salida:   postgresql://user:pass@host:port/db
+          PSQL_URL=$(echo "$DB_URL" | sed 's|postgresql+asyncpg://|postgresql://|')
+          echo "Conexión configurada (host enmascarado para log)."
 
+          # ── 3. Instalar cliente psql ────────────────────────────────────────────
+          sudo apt-get install -y postgresql-client
 
-          echo "Corriendo: alembic upgrade head"
-          python3 -m alembic upgrade head
-          echo "Migración completada exitosamente."
+          # ── 4. Obtener IP del runner y abrir firewall de Azure PostgreSQL ───────
+          RUNNER_IP=$(curl -s https://api.ipify.org)
+          echo "IP del runner: $RUNNER_IP"
+
+          # Extraer nombre del servidor de PostgreSQL desde la URL
+          # Formato host: servername.postgres.database.azure.com
+          PG_HOST=$(echo "$PSQL_URL" | sed -E 's|postgresql://[^@]+@([^:/]+).*|\1|')
+          PG_SERVER=$(echo "$PG_HOST" | cut -d'.' -f1)
+          echo "Servidor PostgreSQL: $PG_SERVER"
+
+          # Abrir firewall temporalmente para el runner
+          az postgres flexible-server firewall-rule create \
+            --resource-group "$RG" \
+            --name "$PG_SERVER" \
+            --rule-name "github-actions-runner-temp" \
+            --start-ip-address "$RUNNER_IP" \
+            --end-ip-address "$RUNNER_IP" || true
+
+          # Esperar a que la regla de firewall se propague
+          sleep 10
+
+          # ── 5. Reset completo + aplicar schema canónico ─────────────────────────
+          echo "=== RESETEANDO base de datos de producción ==="
+
+          # Reset atómico: drop schema + recrear limpio
+          psql "$PSQL_URL" <<'RESET_SQL'
+DROP SCHEMA public CASCADE;
+CREATE SCHEMA public;
+GRANT ALL ON SCHEMA public TO PUBLIC;
+GRANT ALL ON SCHEMA public TO CURRENT_USER;
+RESET_SQL
+
+          echo "Schema reseteado. Aplicando archivos SQL..."
+
+          # Aplicar en orden estricto
+          psql "$PSQL_URL" -f database/01_schema.sql
+          echo "✓ 01_schema.sql"
+
+          psql "$PSQL_URL" -f database/02_triggers.sql
+          echo "✓ 02_triggers.sql"
+
+          psql "$PSQL_URL" -f database/03_seeds_geograficos.sql
+          echo "✓ 03_seeds_geograficos.sql"
+
+          psql "$PSQL_URL" -f database/04_seeds_clinicos.sql
+          echo "✓ 04_seeds_clinicos.sql"
+
+          psql "$PSQL_URL" -f database/05_seeds_sistema.sql
+          echo "✓ 05_seeds_sistema.sql"
+
+          psql "$PSQL_URL" -f database/06_seeds_superadmin.sql
+          echo "✓ 06_seeds_superadmin.sql"
+
+          echo "=== Base de datos lista ==="
+
+          # ── 6. Cerrar firewall temporal ─────────────────────────────────────────
+          az postgres flexible-server firewall-rule delete \
+            --resource-group "$RG" \
+            --name "$PG_SERVER" \
+            --rule-name "github-actions-runner-temp" \
+            --yes || true
+
+          echo "Regla de firewall temporal eliminada."
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
@@ -102,5 +160,4 @@ jobs:
         with:
           app-name: 'media-backend-api-chiapas'
           slot-name: 'Production'
-          package: '.'
-          
+          package: 'backend_artifact/'
