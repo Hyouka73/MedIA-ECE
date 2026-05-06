@@ -29,7 +29,7 @@ def upgrade() -> None:
     # op.drop_table('cat_modulos')
     # op.drop_table('permisos_especialidad')
     # op.drop_table('jurisdicciones_sanitarias')
-    op.add_column('alergias', sa.Column('motivo_baja', sa.String(), nullable=True))
+    # op.add_column('alergias', sa.Column('motivo_baja', sa.String(), nullable=True)) # Duplicate: already added in 7d8e9f0a1b2c
     op.alter_column('alergias', 'id_paciente',
                existing_type=sa.UUID(),
                nullable=False)
@@ -602,7 +602,7 @@ def downgrade() -> None:
     op.alter_column('alergias', 'id_paciente',
                existing_type=sa.UUID(),
                nullable=True)
-    op.drop_column('alergias', 'motivo_baja')
+    # op.drop_column('alergias', 'motivo_baja') # Duplicate: already handled in 7d8e9f0a1b2c
     # op.create_table('jurisdicciones_sanitarias', ... )
     # op.create_table('permisos_especialidad', ... )
     # op.create_table('cat_modulos', ... )
