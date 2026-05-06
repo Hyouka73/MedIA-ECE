@@ -171,7 +171,7 @@ RETURNS TRIGGER AS $$
 BEGIN
     IF NEW.nivel_severidad IN ('CRITICO', 'ALTO') THEN
         INSERT INTO incidentes_seguridad (id_auditoria, estado)
-        VALUES (NEW.id_auditoria, 'NUEVO');
+        VALUES (NEW.id_auditoria, 'ABIERTO');
     END IF;
     RETURN NEW;
 END;
