@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, DateTime, text, Text, JSON, BigInteger
+from sqlalchemy import Column, String, Integer, Boolean, ForeignKey, DateTime, Date, text, Text, JSON, BigInteger
 from sqlalchemy.dialects.postgresql import UUID, INET
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
@@ -44,7 +44,7 @@ class Persona(Base):
     primer_apellido = Column(String(100), nullable=False)
     segundo_apellido = Column(String(100), nullable=True)
     curp = Column(String(18), unique=True, nullable=True)
-    fecha_nacimiento = Column(DateTime, nullable=False)
+    fecha_nacimiento = Column(Date, nullable=False)
     sexo = Column(String(1), nullable=False)
     id_localidad = Column(String(9), ForeignKey("cat_localidades.id_localidad"), nullable=True)
     calle_numero = Column(String, nullable=True)
@@ -248,7 +248,7 @@ class AntecedentesPatologicos(Base):
     id_ap = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     id_paciente = Column(UUID(as_uuid=True), ForeignKey("pacientes.id_paciente"), nullable=False)
     enfermedad = Column(String(200), nullable=False)
-    fecha_diagnostico = Column(DateTime, nullable=True)
+    fecha_diagnostico = Column(Date, nullable=True)
     tratamiento_actual = Column(Text, nullable=True)
     eliminado_en = Column(DateTime(timezone=True), nullable=True)
     eliminado_por = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), nullable=True)
@@ -285,7 +285,7 @@ class AntecedentesGinecoobstetricos(Base):
     paras = Column(Integer, default=0)
     cesareas = Column(Integer, default=0)
     abortos = Column(Integer, default=0)
-    fecha_ultima_menstruacion = Column(DateTime, nullable=True)
+    fecha_ultima_menstruacion = Column(Date, nullable=True)
     eliminado_en = Column(DateTime(timezone=True), nullable=True)
     eliminado_por = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), nullable=True)
 
@@ -300,7 +300,7 @@ class Inmunizacion(Base):
     id_inmunizacion = Column(UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()"))
     id_paciente = Column(UUID(as_uuid=True), ForeignKey("pacientes.id_paciente"), nullable=False)
     vacuna = Column(String(100), nullable=False)
-    fecha_aplicacion = Column(DateTime, nullable=True)
+    fecha_aplicacion = Column(Date, nullable=True)
     dosis = Column(String(50), nullable=True)
     eliminado_en = Column(DateTime(timezone=True), nullable=True)
     eliminado_por = Column(UUID(as_uuid=True), ForeignKey("usuarios_sistema.id_usuario"), nullable=True)

@@ -10,6 +10,8 @@ from app.models.auth import (
 )
 from app.models.encuentros import EspecialidadMedica, EncuentroClinico, DiagnosticoEncuentro
 from app.models.notas_soap import NotaMedica
+from app.models.clinico import Prescripcion, SolicitudEstudio, ResultadoLaboratorio
+from app.models.signosvitales import SignosVitales
 
 __all__ = [
     "Base", "User", "Role", "Persona", "SesionActiva", "UserTrustedIP",
@@ -20,5 +22,6 @@ __all__ = [
     "AntecedentesNoPatologicos", "AntecedentesGinecoobstetricos",
     "Inmunizacion", "PacienteTutor", "Referencia",
     "EspecialidadMedica", "EncuentroClinico", "DiagnosticoEncuentro",
-    "NotaMedica"
+    "NotaMedica", "Prescripcion", "SolicitudEstudio", "ResultadoLaboratorio",
+    "SignosVitales"
 ]
