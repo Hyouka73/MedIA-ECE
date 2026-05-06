@@ -19,7 +19,7 @@ class SignosVitales(Base):
     frecuencia_respiratoria = Column(Integer)
     presion_sistolica = Column(Integer)
     presion_diastolica = Column(Integer)
-    saturacion_oxigeno = Column(DECIMAL(4, 1))
+    saturacion_oxigeno = Column(Integer)
     fecha_toma = Column(DateTime(timezone=True), server_default=text("CURRENT_TIMESTAMP"))
 
     encuentro = relationship("EncuentroClinico")
