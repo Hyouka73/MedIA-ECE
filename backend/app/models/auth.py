@@ -25,6 +25,7 @@ class User(Base):
     cedula_profesional = Column(String(20))
     totp_secret = Column(String(255))
     requires_2fa = Column(Boolean, default=True)
+    totp_confirmed = Column(Boolean, default=False)
     intentos_fallidos = Column(Integer, default=0)
     bloqueado_hasta = Column(DateTime(timezone=True))
     activo = Column(Boolean, default=True)
