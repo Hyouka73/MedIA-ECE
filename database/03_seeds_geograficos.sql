@@ -62,3 +62,22 @@ VALUES ('e7eb6ece-9f20-4bf6-ab0e-6ed4d058abcb', 'CSSSA023999', 'Centro de Salud 
 INSERT INTO establecimientos_especialidades (id_establecimiento, id_especialidad, activa)
 VALUES ('e7eb6ece-9f20-4bf6-ab0e-6ed4d058abcb', 1, true), -- Med Gral
        ('e7eb6ece-9f20-4bf6-ab0e-6ed4d058abcb', 4, true); -- Odonto
+
+-- ==========================================
+-- ADICIÓN: Hospital Básico Comunitario San Cristóbal (Zona 2)
+-- ==========================================
+
+-- 1. Asegurar existencia de Localidad SCLC (si no existe en fragmento)
+INSERT INTO cat_localidades (id_localidad, id_municipio, nombre, ambito) 
+VALUES ('070780001', '07078', 'San Cristóbal de las Casas', 'Urbano')
+ON CONFLICT (id_localidad) DO NOTHING;
+
+-- 2. Hospital San Cristóbal (UUID Fijo para Interoperabilidad)
+INSERT INTO establecimientos (id_establecimiento, clues, nombre, id_jurisdiccion, id_localidad, nivel_atencion)
+VALUES ('550e8400-e29b-41d4-a716-446655440000', 'CSSSA024001', 'Hospital Básico Comunitario San Cristóbal', 2, '070780001', 2);
+
+-- 3. Activación de Especialidades (Zona 2)
+INSERT INTO establecimientos_especialidades (id_establecimiento, id_especialidad, activa)
+VALUES 
+    ('550e8400-e29b-41d4-a716-446655440000', 1, true), -- Medicina General
+    ('550e8400-e29b-41d4-a716-446655440000', 2, true); -- Ginecología y Obstetricia
