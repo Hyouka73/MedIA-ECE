@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from uuid import UUID
@@ -10,49 +10,51 @@ from app.schemas.signosvitales import SignosVitalesCreateIn
 
 logger = logging.getLogger(__name__)
 
-# Dejamos el prefijo vacío aquí porque el main.py ya usa /api/encuentros
 router = APIRouter(tags=["Signos Vitales"])
 
-# --- POST: Registro ajustado al estándar de la DB (ID 4, 5, 6) ---
+
 @router.post("/{id_encuentro}/signos-vitales", status_code=status.HTTP_201_CREATED)
 async def registrar_signos(
     id_encuentro: UUID,
-    data: SignosVitalesCreateIn,
+    data: SignosVitalesCreateIn,          # Pydantic rechaza antes de llegar aquí
     db: AsyncSession = Depends(get_db),
-    # AJUSTE: Se cambió "ENFERMERO" por "ENFERMERIA" para coincidir con la DB
     current_user: dict = Depends(require_role("ENFERMERIA", "MEDICO_GENERAL", "ESPECIALISTA"))
 ):
+    # Si el request llega aquí, los datos ya pasaron todos los rangos biológicos.
+    # No hace falta ningún if/raise adicional.
     try:
         query = text("""
-            INSERT INTO signos_vitales 
-            (id_encuentro, id_enfermero, presion_sistolica, presion_diastolica, 
-             temperatura_c, saturacion_oxigeno, frecuencia_cardiaca, 
+            INSERT INTO signos_vitales
+            (id_encuentro, id_enfermero, presion_sistolica, presion_diastolica,
+             temperatura_c, saturacion_oxigeno, frecuencia_cardiaca,
              frecuencia_respiratoria, peso_kg, talla_cm)
             VALUES (:id_e, :id_u, :ps, :pd, :temp, :sat, :fc, :fr, :peso, :talla)
             RETURNING id_signos
         """)
-        
         result = await db.execute(query, {
-            "id_e": id_encuentro,
-            "id_u": current_user["sub"],
-            "ps": data.presion_sistolica,
-            "pd": data.presion_diastolica,
-            "temp": data.temperatura_c,
-            "sat": data.saturacion_oxigeno,
-            "fc": data.frecuencia_cardiaca,
-            "fr": data.frecuencia_respiratoria,
-            "peso": data.peso_kg,
-            "talla": data.talla_cm
+            "id_e":   id_encuentro,
+            "id_u":   current_user["sub"],
+            "ps":     data.presion_sistolica,
+            "pd":     data.presion_diastolica,
+            "temp":   data.temperatura_c,
+            "sat":    data.saturacion_oxigeno,
+            "fc":     data.frecuencia_cardiaca,
+            "fr":     data.frecuencia_respiratoria,
+            "peso":   data.peso_kg,
+            "talla":  data.talla_cm,
         })
         await db.commit()
-        return {"id": str(result.scalar()), "message": "Signos vitales registrados exitosamente"}
+        return {
+            "id": str(result.scalar()),
+            "message": "Signos vitales registrados exitosamente"
+        }
     except Exception as e:
         await db.rollback()
-        logger.error(f"Error registrando signos: {str(e)}")
-        raise HTTPException(status_code=400, detail="Error al guardar los signos vitales")
+        logger.error(f"Error registrando signos: {e}")
+        raise HTTPException(status_code=500, detail="Error al guardar los signos vitales")
 
-# --- GET: Consulta ---
-@router.get("/{id_encuentro}/signos-vitales", response_model=dict)
+
+@router.get("/{id_encuentro}/signos-vitales")
 async def obtener_signos_encuentro(
     id_encuentro: UUID,
     db: AsyncSession = Depends(get_db),
@@ -60,18 +62,18 @@ async def obtener_signos_encuentro(
 ):
     try:
         query = text("""
-            SELECT sv.*, e.fecha_inicio AS fecha_encuentro, e.motivo_consulta 
-            FROM signos_vitales sv 
-            JOIN encuentros_clinicos e ON sv.id_encuentro = e.id_encuentro 
+            SELECT sv.*, e.fecha_inicio AS fecha_encuentro, e.motivo_consulta
+            FROM signos_vitales sv
+            JOIN encuentros_clinicos e ON sv.id_encuentro = e.id_encuentro
             WHERE sv.id_encuentro = :id_e
         """)
         result = await db.execute(query, {"id_e": id_encuentro})
         row = result.fetchone()
-        
+
         if not row:
             return {"data": None, "message": "No hay signos registrados para este encuentro"}
-            
+
         return {"data": row._asdict(), "message": "Signos obtenidos correctamente"}
     except Exception as e:
-        logger.error(f"Error consultando vista P3: {str(e)}")
+        logger.error(f"Error consultando signos: {e}")
         raise HTTPException(status_code=500, detail="Error al consultar los signos")

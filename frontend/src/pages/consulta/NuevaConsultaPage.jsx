@@ -52,6 +52,23 @@ const NavButtons = ({ onPrev, onNext, loadingNext, labelNext = 'Continuar', disa
   </div>
 )
 
+// ---------------- FUNCIÓN DE VALIDACIÓN DE SIGNOS (integrada desde el primer bloque) ----------------
+const validarSignos = ({ sistolica, diastolica, temp, spo2, fc }) => {
+  if (sistolica < 60 || sistolica > 250) return 'Sistólica fuera de rango (60–250)'
+  if (diastolica < 40 || diastolica > 150) return 'Diastólica fuera de rango (40–150)'
+  if (sistolica <= diastolica) return 'La sistólica debe ser mayor que la diastólica'
+
+  if (temp < 34 || temp > 42) return 'Temperatura fuera de rango (34–42 °C)'
+  if (!/^\d+(\.\d{1,2})?$/.test(String(temp))) return 'Temperatura: máximo 2 decimales'
+
+  if (spo2 < 70 || spo2 > 100) return 'SpO2 fuera de rango (70–100)'
+  if (!/^\d+(\.\d{1,2})?$/.test(String(spo2))) return 'SpO2: máximo 2 decimales'
+
+  if (fc < 30 || fc > 220) return 'Frecuencia cardíaca fuera de rango (30–220)'
+
+  return null
+}
+
 export default function NuevaConsultaPage() {
   const [searchParams] = useSearchParams()
   const idPaciente = searchParams.get('id_paciente')
@@ -255,6 +272,7 @@ export default function NuevaConsultaPage() {
       setCurrentStep(2)
       return
     }
+
     const sistolica = getNumericOrNull(formData.tension_sistolica, parseInt)
     const diastolica = getNumericOrNull(formData.tension_diastolica, parseInt)
     const temp = getNumericOrNull(formData.temp, parseFloat)
@@ -262,8 +280,15 @@ export default function NuevaConsultaPage() {
     const fc = getNumericOrNull(formData.fc, parseInt)
     
     const todosPresentes = sistolica !== null && diastolica !== null && temp !== null && spo2 !== null && fc !== null
-    
+
     if (todosPresentes) {
+      // Validar rangos y formato antes de guardar
+      const error = validarSignos({ sistolica, diastolica, temp, spo2, fc })
+      if (error) {
+        setErrorGlobal(error)
+        return  // No avanzar si hay error de validación
+      }
+
       setLoading(true)
       try {
         await clinicoAPI.registrarSignos(encuentroId, {
@@ -278,6 +303,8 @@ export default function NuevaConsultaPage() {
         setLoading(false)
       }
     }
+
+    // Avanzar al siguiente paso (tanto si se guardaron como si faltan signos)
     setCurrentStep(2)
   }
 
