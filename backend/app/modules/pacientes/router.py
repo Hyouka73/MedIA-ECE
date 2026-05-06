@@ -4,7 +4,7 @@ from app.modules.pacientes.utils.pdf_generator import MedIAPDFGenerator
 from app.core.deps import get_current_user, require_role
 from app.database.session import get_db
 from app.models import (
-    Paciente, Persona, Lengua, Alergia, EncuentroClinico
+    Paciente, Persona, Lengua, Alergia, EncuentroClinico, Establecimiento
 )
 import uuid
 from uuid import UUID, uuid4
@@ -61,6 +61,27 @@ async def list_pacientes(
     db: AsyncSession = Depends(get_db)
 ):
     """GET /pacientes — Lista paginada de pacientes con búsqueda opcional"""
+    # --- DATA ISOLATION PATCH ---
+    user_est_id = current_user.get("id_establecimiento")
+    if not user_est_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Aislamiento Institucional: El token de sesión no contiene id_establecimiento. Contacte a soporte."
+        )
+
+    # Si no es admin global, forzar filtro por localidad del establecimiento
+    user_loc_id = None
+    if current_user.get("rol") not in ["SUPERADMIN", "OMNIADMIN"]:
+        user_loc_id = await db.scalar(
+            select(Establecimiento.id_localidad).where(Establecimiento.id_establecimiento == user_est_id)
+        )
+        if not user_loc_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="El establecimiento asignado no tiene una localidad válida configurada."
+            )
+    # ----------------------------
+
     try:
         offset = (page - 1) * limit
         
@@ -76,31 +97,28 @@ async def list_pacientes(
             .where(Paciente.eliminado_en == None)
         )
         
-        # Aplicar filtro de búsqueda
-        if search:
-            search_term = f"%{search.lower()}%"
-            query = query.where(
-                (Persona.nombre.ilike(search_term)) |
-                (Persona.primer_apellido.ilike(search_term)) |
-                (Persona.segundo_apellido.ilike(search_term)) |
-                (Paciente.numero_expediente.ilike(search_term))
-            )
-        
-        # Contar total (sin necesidad de cargar relaciones)
+        # Conteo total para paginación
         count_query = (
             select(func.count())
             .select_from(Paciente)
             .join(Persona)
             .where(Paciente.eliminado_en == None)
         )
+
+        # Aplicar aislamiento institucional si aplica
+        if user_loc_id:
+            query = query.where(Persona.id_localidad == user_loc_id)
+            count_query = count_query.where(Persona.id_localidad == user_loc_id)
         if search:
             search_term = f"%{search.lower()}%"
-            count_query = count_query.where(
+            filter_clause = (
                 (Persona.nombre.ilike(search_term)) |
                 (Persona.primer_apellido.ilike(search_term)) |
                 (Persona.segundo_apellido.ilike(search_term)) |
                 (Paciente.numero_expediente.ilike(search_term))
             )
+            query = query.where(filter_clause)
+            count_query = count_query.where(filter_clause)
         
         total = await db.scalar(count_query)
         total_pages = (total + limit - 1) // limit if total else 1

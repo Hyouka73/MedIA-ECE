@@ -105,6 +105,19 @@ async def list_referencias(
         where_clauses = []
         params = {}
 
+        # --- DATA ISOLATION PATCH ---
+        user_est_id = current_user.get("id_establecimiento")
+        if not user_est_id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Aislamiento Institucional: id_establecimiento requerido para listar referencias."
+            )
+
+        if current_user.get("rol") not in ["SUPERADMIN", "OMNIADMIN"]:
+            where_clauses.append("r.id_establecimiento_destino = :user_est_id")
+            params["user_est_id"] = user_est_id
+        # ----------------------------
+
         if estado:
             where_clauses.append("r.estado = :estado")
             params["estado"] = estado
