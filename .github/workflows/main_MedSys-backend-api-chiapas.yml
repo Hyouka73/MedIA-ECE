@@ -141,6 +141,15 @@ jobs:
           psql "$PSQL_URL" -f database/06_seeds_superadmin.sql
           echo "✓ 06_seeds_superadmin.sql"
 
+          psql "$PSQL_URL" -f database/07a_demo_personas_pacientes.sql
+          echo "✓ 07a_demo_personas_pacientes.sql"
+
+          psql "$PSQL_URL" -f database/07b_demo_encuentros_clinicos.sql
+          echo "✓ 07b_demo_encuentros_clinicos.sql"
+
+          psql "$PSQL_URL" -f database/07c_demo_estudios_referencias.sql
+          echo "✓ 07c_demo_estudios_referencias.sql"
+
           echo "=== Base de datos lista ==="
 
           # ── 6. Cerrar firewall temporal ─────────────────────────────────────────
