@@ -115,12 +115,10 @@ jobs:
           echo "=== RESETEANDO base de datos de producción ==="
 
           # Reset atómico: drop schema + recrear limpio
-          psql "$PSQL_URL" <<'RESET_SQL'
-DROP SCHEMA public CASCADE;
-CREATE SCHEMA public;
-GRANT ALL ON SCHEMA public TO PUBLIC;
-GRANT ALL ON SCHEMA public TO CURRENT_USER;
-RESET_SQL
+          psql "$PSQL_URL" -c "DROP SCHEMA public CASCADE;"
+          psql "$PSQL_URL" -c "CREATE SCHEMA public;"
+          psql "$PSQL_URL" -c "GRANT ALL ON SCHEMA public TO PUBLIC;"
+          psql "$PSQL_URL" -c "GRANT ALL ON SCHEMA public TO CURRENT_USER;"
 
           echo "Schema reseteado. Aplicando archivos SQL..."
 
