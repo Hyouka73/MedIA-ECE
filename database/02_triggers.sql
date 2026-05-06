@@ -79,6 +79,7 @@ BEGIN
         WHEN 'antecedentes_no_patologicos' THEN v_id := NEW.id_anp;
         WHEN 'antecedentes_ginecoobstetricos' THEN v_id := NEW.id_ago;
         WHEN 'inmunizaciones' THEN v_id := NEW.id_inmunizacion;
+        WHEN 'referencias_medicas' THEN v_id := NEW.id_referencia;
         ELSE v_id := gen_random_uuid();
     END CASE;
     
@@ -93,7 +94,7 @@ BEGIN
     LOOP
         -- Evitar columnas de metadatos administrativos o PKs irrelevantes
         IF columna.column_name IN (
-            'id_paciente', 'id_persona', 'id_alergia', 'id_ahf', 'id_ap', 'id_anp', 'id_ago', 'id_inmunizacion', 
+            'id_paciente', 'id_persona', 'id_alergia', 'id_ahf', 'id_ap', 'id_anp', 'id_ago', 'id_inmunizacion', 'id_referencia',
             'url_foto', 'fecha_registro', 'intentos_fallidos', 'ultimo_login', 'bloqueado_hasta', 'password_hash',
             'eliminado_en', 'eliminado_por', 'registrado_por'
         ) THEN
@@ -116,14 +117,31 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Req 6 Forense: Activar historial de cambios en tablas clínicas
+DROP TRIGGER IF EXISTS tr_hist_pacientes ON pacientes;
 CREATE TRIGGER tr_hist_pacientes AFTER UPDATE ON pacientes FOR EACH ROW EXECUTE FUNCTION fn_registrar_cambio();
+
+DROP TRIGGER IF EXISTS tr_hist_personas ON personas;
 CREATE TRIGGER tr_hist_personas AFTER UPDATE ON personas FOR EACH ROW EXECUTE FUNCTION fn_registrar_cambio();
+
+DROP TRIGGER IF EXISTS tr_hist_alergias ON alergias;
 CREATE TRIGGER tr_hist_alergias AFTER UPDATE ON alergias FOR EACH ROW EXECUTE FUNCTION fn_registrar_cambio();
+
+DROP TRIGGER IF EXISTS tr_hist_ant_heredofam ON antecedentes_heredofamiliares;
 CREATE TRIGGER tr_hist_ant_heredofam AFTER UPDATE ON antecedentes_heredofamiliares FOR EACH ROW EXECUTE FUNCTION fn_registrar_cambio();
+
+DROP TRIGGER IF EXISTS tr_hist_ant_patologicos ON antecedentes_patologicos;
 CREATE TRIGGER tr_hist_ant_patologicos AFTER UPDATE ON antecedentes_patologicos FOR EACH ROW EXECUTE FUNCTION fn_registrar_cambio();
+
+DROP TRIGGER IF EXISTS tr_hist_ant_no_patologicos ON antecedentes_no_patologicos;
 CREATE TRIGGER tr_hist_ant_no_patologicos AFTER UPDATE ON antecedentes_no_patologicos FOR EACH ROW EXECUTE FUNCTION fn_registrar_cambio();
+
+DROP TRIGGER IF EXISTS tr_hist_ant_ginecoobs ON antecedentes_ginecoobstetricos;
 CREATE TRIGGER tr_hist_ant_ginecoobs AFTER UPDATE ON antecedentes_ginecoobstetricos FOR EACH ROW EXECUTE FUNCTION fn_registrar_cambio();
+
+DROP TRIGGER IF EXISTS tr_hist_inmunizaciones ON inmunizaciones;
 CREATE TRIGGER tr_hist_inmunizaciones AFTER UPDATE ON inmunizaciones FOR EACH ROW EXECUTE FUNCTION fn_registrar_cambio();
+
+DROP TRIGGER IF EXISTS tr_hist_referencias ON referencias_medicas;
 CREATE TRIGGER tr_hist_referencias AFTER UPDATE ON referencias_medicas FOR EACH ROW EXECUTE FUNCTION fn_registrar_cambio();
 
 -- ==========================================
@@ -159,6 +177,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS tr_bloqueo_por_intentos ON usuarios_sistema;
 CREATE TRIGGER tr_bloqueo_por_intentos
 BEFORE UPDATE ON usuarios_sistema
 FOR EACH ROW EXECUTE FUNCTION fn_bloqueo_por_intentos();
@@ -177,6 +196,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS tr_alerta_incidente_critico ON auditoria_accesos;
 CREATE TRIGGER tr_alerta_incidente_critico
 AFTER INSERT ON auditoria_accesos
 FOR EACH ROW EXECUTE FUNCTION fn_alerta_incidente_critico();
@@ -192,6 +212,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS tr_incidentes_no_delete ON incidentes_seguridad;
 CREATE TRIGGER tr_incidentes_no_delete
 BEFORE DELETE ON incidentes_seguridad
 FOR EACH ROW EXECUTE FUNCTION fn_incidentes_no_delete();
@@ -217,37 +238,40 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+DROP TRIGGER IF EXISTS tr_registro_borrado_pacientes ON pacientes;
 CREATE TRIGGER tr_registro_borrado_pacientes
 AFTER UPDATE ON pacientes
 FOR EACH ROW EXECUTE FUNCTION fn_registro_borrado_logico();
 
+DROP TRIGGER IF EXISTS tr_registro_borrado_alergias ON alergias;
 CREATE TRIGGER tr_registro_borrado_alergias
 AFTER UPDATE ON alergias
 FOR EACH ROW EXECUTE FUNCTION fn_registro_borrado_logico();
 
+DROP TRIGGER IF EXISTS tr_registro_borrado_ant_heredofam ON antecedentes_heredofamiliares;
 CREATE TRIGGER tr_registro_borrado_ant_heredofam
 AFTER UPDATE ON antecedentes_heredofamiliares
 FOR EACH ROW EXECUTE FUNCTION fn_registro_borrado_logico();
 
+DROP TRIGGER IF EXISTS tr_registro_borrado_ant_patologicos ON antecedentes_patologicos;
 CREATE TRIGGER tr_registro_borrado_ant_patologicos
 AFTER UPDATE ON antecedentes_patologicos
 FOR EACH ROW EXECUTE FUNCTION fn_registro_borrado_logico();
 
+DROP TRIGGER IF EXISTS tr_registro_borrado_ant_no_patologicos ON antecedentes_no_patologicos;
 CREATE TRIGGER tr_registro_borrado_ant_no_patologicos
 AFTER UPDATE ON antecedentes_no_patologicos
 FOR EACH ROW EXECUTE FUNCTION fn_registro_borrado_logico();
 
+DROP TRIGGER IF EXISTS tr_registro_borrado_ant_ginecoobs ON antecedentes_ginecoobstetricos;
 CREATE TRIGGER tr_registro_borrado_ant_ginecoobs
 AFTER UPDATE ON antecedentes_ginecoobstetricos
 FOR EACH ROW EXECUTE FUNCTION fn_registro_borrado_logico();
 
+DROP TRIGGER IF EXISTS tr_registro_borrado_inmunizaciones ON inmunizaciones;
 CREATE TRIGGER tr_registro_borrado_inmunizaciones
-AFTER UPDATE ON inmunizaciones
-FOR EACH ROW EXECUTE FUNCTION fn_registro_borrado_logico();
-
-CREATE TRIGGER tr_registro_borrado_referencias
-AFTER UPDATE ON referencias_medicas
-FOR EACH ROW EXECUTE FUNCTION fn_registro_borrado_logico();
+    AFTER UPDATE ON inmunizaciones
+    FOR EACH ROW EXECUTE FUNCTION fn_registro_borrado_logico();
 
 
 -- ==========================================
