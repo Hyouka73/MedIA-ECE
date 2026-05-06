@@ -224,7 +224,7 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
     # REGLA: Pedir 2FA si tiene TOTP configurado Y (es nueva IP O fue desbloqueada)
     es_ip_conocida = await _is_ip_trusted(db, user.id_usuario, ip_cliente)
     
-    if user.totp_secret and user.totp_confirmed and (not es_ip_conocida or fue_desbloqueada):
+    if user.requires_2fa and user.totp_secret and user.totp_confirmed and (not es_ip_conocida or fue_desbloqueada):
         temp_token = create_access_token(
             {"sub": str(user.id_usuario), "rol": "PENDING_2FA", "email": user.email},
             expires_delta=300
