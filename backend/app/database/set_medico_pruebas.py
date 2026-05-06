@@ -1,11 +1,13 @@
-# seeds/seed_medico_pruebas.py
+# backend/app/database/set_medico_pruebas.py
 import uuid
-from datetime import date, datetime, timezone
+import asyncio
+from datetime import date
 from passlib.context import CryptContext
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
-# Asume que tienes tu engine/SessionLocal configurado
-from app.database import SessionLocal
+# Importar configuración asíncrona
+from app.database.session import AsyncSessionLocal
 from app.models import (
     CatEstado, CatMunicipio, CatLocalidad, CatEspecialidadMedica,
     CatModulo, Rol, PermisoRol, JurisdiccionSanitaria, Establecimiento,
@@ -15,22 +17,25 @@ from app.models import (
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# UUIDs fijos para facilitar referencias en otros seeds
+# UUIDs fijos
 ID_PERSONA_MEDICO      = uuid.UUID("aaaaaaaa-0000-0000-0000-000000000001")
 ID_USUARIO_MEDICO      = uuid.UUID("bbbbbbbb-0000-0000-0000-000000000001")
 ID_ESTABLECIMIENTO_DEV = uuid.UUID("00000000-0000-0000-0000-000000000001")
 
 
-def seed_catalogos(db: Session) -> None:
+async def seed_catalogos(db: AsyncSession) -> None:
     """Catálogos geográficos y clínicos mínimos."""
-
-    if not db.get(CatEstado, "07"):
+    
+    estado = await db.get(CatEstado, "07")
+    if not estado:
         db.add(CatEstado(id_estado="07", nombre="Chiapas"))
 
-    if not db.get(CatMunicipio, "07101"):
+    municipio = await db.get(CatMunicipio, "07101")
+    if not municipio:
         db.add(CatMunicipio(id_municipio="07101", id_estado="07", nombre="Tuxtla Gutiérrez"))
 
-    if not db.get(CatLocalidad, "070101001"):
+    localidad = await db.get(CatLocalidad, "070101001")
+    if not localidad:
         db.add(CatLocalidad(
             id_localidad="070101001",
             id_municipio="07101",
@@ -38,7 +43,8 @@ def seed_catalogos(db: Session) -> None:
             ambito="Urbano",
         ))
 
-    if not db.query(CatEspecialidadMedica).filter_by(nombre="Medicina General").first():
+    especialidad = await db.execute(select(CatEspecialidadMedica).filter_by(nombre="Medicina General"))
+    if not especialidad.scalars().first():
         db.add(CatEspecialidadMedica(id_especialidad=1, nombre="Medicina General"))
 
     modulos = [
@@ -50,16 +56,17 @@ def seed_catalogos(db: Session) -> None:
         ("AUDITORIA",    "Auditoría",             "Bitácora de accesos"),
     ]
     for codigo, nombre, descripcion in modulos:
-        if not db.query(CatModulo).filter_by(codigo=codigo).first():
+        mod = await db.execute(select(CatModulo).filter_by(codigo=codigo))
+        if not mod.scalars().first():
             db.add(CatModulo(codigo=codigo, nombre=nombre, descripcion=descripcion))
 
-    db.flush()  # Para que los IDs de módulos estén disponibles
+    await db.flush()
 
 
-def seed_rol_medico(db: Session) -> Rol:
+async def seed_rol_medico(db: AsyncSession) -> Rol:
     """Rol MEDICO_GENERAL con permisos sobre módulos clínicos."""
-
-    rol = db.query(Rol).filter_by(codigo="MEDICO_GENERAL").first()
+    res = await db.execute(select(Rol).filter_by(codigo="MEDICO_GENERAL"))
+    rol = res.scalars().first()
     if not rol:
         rol = Rol(
             codigo="MEDICO_GENERAL",
@@ -67,40 +74,41 @@ def seed_rol_medico(db: Session) -> Rol:
             descripcion="Médico con acceso completo al acto médico",
         )
         db.add(rol)
-        db.flush()
+        await db.flush()
 
     modulos_clinicos = ["EXPEDIENTE", "CONSULTA", "PRESCRIPCION", "REFERENCIA", "LABORATORIO"]
     for codigo in modulos_clinicos:
-        modulo = db.query(CatModulo).filter_by(codigo=codigo).first()
+        mod_res = await db.execute(select(CatModulo).filter_by(codigo=codigo))
+        modulo = mod_res.scalars().first()
         if modulo:
-            existe = db.query(PermisoRol).filter_by(
+            perm_res = await db.execute(select(PermisoRol).filter_by(
                 id_rol=rol.id_rol, id_modulo=modulo.id_modulo
-            ).first()
-            if not existe:
+            ))
+            if not perm_res.scalars().first():
                 db.add(PermisoRol(
                     id_rol=rol.id_rol,
                     id_modulo=modulo.id_modulo,
                     puede_leer=True,
                     puede_crear=True,
                     puede_editar=True,
-                    puede_eliminar=False,  # El médico no borra, solo borrado lógico
+                    puede_eliminar=False,
                 ))
     return rol
 
 
-def seed_establecimiento(db: Session) -> Establecimiento:
+async def seed_establecimiento(db: AsyncSession) -> Establecimiento:
     """Jurisdicción y establecimiento de desarrollo."""
-
-    jurisdiccion = db.query(JurisdiccionSanitaria).filter_by(num_jurisdiccion=1).first()
+    res = await db.execute(select(JurisdiccionSanitaria).filter_by(num_jurisdiccion=1))
+    jurisdiccion = res.scalars().first()
     if not jurisdiccion:
         jurisdiccion = JurisdiccionSanitaria(
             nombre="Jurisdicción Sanitaria I — Tuxtla Gutiérrez",
             num_jurisdiccion=1,
         )
         db.add(jurisdiccion)
-        db.flush()
+        await db.flush()
 
-    estab = db.get(Establecimiento, ID_ESTABLECIMIENTO_DEV)
+    estab = await db.get(Establecimiento, ID_ESTABLECIMIENTO_DEV)
     if not estab:
         estab = Establecimiento(
             id_establecimiento=ID_ESTABLECIMIENTO_DEV,
@@ -111,14 +119,14 @@ def seed_establecimiento(db: Session) -> Establecimiento:
             nivel_atencion=1,
         )
         db.add(estab)
-        db.flush()
+        await db.flush()
 
-    especialidad = db.get(CatEspecialidadMedica, 1)
-    if especialidad:
-        existe = db.query(EstablecimientoEspecialidad).filter_by(
+    res_esp = await db.get(CatEspecialidadMedica, 1)
+    if res_esp:
+        res_ee = await db.execute(select(EstablecimientoEspecialidad).filter_by(
             id_establecimiento=ID_ESTABLECIMIENTO_DEV, id_especialidad=1
-        ).first()
-        if not existe:
+        ))
+        if not res_ee.scalars().first():
             db.add(EstablecimientoEspecialidad(
                 id_establecimiento=ID_ESTABLECIMIENTO_DEV,
                 id_especialidad=1,
@@ -128,10 +136,9 @@ def seed_establecimiento(db: Session) -> Establecimiento:
     return estab
 
 
-def seed_medico(db: Session, rol: Rol) -> UsuarioSistema:
+async def seed_medico(db: AsyncSession, rol: Rol) -> UsuarioSistema:
     """Persona + Usuario del médico de pruebas."""
-
-    persona = db.get(Persona, ID_PERSONA_MEDICO)
+    persona = await db.get(Persona, ID_PERSONA_MEDICO)
     if not persona:
         persona = Persona(
             id_persona=ID_PERSONA_MEDICO,
@@ -146,9 +153,9 @@ def seed_medico(db: Session, rol: Rol) -> UsuarioSistema:
             telefono="9611234567",
         )
         db.add(persona)
-        db.flush()
+        await db.flush()
 
-    usuario = db.get(UsuarioSistema, ID_USUARIO_MEDICO)
+    usuario = await db.get(UsuarioSistema, ID_USUARIO_MEDICO)
     if not usuario:
         usuario = UsuarioSistema(
             id_usuario=ID_USUARIO_MEDICO,
@@ -157,61 +164,54 @@ def seed_medico(db: Session, rol: Rol) -> UsuarioSistema:
             password_hash=pwd_context.hash("Test1234!"),
             id_rol=rol.id_rol,
             cedula_profesional="CED-12345678",
-            requires_2fa=False,   # Solo dev — en prod debe ser True
+            requires_2fa=False,
             activo=True,
         )
         db.add(usuario)
-        db.flush()
+        await db.flush()
 
     return usuario
 
 
-def seed_asignaciones(db: Session) -> None:
+async def seed_asignaciones(db: AsyncSession) -> None:
     """Vincula al médico con el establecimiento y la especialidad."""
-
-    existe_estab = db.query(UsuarioEstablecimiento).filter_by(
+    res_ue = await db.execute(select(UsuarioEstablecimiento).filter_by(
         id_usuario=ID_USUARIO_MEDICO,
         id_establecimiento=ID_ESTABLECIMIENTO_DEV,
-    ).first()
-    if not existe_estab:
+    ))
+    if not res_ue.scalars().first():
         db.add(UsuarioEstablecimiento(
             id_usuario=ID_USUARIO_MEDICO,
             id_establecimiento=ID_ESTABLECIMIENTO_DEV,
             es_principal=True,
         ))
 
-    existe_esp = db.query(PermisoEspecialidad).filter_by(
+    res_pe = await db.execute(select(PermisoEspecialidad).filter_by(
         id_usuario=ID_USUARIO_MEDICO,
         id_especialidad=1,
-    ).first()
-    if not existe_esp:
+    ))
+    if not res_pe.scalars().first():
         db.add(PermisoEspecialidad(
             id_usuario=ID_USUARIO_MEDICO,
             id_especialidad=1,
         ))
 
 
-def run_seed() -> None:
-    db: Session = SessionLocal()
-    try:
-        seed_catalogos(db)
-        rol = seed_rol_medico(db)
-        seed_establecimiento(db)
-        seed_medico(db, rol)
-        seed_asignaciones(db)
-        db.commit()
-        print("✅  Seed completado.")
-        print("    Email:    dr.martinez.pruebas@medsys.local")
-        print("    Password: Test1234!")
-        print("    Cédula:   CED-12345678")
-        print("    2FA:      desactivado (solo dev)")
-    except Exception as exc:
-        db.rollback()
-        print(f"❌  Seed fallido: {exc}")
-        raise
-    finally:
-        db.close()
+async def run_seed() -> None:
+    async with AsyncSessionLocal() as db:
+        try:
+            await seed_catalogos(db)
+            rol = await seed_rol_medico(db)
+            await seed_establecimiento(db)
+            await seed_medico(db, rol)
+            await seed_asignaciones(db)
+            await db.commit()
+            print("✅  Seed completado.")
+        except Exception as exc:
+            await db.rollback()
+            print(f"❌  Seed fallido: {exc}")
+            raise
 
 
 if __name__ == "__main__":
-    run_seed()
+    asyncio.run(run_seed())
