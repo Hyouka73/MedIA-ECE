@@ -1,233 +1,165 @@
-# MedSys — Expediente Clínico Electrónico
+# 🏥 MedSys / MedIA — Expediente Clínico Electrónico (ECE)
 
 <p align="center">
-  <img src="frontend/public/logo.png" width="100" alt="MedSys Logo" />
+  <img src="frontend/public/logo.png" width="120" alt="MedSys Logo" />
 </p>
 
-> **Repositorio:** https://github.com/Hyouka73/MedSys-ECE &nbsp;|&nbsp; **Rama de trabajo:** `develop`
+<p align="center">
+  <strong>Sistema Integral de Gestión Hospitalaria y Expediente Clínico Electrónico Normativo</strong><br>
+  <em>Desarrollado como proyecto académico en colaboración con la UNACH para el Distrito de Salud I (Tuxtla Gutiérrez, Chiapas).</em>
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Python-3.11-blue?logo=python" alt="Python 3.11" />
+  <img src="https://img.shields.io/badge/FastAPI-0.100+-009688?logo=fastapi" alt="FastAPI" />
+  <img src="https://img.shields.io/badge/PostgreSQL-15-336791?logo=postgresql" alt="PostgreSQL 15" />
+  <img src="https://img.shields.io/badge/React-18-61DAFB?logo=react" alt="React 18" />
+  <img src="https://img.shields.io/badge/Vite-5-646CFF?logo=vite" alt="Vite" />
+  <img src="https://img.shields.io/badge/TailwindCSS-3-38B2AC?logo=tailwind-css" alt="Tailwind CSS" />
+  <img src="https://img.shields.io/badge/Normativa-NOM--004--SSA3--2012-red" alt="NOM-004" />
+</p>
 
 ---
 
-## 🚀 Quick Start — Para el equipo
+## 📋 Descripción del Proyecto
+
+**MedSys-ECE** es una plataforma web integral de Expediente Clínico Electrónico diseñada para digitalizar, estructurar y salvaguardar la información médica de pacientes en centros de salud y hospitales de primer y segundo nivel. 
+
+El sistema fue concebido bajo estrictos estándares de ingeniería de software médico y apego riguroso al marco legal mexicano de salud digital:
+- **NOM-004-SSA3-2012:** Del expediente clínico (estructura de notas médicas SOAP, historia clínica, consentimientos y notas de evolución).
+- **NOM-024-SSA3-2012:** Sistemas de información de registro electrónico para la salud e interoperabilidad.
+- **NOM-151-SCFI-2016:** Requisitos que deben observarse para la conservación de mensajes de datos y digitalización de documentos (trazabilidad y no repudio).
+
+---
+
+## 📸 Demostración Visual y Capturas del Sistema
+
+> 💡 **Vistas recomendadas para evaluación de portafolio:**
+> 1. **Módulo de Consulta & Nota SOAP:** Formulario clínico interactivo para captura de signos vitales, somatometría, diagnóstico CIE-10 y plan terapéutico.
+> 2. **Expediente Clínico Centralizado:** Línea de tiempo cronológica de encuentros clínicos, antecedentes heredofamiliares y patológicos.
+> 3. **Panel de Autenticación 2FA (TOTP):** Pantalla de inicio de sesión con segundo factor de autenticación basado en código temporal (Google Authenticator / Authy).
+> 4. **Módulo de Auditoría Forense:** Registro inmutable de eventos de acceso, modificación y exportación con captura de IP, User-Agent y huella digital del usuario.
+
+*(Para incluir capturas en el repositorio, añade las imágenes en `docs/screenshots/` y enlázalas con `![Vista](docs/screenshots/ejemplo.png)`).*
+
+---
+
+## ⚡ Características Principales
+
+- **Gestión Clínica Completa (NOM-004-SSA3-2012):**
+  - Registro de pacientes con validación de CURP y homoclave.
+  - Creación y consulta de notas médicas bajo metodología SOAP (Subjetivo, Objetivo, Análisis, Plan).
+  - Catálogo de diagnósticos estandarizados CIE-10 y catálogo de medicamentos.
+  - Generación de recetas médicas y reportes clínicos en PDF vectorizado mediante WeasyPrint.
+- **Seguridad Médica y Control de Acceso (RBAC):**
+  - Control de acceso granular por roles: Administrador, Médico General, Especialista, Enfermería, Recepción y Farmacia.
+  - Autenticación multifactor obligatoria (2FA TOTP con cifrado Fernet).
+  - Manejo seguro de sesiones: Tokens JWT en memoria + Refresh Tokens rotativos en cookies `HttpOnly; Secure; SameSite=Strict`.
+  - Hashing de contraseñas de alta resistencia con **Argon2id**.
+  - Whitelist de sesiones activas (`jti`) y revocación inmediata de tokens.
+- **Trazabilidad Forense Inmutable:**
+  - Middleware de auditoría que registra cada lectura, escritura o intento de acceso sobre expedientes médicos para cumplimiento legal.
+  - Detección de intentos de fuerza bruta con bloqueo automático de cuentas por tiempo definido.
+
+---
+
+## 🛠️ Stack Tecnológico
+
+| Capa | Tecnologías / Librerías |
+|:---|:---|
+| **Frontend** | React 18, Vite, Tailwind CSS, Lucide React, Context API |
+| **Backend API** | Python 3.11, FastAPI, Pydantic v2, SQLAlchemy (Async / asyncpg), Alembic |
+| **Base de Datos** | PostgreSQL 15 (40 tablas normalizadas, triggers de integridad y vistas analíticas) |
+| **Seguridad & Auth** | Passlib (Argon2id), PyJWT, Cryptography (Fernet), PyOTP, SlowAPI (Rate Limiting) |
+| **Generación de Reportes** | WeasyPrint, Jinja2 Templates (PDFs clínicos normativos) |
+| **Infraestructura Local** | Docker, Docker Compose, Adminer |
+
+---
+
+## 🏛️ Estructura del Código
+
+```text
+MedSys-ECE/
+├── backend/                  # API REST construida con FastAPI
+│   ├── app/
+│   │   ├── modules/          # Arquitectura modular (auth, personas, pacientes, notas...)
+│   │   ├── core/             # Configuración, seguridad criptográfica y dependencias
+│   │   ├── database/         # Sesión asíncrona de SQLAlchemy
+│   │   └── middleware/       # Middleware de auditoría forense
+│   ├── requirements.txt      # Dependencias de Python
+│   └── alembic.ini           # Control de versiones de base de datos
+├── frontend/                 # SPA construida con React + Vite
+│   ├── src/
+│   │   ├── components/       # Componentes visuales y de layout
+│   │   ├── context/          # Contexto de autenticación y permisos
+│   │   ├── pages/            # Vistas clínicas, consultas y administración
+│   │   └── utils/            # RBAC y validaciones normativas
+├── database/                 # Scripts DDL y semillas ejecutadas por Docker
+│   ├── 01_schema.sql         # Definición de 40 tablas relacionales
+│   ├── 02_triggers.sql       # Triggers normativos y vistas
+│   └── seeds/                # Catálogos geográficos (INEGI) y del sistema
+└── docker-compose.yml        # Orquestación de base de datos local y Adminer
+```
+
+---
+
+## 🚀 Guía de Instalación y Ejecución Local
+
+### Prerrequisitos
+- **Docker Desktop** instalado y en ejecución
+- **Python 3.11+**
+- **Node.js 18+** y npm
 
 ### 1. Clonar el repositorio
-
 ```bash
-git clone https://github.com/Hyouka73/MedSys-ECE.git
-cd MedSys-ECE
+git clone https://github.com/Hyouka73/MedIA-ECE.git
+cd MedIA-ECE
 ```
 
-### 2. Crear tu rama de trabajo (a partir de `develop`)
-
-```bash
-git checkout develop
-git pull origin develop
-git checkout -b feature/p{numero}-nombre-de-tu-tarea
-# Ejemplos:
-#   feature/p2-seeds-geograficos
-#   feature/p3-backend-pacientes
-```
-
-### 3. Configurar variables de entorno
-
-El repo incluye un `.env.example` — **nunca subas el `.env` real.**
-
+### 2. Configurar Variables de Entorno
 ```bash
 # Backend
 cp backend/.env.example backend/.env
-# Edita backend/.env con tus valores (ver instrucciones dentro del archivo)
 
 # Frontend
 cp frontend/.env.example frontend/.env
 ```
+*(Edita `backend/.env` con tus claves locales si deseas personalizar puertos o credenciales).*
 
-> **El archivo `.env` real te lo comparte el Lead (P1) por canal privado (WhatsApp/chat).**  
-> Contiene credenciales reales de la BD de desarrollo. No lo compartas ni lo subas.
-
-### 4. Levantar el entorno de desarrollo
-
+### 3. Iniciar la Base de Datos (Docker)
 ```bash
-# Opción rápida (Windows PowerShell)
-.\scripts\launch_dev.ps1
+docker compose up -d
+```
+Esto levantará PostgreSQL 15 en el puerto `5432` y aplicará automáticamente los esquemas y catálogos de `database/`.
 
-# Manual
-docker compose up -d          # Inicia PostgreSQL
+### 4. Iniciar el Backend (FastAPI)
+```bash
 cd backend
-.\venv\Scripts\Activate.ps1   # Activar venv (Windows)
+python -m venv venv
+
+# En Windows:
+.\venv\Scripts\Activate.ps1
+# En Linux/macOS:
+source venv/bin/activate
+
 pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
+```
+- API y Documentación interactiva Swagger: `http://localhost:8000/docs`
+- Especificación OpenAPI (ReDoc): `http://localhost:8000/redoc`
 
-# Frontend (otra terminal)
+### 5. Iniciar el Frontend (React)
+En una terminal separada:
+```bash
 cd frontend
 npm install
 npm run dev
 ```
-
-App disponible en: http://localhost:5173
-
-### 5. Abrir Pull Request cuando termines
-
-Tu PR debe apuntar hacia la rama **`develop`** (no `main`).  
-El Lead (P1) revisará y aprobará los PRs.
+- Aplicación web: `http://localhost:5173`
 
 ---
 
-
-**Distrito de Salud I · Tuxtla Gutiérrez, Chiapas**
-
-MedSys es un sistema de Expediente Clínico Electrónico (ECE) desarrollado para la UNACH. Cumple **NOM-004-SSA3-2012**, **NOM-024-SSA3-2012** y **NOM-151-SCFI-2016**.
-
-## Arquitectura
-| Capa | Tecnología |
-|------|------------|
-| Frontend | React 18 + Vite + Tailwind CSS |
-| Backend | Python 3.11 + FastAPI + SQLAlchemy async |
-| Base de Datos | PostgreSQL 15 (Docker en dev, Azure Flexible Server en prod) |
-| Autenticación | JWT en memoria + Refresh Token (HttpOnly cookie) + 2FA TOTP + Argon2id + Rate Limiting |
-
-```
-d:\MEDSYS\
-├── backend/             # API FastAPI (Python)
-│   ├── app/
-│   │   ├── modules/     # Un módulo por dominio (auth, personas, pacientes…)
-│   │   ├── core/        # Config, seguridad JWT, dependencias DI
-│   │   ├── database/    # Sesión SQLAlchemy async
-│   │   └── middleware/  # Auditoría forense
-│   ├── requirements.txt
-│   └── alembic.ini
-├── frontend/            # SPA React + Vite
-│   └── src/
-│       ├── components/  # layout/, ui/ (Badge, Button, Card…)
-│       ├── context/     # AuthContext (JWT en memoria)
-│       ├── pages/       # auth/, dashboard/ …
-│       └── utils/       # permissions.js (RBAC)
-├── database/            # SQL ejecutado por Docker al iniciar
-│   ├── 01_schema.sql    # DDL 40 tablas
-│   ├── 02_triggers.sql  # 6 triggers normativos + 3 vistas
-│   ├── 03_seeds_geograficos.sql
-│   ├── 04_seeds_clinicos.sql
-│   ├── 05_seeds_sistema.sql  # Roles, módulos, permisos RBAC
-│   └── 06_seeds_superadmin.sql
-├── scripts/             # Automatización
-│   ├── setup_windows.ps1   # ← correr esto en la primera vez
-│   └── deploy_azure.ps1    # Referencia Azure CLI
-├── docker-compose.yml
-└── README.md
-```
-
----
-
-## Arranque Rápido (Windows)
-
-**Primera vez (instala todo):**
-```powershell
-.\scripts\setup_windows.ps1
-```
-
-**Arranque diario (3 terminales separadas):**
-```powershell
-# Opción A (Elegir esta si quieres un solo comando para abrir las 3 terminales):
-.\scripts\launch_dev.ps1
-
-# Opción B (Manual):
-# 1. Base de datos
-docker compose up -d
-# 2. Backend (FastAPI)
-cd backend; .\venv\Scripts\Activate.ps1; uvicorn app.main:app --reload
-# 3. Frontend (React)
-cd frontend; npm run dev
-```
-
-| Servicio | URL |
-|----------|-----|
-| Frontend | http://localhost:5173 |
-| Backend Swagger | http://localhost:8000/docs |
-| Adminer (BD Visual) | http://localhost:8080 |
-
-### 🛠️ Acceso a Adminer (Visualizar BD)
-Para ver las tablas y datos del ECE desde Adminer:
-- **Sistema:** `PostgreSQL`
-- **Servidor:** `MedSys_db_dev` (nombre interno del contenedor)
-- **Usuario:** `MedSys_dev`
-- **Contraseña:** `dev_pass_changeme`
-- **Base de Datos:** `MedSys_db`
-
-## Variables de Env (Locales)
-```bash
-# Ya creados automáticamente por el script de setup:
-backend/.env
-frontend/.env
-```
-Los valores reales en producción se gestionan MedSysnte **Azure Key Vault**.
-
-## Credenciales de Desarrollo
-- Email: `admin@MedSys.local`  
-- Contraseña: `MedSys2026!`
-
-> **Nunca usar estas credenciales en producción.**
-
-
-## Arquitectura
-
-El sistema está dividido en las siguientes capas y tecnologías principales:
-- **Frontend**: React 18, Vite, shadcn/ui.
-- **Backend**: Python 3.11, FastAPI, SQLAlchemy (Pydantic v2).
-- **Base de Datos**: PostgreSQL 15.
-
-Este repositorio está organizado con las siguientes carpetas clave:
-- `/backend`: Código fuente y API de FastAPI.
-- `/frontend`: SPA en React y UI Institucional.
-- `/database`: Migraciones y seeds SQL que Docker ejecuta automáticamente.
-
----
-
-## Arranque Rápido para Desarrollo Local
-
-El entorno local requiere Docker instalado para la base de datos PostgreSQL.
-
-### 1. Variables de Entorno
-Copia las plantillas y reemplaza los valores sensibles (solo local, nunca enviar `.env` a Git):
-```bash
-cp backend/.env.example backend/.env
-cp frontend/.env.example frontend/.env
-```
-
-### 2. Iniciar Servicios
-
-Puedes usar los scripts en la carpeta \`scripts/\` para facilitar el arranque Automático:
-- **Windows**: `.\scripts\setup_windows.ps1`
-- **Linux/Mac**: `./scripts/start_dev.sh`
-
-O ejecutar manualmente:
-```bash
-docker compose up -d
-```
-
-### 3. Migraciones y Semillas (Seeds)
-Las tablas y seeds iniciales (como los catálogos del INEGI y CIE-10) se ejecutarán automáticamente por docker gracias al mapeo del volumen `/database`.
-
-Si necesitas usar scripts de backend manualmente:
-```bash
-./scripts/migrate.sh   # Corre migraciones de Alembic si aplica
-./scripts/seed.sh      # Ejecuta python localmente para inicializar.
-```
-
-## Credenciales de Desarrollo
-- Usuario Superadmin por defecto: `admin@MedSys.local`
-- Contraseña por defecto: `MedSys2026!` (Deberá cambiarse tras el primer ingreso).
-
-**Importante:** Nunca usar estas credenciales en producción.
-
----
-
-## 📝 Pendientes
-
-| # | Área | Descripción | Responsable |
-|---|---|---|---|
-| 1 | Catálogos | CIE-10 (~14,400 códigos DGIS) y Cuadro Básico completo | P2 |
-| 2 | Auditoría | Vista de `sesiones_activas` en módulo admin — detección de IP inusual | P3 |
-| 3 | Seguridad | Cifrado Fernet del `totp_secret` en BD (actualmente texto plano) | P3 |
-| 4 | Monitoreo | Integrar `azure-monitor-opentelemetry` al módulo de Auditoría | P4-P5 |
-| 5 | Geografía | `convert_localidades.py` — importar catálogo INEGI completo (~5,000 localidades) | P2 |
-
-> Ver `NOTAS_PENDIENTES.md` para detalle y estado actualizado.
+## 👥 Tipo de Proyecto y Reconocimientos
+- **Naturaleza:** Proyecto Académico Universitario (UNACH).
+- **Propósito:** Prototipado y desarrollo de un sistema de salud público adaptado a las necesidades operativas de centros de atención primaria en el estado de Chiapas, México.
+- **Desarrollador Principal:** [Hyouka73](https://github.com/Hyouka73)

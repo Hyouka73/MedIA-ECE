@@ -1,8 +1,11 @@
 import asyncio
+import os
 import asyncpg
 
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://MedSys_dev:your_password@localhost:5432/MedSys_db")
+
 async def check():
-    conn = await asyncpg.connect('postgresql://MedSys_dev:dev_pass_changeme@localhost:5432/MedSys_db')
+    conn = await asyncpg.connect(DATABASE_URL)
     result = await conn.fetchrow('SELECT * FROM pacientes WHERE id_paciente = $1', '48d6bb01-cf42-4797-ba38-7527936f8968')
     print('Paciente:', result)
     if result:

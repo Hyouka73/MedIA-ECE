@@ -1,8 +1,9 @@
 import asyncio
+import os
 import asyncpg
 from uuid import uuid4
 
-DATABASE_URL = "postgresql://MedSys_dev:dev_pass_changeme@localhost:5432/MedSys_db"
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://MedSys_dev:your_password@localhost:5432/MedSys_db")
 
 async def create_demo_patient():
     try:

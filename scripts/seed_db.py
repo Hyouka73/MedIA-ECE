@@ -2,7 +2,7 @@ import asyncio
 import asyncpg
 import os
 
-DATABASE_URL = "postgresql://MedSys_dev:dev_pass_changeme@localhost:5432/MedSys_db"
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://MedSys_dev:your_password@localhost:5432/MedSys_db")
 
 sql_files = [
     "database/01_schema.sql",
