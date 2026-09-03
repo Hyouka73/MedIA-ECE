@@ -32,18 +32,6 @@ El sistema fue concebido bajo estrictos estándares de ingeniería de software m
 
 ---
 
-## 📸 Demostración Visual y Capturas del Sistema
-
-> 💡 **Vistas recomendadas para evaluación de portafolio:**
-> 1. **Módulo de Consulta & Nota SOAP:** Formulario clínico interactivo para captura de signos vitales, somatometría, diagnóstico CIE-10 y plan terapéutico.
-> 2. **Expediente Clínico Centralizado:** Línea de tiempo cronológica de encuentros clínicos, antecedentes heredofamiliares y patológicos.
-> 3. **Panel de Autenticación 2FA (TOTP):** Pantalla de inicio de sesión con segundo factor de autenticación basado en código temporal (Google Authenticator / Authy).
-> 4. **Módulo de Auditoría Forense:** Registro inmutable de eventos de acceso, modificación y exportación con captura de IP, User-Agent y huella digital del usuario.
-
-*(Para incluir capturas en el repositorio, añade las imágenes en `docs/screenshots/` y enlázalas con `![Vista](docs/screenshots/ejemplo.png)`).*
-
----
-
 ## ⚡ Características Principales
 
 - **Gestión Clínica Completa (NOM-004-SSA3-2012):**
